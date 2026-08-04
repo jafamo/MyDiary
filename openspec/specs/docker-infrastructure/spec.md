@@ -5,7 +5,7 @@ Entorno de contenedores Docker Compose del proyecto (servicios, red, volúmenes,
 ## Requirements
 
 ### Requirement: Servicios Docker Compose con prefijo de nombre
-El sistema SHALL definir en `docker-compose.yml` los servicios `diary-nginx`, `diary-php`, `diary-postgres`, `diary-redis` y `diary-messenger-worker`, cada uno con `container_name` prefijado por `diary-`. `diary-messenger-worker` SHALL ejecutar `php bin/console messenger:consume async -vv` (no un comando placeholder).
+El sistema SHALL definir en `docker-compose.yml` los servicios `diary-nginx`, `diary-php`, `diary-postgres`, `diary-redis` y `diary-messenger-worker`, cada uno con `container_name` prefijado por `diary-`. `diary-messenger-worker` SHALL ejecutar `php bin/console messenger:consume async scheduler_default -vv` (no un comando placeholder), consumiendo tanto el transporte asíncrono de la aplicación como el del Scheduler.
 
 #### Scenario: Levantar el stack
 - **WHEN** se ejecuta `docker compose up -d` (o `make up`) con un `.env` válido
@@ -13,7 +13,11 @@ El sistema SHALL definir en `docker-compose.yml` los servicios `diary-nginx`, `d
 
 #### Scenario: Worker de Messenger activo
 - **WHEN** se inspecciona el proceso principal de `diary-messenger-worker`
-- **THEN** corresponde a `php bin/console messenger:consume async -vv`, no a `tail -f /dev/null`
+- **THEN** corresponde a `php bin/console messenger:consume async scheduler_default -vv`, no a `tail -f /dev/null`
+
+#### Scenario: Worker consume también el Scheduler
+- **WHEN** llega la hora configurada del disparo diario (21:00 Europe/Madrid)
+- **THEN** `diary-messenger-worker` es el proceso que recibe y ejecuta el mensaje del Scheduler, sin necesidad de un contenedor adicional
 
 ### Requirement: Acceso único a Symfony por el puerto 9008
 El sistema SHALL publicar únicamente el puerto del servicio `diary-nginx` hacia el host, mapeado al 9008 por defecto (configurable vía `.env`). Ningún otro servicio SHALL publicar puertos al host por defecto. `diary-nginx` SHALL servir la aplicación Symfony instalada en `public/`, no una respuesta 404 por ausencia de código.

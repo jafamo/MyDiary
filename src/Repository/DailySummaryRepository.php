@@ -17,4 +17,9 @@ class DailySummaryRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, DailySummary::class);
     }
+
+    public function findOneByDate(\DateTimeImmutable $date): ?DailySummary
+    {
+        return $this->findOneBy(['date' => $date]);
+    }
 }

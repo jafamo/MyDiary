@@ -48,7 +48,7 @@ services:
       args:
         PHP_VERSION: ${PHP_VERSION}
     container_name: diary-messenger-worker
-    command: ["php", "bin/console", "messenger:consume", "async", "-vv"]
+    command: ["php", "bin/console", "messenger:consume", "async", "scheduler_default", "-vv"]
     volumes:
       - ./:/var/www/html
       - ${DATA_PATH}/audio:/var/www/html/var/audio

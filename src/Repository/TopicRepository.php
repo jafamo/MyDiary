@@ -17,4 +17,9 @@ class TopicRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, Topic::class);
     }
+
+    public function findOneByName(string $name): ?Topic
+    {
+        return $this->findOneBy(['name' => $name]);
+    }
 }
