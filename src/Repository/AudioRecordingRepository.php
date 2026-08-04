@@ -17,4 +17,14 @@ class AudioRecordingRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, AudioRecording::class);
     }
+
+    public function findOneByTelegramMessageId(string $telegramMessageId): ?AudioRecording
+    {
+        return $this->findOneBy(['telegramMessageId' => $telegramMessageId]);
+    }
+
+    public function findOneByTelegramFileUniqueId(string $telegramFileUniqueId): ?AudioRecording
+    {
+        return $this->findOneBy(['telegramFileUniqueId' => $telegramFileUniqueId]);
+    }
 }
