@@ -30,11 +30,16 @@ Aplicación web que recibe notas de voz por Telegram, las transcribe automática
 ### 3.1 Flujo de captura de audio
 1. Usuario envía un audio al bot de Telegram.
 2. Webhook de Symfony recibe la notificación. Si el `chat_id` del update no coincide con `TELEGRAM_AUTHORIZED_CHAT_ID`, se descarta: se responde 200 OK a Telegram (para que no reintente) sin crear ningún registro ni responder al remitente, y se deja constancia en logs (Monolog) para poder revisarlo.
-3. El objeto `voice`/`audio` del update ya trae `duration` (segundos) — se guarda directamente, sin procesar el fichero.
-4. Descarga el fichero de Telegram y lo guarda en el filesystem del servidor.
-5. Se crea un registro `AudioRecording` en BD con estado `PENDING`, usando `telegram_message_id` (con constraint único) para detectar reintentos: si el update ya existe, se responde 200 OK sin crear duplicado ni volver a despachar el mensaje async.
-6. Se responde inmediatamente al usuario en Telegram: *"Audio recibido ✅"* (el webhook debe responder rápido — nada de trabajo pesado síncrono aquí).
-7. Se despacha un mensaje asíncrono (Symfony Messenger) `TranscribeAudioMessage`.
+3. Si `telegram_message_id` ya existe en BD (reintento del propio webhook de Telegram, no reenvío del usuario), se responde 200 OK sin reprocesar nada.
+4. El objeto `voice`/`audio` del update trae `file_unique_id` — identifica el contenido del fichero de audio en sí, estable aunque el usuario reenvíe el mismo audio (incluso a otro chat) o pase el tiempo. Se comprueba si ya existe un `AudioRecording` con ese `telegram_file_unique_id`:
+   - Si existe y su estado es `ERROR`: es un reenvío tras un fallo. Se trata como reintento automático (ver 3.4-bis): se resetea su estado a `PENDING`, se limpian `error_code`/`error_message`, y se despacha un nuevo `TranscribeAudioMessage` para ese mismo `AudioRecording` (no se crea uno nuevo). Se responde *"Reintentando transcripción 🔄"*.
+   - Si existe y su estado es `PENDING` o `TRANSCRIBED`: es un reenvío redundante. Se responde *"Ya tengo este audio 👍"* y no se hace nada más.
+   - Si no existe: continúa el flujo normal (pasos 5-8).
+5. El objeto `voice`/`audio` del update ya trae `duration` (segundos) — se guarda directamente, sin procesar el fichero.
+6. Descarga el fichero de Telegram y lo guarda en el filesystem del servidor.
+7. Se crea un registro `AudioRecording` en BD con estado `PENDING`, guardando `telegram_message_id` y `telegram_file_unique_id` (ambos con constraint único).
+8. Se responde inmediatamente al usuario en Telegram: *"Audio recibido ✅"* (el webhook debe responder rápido — nada de trabajo pesado síncrono aquí).
+9. Se despacha un mensaje asíncrono (Symfony Messenger) `TranscribeAudioMessage`.
 
 ### 3.2 Flujo de transcripción (worker asíncrono)
 1. El `TranscribeAudioMessageHandler` recoge el mensaje.
@@ -42,7 +47,7 @@ Aplicación web que recibe notas de voz por Telegram, las transcribe automática
 3. Guarda el resultado en la entidad `Transcription` (contenido en BD + export a fichero de texto en filesystem).
 4. Actualiza el estado del `AudioRecording` a `TRANSCRIBED`.
 5. Envía al usuario en Telegram un resumen corto de esa transcripción concreta.
-6. **Manejo de errores**: si la llamada al servicio de transcripción falla, Symfony Messenger reintenta el `TranscribeAudioMessage` un número limitado de veces con backoff (`retry_strategy` nativo). Si se agotan los reintentos, `AudioRecording` pasa a estado `ERROR` y se notifica al usuario por Telegram (*"No se pudo transcribir este audio ❌"*). El audio no se pierde: queda visible en la web, con opción de eliminarlo (flujo 3.4).
+6. **Manejo de errores**: si la llamada al servicio de transcripción falla, Symfony Messenger reintenta el `TranscribeAudioMessage` un número limitado de veces con backoff (`retry_strategy` nativo). Si se agotan los reintentos, `AudioRecording` pasa a estado `ERROR`, se guardan `error_code` y `error_message` (ver sección 6) con la causa técnica, y se notifica al usuario por Telegram (*"No se pudo transcribir este audio ❌"*). El audio no se pierde: queda visible en la web con el motivo del error y opción de reintentar o eliminarlo (flujo 3.4-bis).
 
 ### 3.3 Flujo de resumen diario (scheduled, 21:00 Europe/Madrid)
 1. Symfony Scheduler dispara el comando `app:generate-daily-summary` cada día a las 21:00 (timezone Europe/Madrid).
@@ -54,8 +59,17 @@ Aplicación web que recibe notas de voz por Telegram, las transcribe automática
 
 ### 3.4 Edición y eliminación
 - Desde la web se puede editar manualmente el texto de una transcripción.
-- Se puede eliminar una transcripción que no sirva (p. ej. audio inentendible): se borran `AudioRecording`, `Transcription` y los ficheros asociados en filesystem (audio + export de texto) sin dejar rastro. No existe una función de "regenerar desde el audio original" — si el resultado no es válido, el usuario reenvía un audio nuevo con mejor sonido, lo que dispara de nuevo el flujo 3.1.
+- Se puede eliminar una transcripción **ya generada** que no sirva (p. ej. audio inentendible, mala calidad de sonido): se borran `AudioRecording`, `Transcription` y los ficheros asociados en filesystem (audio + export de texto) sin dejar rastro. No existe una función de "regenerar desde el audio original" para este caso — si el resultado no es válido por culpa del propio audio, el usuario reenvía uno nuevo con mejor sonido, lo que dispara de nuevo el flujo 3.1.
 - La BD es la fuente de verdad; el fichero de texto es un export/backup regenerado tras cada edición (no hay doble mantenimiento manual de ambas fuentes).
+
+### 3.4-bis Reintento tras fallo técnico (estado `ERROR`)
+
+Distinto del caso anterior: aquí el audio en sí es válido, pero el servicio de transcripción falló (p. ej. Ollama/Whisper apagado o inaccesible). No se pierde el audio original, así que no hace falta reenviarlo:
+
+- En **Diario**/**Historial**, un `AudioRecording` en estado `ERROR` se muestra junto a su `error_code`/`error_message`, para saber la causa sin mirar logs del servidor.
+- Se ofrece un botón **"Reintentar"** inline, que resetea el `AudioRecording` a `PENDING`, limpia `error_code`/`error_message`, y despacha un nuevo `TranscribeAudioMessage` (relanza el flujo 3.2 sobre el mismo registro).
+- Reenviar el mismo audio por Telegram tiene el mismo efecto de forma automática, gracias al dedupe por `telegram_file_unique_id` (ver 3.1, paso 4).
+- Si tras reintentar sigue fallando, se puede eliminar igualmente el `AudioRecording` (mismo borrado en cascada de 3.4) si se prefiere desistir de ese audio.
 
 ### 3.5 Vistas / menús (navegación vertical, tras login)
 - **Login**
@@ -106,7 +120,8 @@ src/
 │   ├── DiarioController.php
 │   ├── HistorialController.php
 │   ├── EstadisticasController.php
-│   ├── TranscriptionController.php            # editar / eliminar / regenerar
+│   ├── TranscriptionController.php            # editar / eliminar
+│   ├── AudioRecordingController.php           # reintentar (solo AudioRecording en estado ERROR)
 │   ├── SecurityController.php                 # login/logout
 │   └── TelegramWebhookController.php
 ├── Form/
@@ -122,10 +137,13 @@ src/
 |---|---|---|
 | id | int/uuid | PK |
 | telegram_message_id | string | ID del mensaje original de Telegram — **unique**, garantiza idempotencia ante reintentos del webhook |
+| telegram_file_unique_id | string | ID de Telegram estable para el contenido del fichero — **unique**, detecta reenvíos del mismo audio (ver 3.1/3.4-bis) |
 | file_path | string | Ruta del audio en el filesystem |
 | received_at | datetime | |
 | status | enum | `PENDING`, `TRANSCRIBED`, `ERROR` |
 | duration_seconds | int | Viene del campo `duration` del update de Telegram (`voice`/`audio`), no se calcula |
+| error_code | string | nullable. Solo relevante si `status = ERROR`. Código corto (p. ej. `404`, `TIMEOUT`, `SERVICE_UNAVAILABLE`), no necesariamente HTTP — pensado como clave estable, no texto libre |
+| error_message | string | nullable. Solo relevante si `status = ERROR`. Clave/texto asociado al `error_code` (p. ej. `NOT_FOUND`, `OLLAMA_UNREACHABLE`), preparado para poder mapearse a claves de traducción más adelante |
 
 ### `transcription`
 | Campo | Tipo | Notas |
