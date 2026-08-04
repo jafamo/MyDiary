@@ -29,11 +29,12 @@ Aplicación web que recibe notas de voz por Telegram, las transcribe automática
 
 ### 3.1 Flujo de captura de audio
 1. Usuario envía un audio al bot de Telegram.
-2. Webhook de Symfony recibe la notificación. El objeto `voice`/`audio` del update ya trae `duration` (segundos) — se guarda directamente, sin procesar el fichero.
-3. Descarga el fichero de Telegram y lo guarda en el filesystem del servidor.
-4. Se crea un registro `AudioRecording` en BD con estado `PENDING`, usando `telegram_message_id` (con constraint único) para detectar reintentos: si el update ya existe, se responde 200 OK sin crear duplicado ni volver a despachar el mensaje async.
-5. Se responde inmediatamente al usuario en Telegram: *"Audio recibido ✅"* (el webhook debe responder rápido — nada de trabajo pesado síncrono aquí).
-6. Se despacha un mensaje asíncrono (Symfony Messenger) `TranscribeAudioMessage`.
+2. Webhook de Symfony recibe la notificación. Si el `chat_id` del update no coincide con `TELEGRAM_AUTHORIZED_CHAT_ID`, se descarta: se responde 200 OK a Telegram (para que no reintente) sin crear ningún registro ni responder al remitente, y se deja constancia en logs (Monolog) para poder revisarlo.
+3. El objeto `voice`/`audio` del update ya trae `duration` (segundos) — se guarda directamente, sin procesar el fichero.
+4. Descarga el fichero de Telegram y lo guarda en el filesystem del servidor.
+5. Se crea un registro `AudioRecording` en BD con estado `PENDING`, usando `telegram_message_id` (con constraint único) para detectar reintentos: si el update ya existe, se responde 200 OK sin crear duplicado ni volver a despachar el mensaje async.
+6. Se responde inmediatamente al usuario en Telegram: *"Audio recibido ✅"* (el webhook debe responder rápido — nada de trabajo pesado síncrono aquí).
+7. Se despacha un mensaje asíncrono (Symfony Messenger) `TranscribeAudioMessage`.
 
 ### 3.2 Flujo de transcripción (worker asíncrono)
 1. El `TranscribeAudioMessageHandler` recoge el mensaje.
@@ -41,6 +42,7 @@ Aplicación web que recibe notas de voz por Telegram, las transcribe automática
 3. Guarda el resultado en la entidad `Transcription` (contenido en BD + export a fichero de texto en filesystem).
 4. Actualiza el estado del `AudioRecording` a `TRANSCRIBED`.
 5. Envía al usuario en Telegram un resumen corto de esa transcripción concreta.
+6. **Manejo de errores**: si la llamada al servicio de transcripción falla, Symfony Messenger reintenta el `TranscribeAudioMessage` un número limitado de veces con backoff (`retry_strategy` nativo). Si se agotan los reintentos, `AudioRecording` pasa a estado `ERROR` y se notifica al usuario por Telegram (*"No se pudo transcribir este audio ❌"*). El audio no se pierde: queda visible en la web, con opción de eliminarlo (flujo 3.4).
 
 ### 3.3 Flujo de resumen diario (scheduled, 21:00 Europe/Madrid)
 1. Symfony Scheduler dispara el comando `app:generate-daily-summary` cada día a las 21:00 (timezone Europe/Madrid).
@@ -48,6 +50,7 @@ Aplicación web que recibe notas de voz por Telegram, las transcribe automática
 3. Recoge todas las transcripciones en estado `TRANSCRIBED` del día en curso.
 4. Llama a Ollama para generar: (a) resumen del día, (b) lista de temas tratados.
 5. Guarda/actualiza el registro `DailySummary` de esa fecha.
+6. **Manejo de errores**: si la llamada a Ollama falla, se reintenta un par de veces con espera corta; si sigue fallando, se loguea el error (Monolog), no se genera `DailySummary` ese día (la vista Diario simplemente no muestra resumen) y se notifica al usuario por Telegram (*"No se pudo generar el resumen de hoy ⚠️"*). No hay reintento automático al día siguiente.
 
 ### 3.4 Edición y eliminación
 - Desde la web se puede editar manualmente el texto de una transcripción.
@@ -167,6 +170,7 @@ Variables de entorno necesarias (borrador):
 ```
 DATABASE_URL=postgresql://user:pass@postgres:5432/telegram_notes
 TELEGRAM_BOT_TOKEN=
+TELEGRAM_AUTHORIZED_CHAT_ID=
 OLLAMA_BASE_URL=http://192.168.4.200:PUERTO
 OPENWEBUI_STT_BASE_URL=http://192.168.4.200:PUERTO
 OPENWEBUI_API_KEY=
