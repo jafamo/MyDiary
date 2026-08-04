@@ -1,4 +1,4 @@
-.PHONY: up down build restart logs ps sh
+.PHONY: up down build restart logs ps sh cs-check cs-fix
 
 COMPOSE = docker compose --env-file .env
 
@@ -21,3 +21,9 @@ ps:
 
 sh:
 	$(COMPOSE) exec diary-php sh
+
+cs-check:
+	$(COMPOSE) exec diary-php vendor/bin/php-cs-fixer fix --dry-run --diff
+
+cs-fix:
+	$(COMPOSE) exec diary-php vendor/bin/php-cs-fixer fix

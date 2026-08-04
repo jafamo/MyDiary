@@ -48,8 +48,7 @@ services:
       args:
         PHP_VERSION: ${PHP_VERSION}
     container_name: diary-messenger-worker
-    # Placeholder hasta que exista bin/console (bootstrap de Symfony pendiente)
-    command: ["tail", "-f", "/dev/null"]
+    command: ["php", "bin/console", "messenger:consume", "async", "-vv"]
     volumes:
       - ./:/var/www/html
       - ${DATA_PATH}/audio:/var/www/html/var/audio

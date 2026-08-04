@@ -15,7 +15,7 @@ Estas decisiones se tomaron explícitamente para evitar sobre-ingeniería en un 
 - **Sin CQRS ni bus de comandos/queries general.** Servicios de aplicación normales con métodos claros.
 - **Interfaces (puertos) solo puntuales**, donde ya existe razón real: `TranscriberInterface`, `SummaryGeneratorInterface`. No generalizar a otras partes del código sin justificación equivalente.
 - **Symfony Messenger solo para la cadena Telegram → transcripción**, no como bus general.
-- **Sin entidad `User` en BD.** Usuario único vía `in_memory` provider de Symfony Security y variables de entorno.
+- **Gestión de usuarios solo por consola.** Entidad `User` en BD (Symfony Security), pero sin registro ni recuperación de contraseña vía web: los usuarios se crean y las contraseñas se cambian con comandos `bin/console app:user:*` (acceso al servidor = ya autenticado como admin). Sin flujo de "olvidé mi contraseña" por email/token.
 - Regla general: introducir un patrón solo cuando el problema que resuelve ya existe, no de forma anticipada.
 
 ## Flujo de trabajo

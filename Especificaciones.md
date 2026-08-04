@@ -89,7 +89,7 @@ Estas decisiones se tomaron explícitamente para evitar sobre-ingeniería en un 
   - `TranscriberInterface` (implementaciones: Open WebUI / whisper.cpp)
   - `SummaryGeneratorInterface` (implementación: Ollama)
 - **Symfony Messenger solo para lo async real**: la cadena Telegram → transcripción. No se convierte en bus general de la aplicación.
-- **Sin entidad `User` en BD.** Un único usuario, credenciales definidas por variables de entorno y `in_memory` provider de Symfony Security (hash de password en `.env`/config, no en tabla). No hay registro, recuperación de contraseña ni gestión de usuarios.
+- **Gestión de usuarios solo por consola, sin web.** Entidad `User` en BD (Symfony Security). Los usuarios se crean y las contraseñas se cambian con comandos (`bin/console app:user:create`, `bin/console app:user:change-password`) — quien tiene acceso al servidor/contenedor puede cambiar una contraseña sin conocer la actual. No hay registro, ni recuperación de contraseña vía web (sin email, sin tokens), ni gestión de usuarios desde la interfaz.
 - Regla general aplicada: **introducir un patrón solo cuando el problema que resuelve ya existe**, no de forma anticipada. Si en el futuro aparece una necesidad real de más desacoplo en un punto concreto, se extrae la interfaz correspondiente entonces.
 
 ## 5. Estructura de carpetas propuesta
@@ -100,12 +100,14 @@ src/
 │   ├── AudioRecording.php
 │   ├── Transcription.php
 │   ├── DailySummary.php
-│   └── Topic.php
+│   ├── Topic.php
+│   └── User.php
 ├── Repository/
 │   ├── AudioRecordingRepository.php
 │   ├── TranscriptionRepository.php
 │   ├── DailySummaryRepository.php
-│   └── TopicRepository.php
+│   ├── TopicRepository.php
+│   └── UserRepository.php
 ├── Service/
 │   ├── AudioRecordingService.php
 │   ├── DailySummaryService.php
@@ -129,7 +131,9 @@ src/
 ├── Form/
 │   └── TranscriptionEditType.php
 └── Command/
-    └── GenerateDailySummaryCommand.php         # invocado por Scheduler a las 21:00
+    ├── GenerateDailySummaryCommand.php         # invocado por Scheduler a las 21:00
+    ├── CreateUserCommand.php                   # app:user:create
+    └── ChangeUserPasswordCommand.php            # app:user:change-password
 ```
 
 ## 6. Modelo de datos (borrador)
@@ -178,6 +182,17 @@ Relación N:M con `topic` a través de tabla pivote `daily_summary_topic`.
 
 No hay flujo de gestión manual de `topic`: se crean automáticamente al generar el resumen diario (3.3) si no existen ya con ese `name`.
 
+### `app_user`
+Nota: la tabla se llama `app_user`, no `user` — `user` es palabra reservada en PostgreSQL y provoca errores intermitentes de "column does not exist" en consultas generadas por Doctrine si no se cita de forma consistente; se evita el problema de raíz renombrando la tabla.
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | int/uuid | PK |
+| username | string | **unique** |
+| password_hash | string | hash de la contraseña (Symfony `PasswordHasher`) |
+| roles | json | p. ej. `["ROLE_USER"]` — sin niveles de rol complejos, un único usuario |
+
+Sin registro ni recuperación de contraseña vía web. Gestión exclusivamente por consola: `bin/console app:user:create <username>` (pide/genera la contraseña) y `bin/console app:user:change-password <username>` (fija una contraseña nueva sin pedir la actual — requiere acceso al servidor/contenedor, que ya implica confianza de administrador).
+
 ## 7. Infraestructura y servicios Docker Compose
 
 ```
@@ -205,9 +220,9 @@ OLLAMA_BASE_URL=http://192.168.4.200:11434
 OPENWEBUI_STT_BASE_URL=http://192.168.4.200:9006
 OPENWEBUI_API_KEY=
 APP_TIMEZONE=Europe/Madrid
-APP_AUTH_USERNAME=
-APP_AUTH_PASSWORD_HASH=
 ```
+
+El usuario (`user` en BD) se crea con `bin/console app:user:create`, no vía variables de entorno.
 
 ## 8. Pendiente de confirmar antes/durante el desarrollo
 
