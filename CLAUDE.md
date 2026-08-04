@@ -22,3 +22,14 @@ Estas decisiones se tomaron explícitamente para evitar sobre-ingeniería en un 
 
 - Antes de implementar una funcionalidad, si el proyecto tiene OpenSpec inicializado (carpeta `openspec/`), pasar por un change proposal (`openspec change`) en lugar de tocar código directamente.
 - No hay tests ni build configurados todavía — este bloque se actualizará en cuanto exista `composer.json` con comandos reales.
+
+## Control de versiones: Git Flow (regla fija)
+
+Este repositorio usa **Git Flow** (`git flow init` ya ejecutado, prefijos por defecto). Nunca commitear directo a `main` ni a `develop`:
+
+- `main` — solo releases. `develop` — rama de integración, base de todo trabajo nuevo.
+- Funcionalidad nueva → `git flow feature start <nombre>` (rama `feature/<nombre>` desde `develop`), y `git flow feature finish <nombre>` al terminar (mergea a `develop`).
+- Corrección de bug sobre `develop` → `git flow bugfix start <nombre>`.
+- Preparar una release → `git flow release start <version>`, `git flow release finish <version>` (mergea a `main` y `develop`, y taggea).
+- Fix urgente sobre producción → `git flow hotfix start <nombre>` (rama desde `main`).
+- Tras cada `finish`, hacer `git push origin main develop --tags` (o las ramas correspondientes) para reflejar el merge en GitHub.
