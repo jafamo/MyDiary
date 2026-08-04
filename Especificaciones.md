@@ -16,7 +16,7 @@ Aplicación web que recibe notas de voz por Telegram, las transcribe automática
 | ORM | Doctrine |
 | Logging | Monolog |
 | Base de datos | PostgreSQL 16 |
-| Cola / async | Symfony Messenger (transporte Doctrine o Redis) |
+| Cola / async | Symfony Messenger (transporte Redis) |
 | Scheduler | Symfony Scheduler (componente `symfony/scheduler`) |
 | Contenedores | Docker + Docker Compose |
 | Transcripción | Open WebUI (Whisper local/remoto) o `whisper.cpp` como fallback |
@@ -74,7 +74,7 @@ Distinto del caso anterior: aquí el audio en sí es válido, pero el servicio d
 ### 3.5 Vistas / menús (navegación vertical, tras login)
 - **Login**
 - **Diario** — audios + transcripciones del día actual, con el resumen del día al final (visible cuando ya se generó, a partir de las 21:00).
-- **Historial** — vista histórica navegable por fecha/calendario de días anteriores.
+- **Historial** — vista de calendario (mes) navegable, con acceso a los audios/transcripciones de cada día anterior.
 - **Estadísticas** — agregados: nº de audios/día, duración media, temas más frecuentes.
 - **Logout**
 
@@ -99,11 +99,13 @@ src/
 ├── Entity/
 │   ├── AudioRecording.php
 │   ├── Transcription.php
-│   └── DailySummary.php
+│   ├── DailySummary.php
+│   └── Topic.php
 ├── Repository/
 │   ├── AudioRecordingRepository.php
 │   ├── TranscriptionRepository.php
-│   └── DailySummaryRepository.php
+│   ├── DailySummaryRepository.php
+│   └── TopicRepository.php
 ├── Service/
 │   ├── AudioRecordingService.php
 │   ├── DailySummaryService.php
@@ -164,8 +166,17 @@ No hay flujo de "regenerar": eliminar borra `AudioRecording` + `Transcription` +
 | id | int/uuid | PK |
 | date | date | unique |
 | summary_text | text | |
-| topics | json (o tabla `topic` normalizada N:M) | |
 | generated_at | datetime | |
+
+Relación N:M con `topic` a través de tabla pivote `daily_summary_topic`.
+
+### `topic`
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | int/uuid | PK |
+| name | string | **unique** — nombre normalizado del tema (permite agregarlo en Estadísticas: "temas más frecuentes" entre días) |
+
+No hay flujo de gestión manual de `topic`: se crean automáticamente al generar el resumen diario (3.3) si no existen ya con ese `name`.
 
 ## 7. Infraestructura y servicios Docker Compose
 
@@ -174,9 +185,9 @@ docker-compose.yml (previsto)
 ├── app            # PHP-FPM 8.4 + Symfony
 ├── nginx           # o Caddy
 ├── postgres:16      # volumen persistente para datos de BD
+├── redis           # transporte de Symfony Messenger
 ├── messenger-worker  # misma imagen que app, comando: messenger:consume
-├── whisper (opcional) # solo si no se reutiliza el STT de Open WebUI existente
-└── (Ollama / Open WebUI ya están montados aparte — solo se consumen por URL vía variables de entorno)
+└── (Ollama / Open WebUI ya están montados aparte, en 192.168.4.200 — solo se consumen por URL vía variables de entorno)
 ```
 
 Volúmenes persistentes necesarios (compartidos entre `app` y `messenger-worker`, para que ambos accedan a los mismos ficheros):
@@ -187,10 +198,11 @@ Volúmenes persistentes necesarios (compartidos entre `app` y `messenger-worker`
 Variables de entorno necesarias (borrador):
 ```
 DATABASE_URL=postgresql://user:pass@postgres:5432/telegram_notes
+MESSENGER_TRANSPORT_DSN=redis://redis:6379/messages
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_AUTHORIZED_CHAT_ID=
-OLLAMA_BASE_URL=http://192.168.4.200:PUERTO
-OPENWEBUI_STT_BASE_URL=http://192.168.4.200:PUERTO
+OLLAMA_BASE_URL=http://192.168.4.200:11434
+OPENWEBUI_STT_BASE_URL=http://192.168.4.200:9006
 OPENWEBUI_API_KEY=
 APP_TIMEZONE=Europe/Madrid
 APP_AUTH_USERNAME=
@@ -199,11 +211,11 @@ APP_AUTH_PASSWORD_HASH=
 
 ## 8. Pendiente de confirmar antes/durante el desarrollo
 
-- [ ] Confirmar en el panel de admin de Open WebUI qué motor de Speech-to-Text está activo (Web API / Local Whisper / OpenAI-compatible remoto) y su URL/puerto real.
-- [ ] Si Open WebUI no tiene STT operativo server-side, montar `whisper.cpp` como contenedor propio.
-- [ ] Decidir transporte de Symfony Messenger (Doctrine vs Redis) — Redis ya disponible en la infraestructura, se recomienda usarlo.
-- [ ] Definir si "Historial" usa vista calendario o listado simple por fecha.
-- [ ] Definir criterio exacto de "temas" en Estadísticas (¿tabla `topic` normalizada o array JSON?).
+- [x] Confirmar en el panel de admin de Open WebUI qué motor de Speech-to-Text está activo y su URL/puerto real. **Confirmado (2026-08-04):** Open WebUI v0.10.2 corriendo en `192.168.4.200:9006`, motor STT = **Whisper local**. `OPENWEBUI_STT_BASE_URL=http://192.168.4.200:9006`.
+- [x] ~~Si Open WebUI no tiene STT operativo server-side, montar `whisper.cpp` como contenedor propio.~~ No hace falta: Whisper local ya está operativo dentro de Open WebUI.
+- [x] Decidir transporte de Symfony Messenger. **Confirmado (2026-08-04): Redis** (nuevo contenedor `redis` en `docker-compose.yml`, ver sección 7).
+- [x] Definir si "Historial" usa vista calendario o listado simple por fecha. **Confirmado (2026-08-04): vista calendario.**
+- [x] Definir criterio exacto de "temas" en Estadísticas. **Confirmado (2026-08-04): tabla `topic` normalizada**, relación N:M con `daily_summary` (ver sección 6).
 
 ## 9. Orden de construcción recomendado
 
