@@ -21,7 +21,7 @@ Estas decisiones se tomaron explícitamente para evitar sobre-ingeniería en un 
 ## Flujo de trabajo
 
 - Antes de implementar una funcionalidad, si el proyecto tiene OpenSpec inicializado (carpeta `openspec/`), pasar por un change proposal (`openspec change`) en lugar de tocar código directamente.
-- No hay tests ni build configurados todavía — este bloque se actualizará en cuanto exista `composer.json` con comandos reales.
+- Tests: `make test` ejecuta el suite de PHPUnit dentro de `diary-php` contra la base de datos de test (`telegram_notes_test`, separada de `telegram_notes`). Estilo de código: `make cs-check` (verificar) / `make cs-fix` (corregir), PSR-12, aplicado también en el hook `pre-commit` (`.githooks/pre-commit`, activar con `git config core.hooksPath .githooks`).
 
 ## Control de versiones: Git Flow (regla fija)
 
