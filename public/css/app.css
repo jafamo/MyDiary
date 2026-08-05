@@ -166,6 +166,17 @@ table { border-collapse: collapse; width: 100%; }
 .entry__error-box span { flex: 1; min-width: 12rem; }
 .entry-empty { color: var(--text-muted); font-size: 0.9rem; padding: 1.5rem 0; }
 
+.entry__actions { display: flex; align-items: flex-start; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.35rem; }
+.entry__actions form { display: contents; }
+.btn-action { display: inline-flex; align-items: center; gap: 0.35rem; background: var(--panel); border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.75rem; border-radius: 6px; font: inherit; font-size: 0.8rem; cursor: pointer; list-style: none; }
+.btn-action::-webkit-details-marker { display: none; }
+.btn-action--primary { background: var(--accent); border-color: var(--accent); color: var(--accent-contrast); font-weight: 600; }
+.btn-action--danger { color: var(--status-error); border-color: color-mix(in srgb, var(--status-error) 45%, var(--border)); }
+.entry__edit { flex-basis: 100%; }
+.entry__edit-form { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.6rem; max-width: 42rem; }
+.entry__edit-form textarea { font: inherit; padding: 0.75rem 0.8rem; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text); width: 100%; resize: vertical; }
+.entry__edit-form .btn-action--primary { align-self: flex-start; }
+
 .summary-panel { margin-top: 2rem; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); padding: 1.35rem; }
 .summary-panel__eyebrow { display: flex; align-items: center; gap: 0.45rem; font-family: var(--font-display); font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent-dusk); margin-bottom: 0.75rem; }
 .summary-panel__eyebrow .icon { width: 0.95em; height: 0.95em; }
