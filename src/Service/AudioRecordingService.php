@@ -37,15 +37,8 @@ class AudioRecordingService
 
         if (null !== $existing) {
             if (AudioRecordingStatus::ERROR === $existing->getStatus()) {
-                $existing
-                    ->setTelegramMessageId($telegramMessageId)
-                    ->setStatus(AudioRecordingStatus::PENDING)
-                    ->setErrorCode(null)
-                    ->setErrorMessage(null)
-                ;
-                $this->entityManager->flush();
-
-                $this->messageBus->dispatch(new TranscribeAudioMessage($existing->getId()));
+                $existing->setTelegramMessageId($telegramMessageId);
+                $this->retryAfterError($existing);
 
                 return AudioRecordingReceiveResult::RETRYING_AFTER_ERROR;
             }
@@ -70,5 +63,17 @@ class AudioRecordingService
         $this->messageBus->dispatch(new TranscribeAudioMessage($audioRecording->getId()));
 
         return AudioRecordingReceiveResult::CREATED;
+    }
+
+    public function retryAfterError(AudioRecording $audioRecording): void
+    {
+        $audioRecording
+            ->setStatus(AudioRecordingStatus::PENDING)
+            ->setErrorCode(null)
+            ->setErrorMessage(null)
+        ;
+        $this->entityManager->flush();
+
+        $this->messageBus->dispatch(new TranscribeAudioMessage($audioRecording->getId()));
     }
 }

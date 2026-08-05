@@ -91,6 +91,28 @@ class DailySummaryServiceTest extends KernelTestCase
         self::assertNull($this->dailySummaryRepository->findOneByDate($this->testDate));
     }
 
+    public function testWaitForPendingFalseSkipsWaitAndGeneratesImmediately(): void
+    {
+        $this->createTranscribedAudioRecording('summary-msg-4', 'summary-file-4', 'transcripción disponible');
+        $this->createPendingAudioRecording('summary-msg-4b', 'summary-file-4b');
+
+        $service = $this->createService(
+            $this->fakeGenerator(['summary' => 'Resumen inmediato', 'topics' => []]),
+            pendingWaitIntervalSeconds: 2,
+            pendingWaitMaxAttempts: 5,
+        );
+
+        $start = microtime(true);
+        $service->generateForDate($this->testDate, waitForPending: false);
+        $elapsed = microtime(true) - $start;
+
+        self::assertLessThan(1.5, $elapsed, 'No debe esperar por transcripciones pendientes cuando waitForPending es false');
+
+        $dailySummary = $this->dailySummaryRepository->findOneByDate($this->testDate);
+        self::assertNotNull($dailySummary);
+        self::assertSame('Resumen inmediato', $dailySummary->getSummaryText());
+    }
+
     public function testFailureAfterRetriesDoesNotPersistAndNotifies(): void
     {
         $this->createTranscribedAudioRecording('summary-msg-3', 'summary-file-3', 'transcripción');
@@ -115,8 +137,12 @@ class DailySummaryServiceTest extends KernelTestCase
         self::assertSame(3, $alwaysFailingGenerator->calls);
     }
 
-    private function createService(SummaryGeneratorInterface $generator, int $generationRetryDelaySeconds = 0): DailySummaryService
-    {
+    private function createService(
+        SummaryGeneratorInterface $generator,
+        int $generationRetryDelaySeconds = 0,
+        int $pendingWaitIntervalSeconds = 0,
+        int $pendingWaitMaxAttempts = 1,
+    ): DailySummaryService {
         return new DailySummaryService(
             $this->audioRecordingRepository,
             $this->dailySummaryRepository,
@@ -126,8 +152,8 @@ class DailySummaryServiceTest extends KernelTestCase
             self::getContainer()->get(TelegramClient::class),
             self::getContainer()->get('logger'),
             $_ENV['TELEGRAM_AUTHORIZED_CHAT_ID'],
-            pendingWaitIntervalSeconds: 0,
-            pendingWaitMaxAttempts: 1,
+            pendingWaitIntervalSeconds: $pendingWaitIntervalSeconds,
+            pendingWaitMaxAttempts: $pendingWaitMaxAttempts,
             generationMaxAttempts: 3,
             generationRetryDelaySeconds: $generationRetryDelaySeconds,
         );
@@ -174,6 +200,22 @@ class DailySummaryServiceTest extends KernelTestCase
         $this->entityManager->clear();
     }
 
+    private function createPendingAudioRecording(string $telegramMessageId, string $telegramFileUniqueId): void
+    {
+        $audioRecording = new AudioRecording();
+        $audioRecording
+            ->setTelegramMessageId($telegramMessageId)
+            ->setTelegramFileUniqueId($telegramFileUniqueId)
+            ->setFilePath('/data/audio/'.$telegramFileUniqueId.'.ogg')
+            ->setReceivedAt($this->testDate)
+            ->setDurationSeconds(5)
+            ->setStatus(AudioRecordingStatus::PENDING)
+        ;
+        $this->entityManager->persist($audioRecording);
+        $this->entityManager->flush();
+        $this->entityManager->clear();
+    }
+
     private function cleanUp(): void
     {
         $dailySummary = $this->dailySummaryRepository->findOneByDate($this->testDate);
@@ -181,7 +223,7 @@ class DailySummaryServiceTest extends KernelTestCase
             $this->entityManager->remove($dailySummary);
         }
 
-        foreach (['summary-msg-1', 'summary-msg-2', 'summary-msg-3'] as $telegramMessageId) {
+        foreach (['summary-msg-1', 'summary-msg-2', 'summary-msg-3', 'summary-msg-4', 'summary-msg-4b'] as $telegramMessageId) {
             $audioRecording = $this->audioRecordingRepository->findOneByTelegramMessageId($telegramMessageId);
             if (null !== $audioRecording) {
                 $this->entityManager->remove($audioRecording);

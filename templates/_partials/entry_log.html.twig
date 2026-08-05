@@ -30,6 +30,33 @@
                     {% else %}
                         <p class="entry__text entry__text--muted">Transcripción en curso — se actualizará automáticamente.</p>
                     {% endif %}
+
+                    {% if entry.status.value in ['TRANSCRIBED', 'ERROR'] %}
+                        <div class="entry__actions">
+                            {% if entry.status.value == 'TRANSCRIBED' %}
+                                <details class="entry__edit">
+                                    <summary class="btn-action"><svg class="icon icon--sm"><use href="#i-edit"></use></svg> Editar</summary>
+                                    <form class="entry__edit-form" method="post" action="{{ path('app_transcription_edit', {audioRecording: entry.id}) }}">
+                                        <textarea name="transcription_edit[content]" rows="4">{{ entry.transcription.content }}</textarea>
+                                        <input type="hidden" name="transcription_edit[_token]" value="{{ csrf_token('transcription_edit') }}">
+                                        <button class="btn-action btn-action--primary" type="submit">Guardar</button>
+                                    </form>
+                                </details>
+                            {% endif %}
+
+                            {% if entry.status.value == 'ERROR' %}
+                                <form method="post" action="{{ path('app_audio_recording_retry', {audioRecording: entry.id}) }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('audio_retry') }}">
+                                    <button class="btn-action" type="submit"><svg class="icon icon--sm"><use href="#i-refresh"></use></svg> Reintentar</button>
+                                </form>
+                            {% endif %}
+
+                            <form method="post" action="{{ path('app_transcription_delete', {audioRecording: entry.id}) }}" onsubmit="return confirm('¿Eliminar este audio y su transcripción? Esta acción no se puede deshacer.');">
+                                <input type="hidden" name="_token" value="{{ csrf_token('transcription_delete') }}">
+                                <button class="btn-action btn-action--danger" type="submit"><svg class="icon icon--sm"><use href="#i-trash"></use></svg> Eliminar</button>
+                            </form>
+                        </div>
+                    {% endif %}
                 </div>
             </article>
         {% endfor %}

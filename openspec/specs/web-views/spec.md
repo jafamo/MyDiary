@@ -41,12 +41,23 @@ El sistema SHALL mostrar, como página principal tras el login, el día actual c
 - **WHEN** el último día con audio registrado es anterior a ayer
 - **THEN** la racha actual mostrada es 0
 
+### Requirement: Botón de generación de resumen bajo demanda en Diario
+El sistema SHALL mostrar en la vista Diario un botón "Generar resumen" que dispara la generación (o regeneración) del `DailySummary` del día actual sin esperar al disparo programado de las 21:00, y tras completarse SHALL volver a mostrar Diario con el resultado actualizado.
+
+#### Scenario: Generar el resumen antes de las 21:00
+- **WHEN** el usuario pulsa "Generar resumen" en Diario antes de que exista un `DailySummary` para hoy
+- **THEN** el sistema genera el resumen y, al recargar la vista, se muestra el panel de resumen del día
+
+#### Scenario: Regenerar un resumen existente
+- **WHEN** el usuario pulsa "Generar resumen" en Diario y ya existe un `DailySummary` para hoy
+- **THEN** el sistema regenera el resumen con las transcripciones actuales, reemplazando el contenido anterior
+
 ### Requirement: Vista Historial con calendario
-El sistema SHALL mostrar un calendario navegable por mes (mes anterior/siguiente), marcando visualmente los días con `DailySummary` generado frente a los días con audios pero sin resumen, y SHALL mostrar el log de entradas del día seleccionado en modo solo lectura.
+El sistema SHALL mostrar un calendario navegable por mes (mes anterior/siguiente), marcando visualmente los días con `DailySummary` generado frente a los días con audios pero sin resumen, y SHALL mostrar el log de entradas del día seleccionado con las mismas acciones disponibles en el Diario (editar, eliminar, reintentar según el estado de cada entrada).
 
 #### Scenario: Seleccionar un día con entradas
 - **WHEN** el usuario selecciona un día del calendario que tiene `AudioRecording`
-- **THEN** se muestra debajo el log de esas entradas, sin acciones de edición ni eliminación
+- **THEN** se muestra debajo el log de esas entradas, con las acciones de editar/eliminar/reintentar disponibles según el estado de cada una, igual que en el Diario
 
 ### Requirement: Vista Estadísticas con filtro de rango y gráfico
 El sistema SHALL permitir filtrar las estadísticas por un rango de fechas (15 días, 1 mes, 3 meses, 1 año, o un rango personalizado), y SHALL recalcular sobre ese rango: los tiles de métricas, un gráfico de audios por día, el desglose de estados de transcripción, y el ranking de temas más frecuentes.

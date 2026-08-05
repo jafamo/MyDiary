@@ -36,7 +36,7 @@ class AudioRecording
     #[ORM\Column(length: 64, nullable: true)]
     private ?string $errorCode = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(type: 'text', nullable: true)]
     private ?string $errorMessage = null;
 
     #[ORM\OneToOne(mappedBy: 'audioRecording', targetEntity: Transcription::class, cascade: ['remove'])]
