@@ -13,20 +13,33 @@
             <div class="page-header__meta">{{ from|es_day_month }} – {{ to|es_day_month }} {{ to.format('Y') }}</div>
         </div>
 
+        {% set status_route_params = 'custom' == range ? {range: 'custom', from: from.format('Y-m-d'), to: to.format('Y-m-d')} : {range: range} %}
+
         <div class="filter-row">
             <div class="filter-pills" role="group" aria-label="Rango de fechas">
-                <a class="filter-pill" href="{{ path('app_estadisticas', {range: 15}) }}" aria-current="{{ range == '15' ? 'true' : 'false' }}">15 días</a>
-                <a class="filter-pill" href="{{ path('app_estadisticas', {range: 30}) }}" aria-current="{{ range == '30' ? 'true' : 'false' }}">1 mes</a>
-                <a class="filter-pill" href="{{ path('app_estadisticas', {range: 90}) }}" aria-current="{{ range == '90' ? 'true' : 'false' }}">3 meses</a>
-                <a class="filter-pill" href="{{ path('app_estadisticas', {range: 365}) }}" aria-current="{{ range == '365' ? 'true' : 'false' }}">1 año</a>
+                <a class="filter-pill" href="{{ path('app_estadisticas', status_filter ? {range: 15, status: status_filter.value} : {range: 15}) }}" aria-current="{{ range == '15' ? 'true' : 'false' }}">15 días</a>
+                <a class="filter-pill" href="{{ path('app_estadisticas', status_filter ? {range: 30, status: status_filter.value} : {range: 30}) }}" aria-current="{{ range == '30' ? 'true' : 'false' }}">1 mes</a>
+                <a class="filter-pill" href="{{ path('app_estadisticas', status_filter ? {range: 90, status: status_filter.value} : {range: 90}) }}" aria-current="{{ range == '90' ? 'true' : 'false' }}">3 meses</a>
+                <a class="filter-pill" href="{{ path('app_estadisticas', status_filter ? {range: 365, status: status_filter.value} : {range: 365}) }}" aria-current="{{ range == '365' ? 'true' : 'false' }}">1 año</a>
             </div>
             <form class="filter-custom" method="get" action="{{ path('app_estadisticas') }}">
                 <input type="hidden" name="range" value="custom">
                 <input type="date" name="from" value="{{ from.format('Y-m-d') }}">
                 <span>–</span>
                 <input type="date" name="to" value="{{ to.format('Y-m-d') }}">
+                {% if status_filter %}
+                    <input type="hidden" name="status" value="{{ status_filter.value }}">
+                {% endif %}
                 <button class="btn-apply" type="submit">Aplicar</button>
             </form>
+        </div>
+
+        <div class="filter-row">
+            {% include '_partials/status_filter.html.twig' with {
+                route: 'app_estadisticas',
+                route_params: status_route_params,
+                status_filter: status_filter,
+            } %}
         </div>
 
         <div class="stat-grid">

@@ -74,9 +74,9 @@ Distinto del caso anterior: aquí el audio en sí es válido, pero el servicio d
 
 ### 3.5 Vistas / menús (navegación vertical, tras login)
 - **Login**
-- **Diario** — audios + transcripciones del día actual, con el resumen del día al final (visible cuando ya se generó, a partir de las 21:00).
-- **Historial** — vista de calendario (mes) navegable, con acceso a los audios/transcripciones de cada día anterior.
-- **Estadísticas** — agregados: nº de audios/día, duración media, temas más frecuentes.
+- **Diario** — audios + transcripciones del día actual, con el resumen del día al final (visible cuando ya se generó, a partir de las 21:00). El log de entradas se puede filtrar por estado (Todos/Pendiente/Transcrito/Error).
+- **Historial** — vista de calendario (mes) navegable, con acceso a los audios/transcripciones de cada día anterior. El log del día seleccionado admite el mismo filtro por estado que Diario.
+- **Estadísticas** — agregados: nº de audios/día, duración media, temas más frecuentes. Filtrable por rango de fechas y, combinable con este, por estado (recalcula la serie de audios/día, la media diaria y la duración media; el desglose de estados y el ranking de temas siempre muestran el total sin filtrar).
 - **Logout**
 
 ## 4. Decisiones de diseño y motivos (importante para no reintroducir complejidad innecesaria)

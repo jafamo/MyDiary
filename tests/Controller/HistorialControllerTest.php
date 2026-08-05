@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Controller;
 
 use App\Entity\AudioRecording;
+use App\Entity\AudioRecordingStatus;
 use App\Entity\User;
 use App\Repository\AudioRecordingRepository;
 use App\Repository\UserRepository;
@@ -78,6 +79,24 @@ class HistorialControllerTest extends WebTestCase
         self::assertSelectorExists('.day-preview .entry-log');
     }
 
+    public function testSelectedDayLogFiltersByStatus(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+
+        $today = DateRange::nowInMadrid();
+        $this->createAudioRecording('historial-ctrl-pending', $today, AudioRecordingStatus::PENDING);
+        $this->createAudioRecording('historial-ctrl-error', $today, AudioRecordingStatus::ERROR);
+
+        $client->loginUser($user);
+        $client->request('GET', '/historial?date='.$today->format('Y-m-d').'&status=ERROR');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorCount(1, '.day-preview .entry');
+        self::assertSelectorExists('.calendar__day--has-entries');
+    }
+
     public function testAdjacentMonthDaysAreMuted(): void
     {
         $client = static::createClient();
@@ -89,6 +108,26 @@ class HistorialControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('.calendar__day--muted');
+    }
+
+    private function createAudioRecording(string $telegramMessageId, \DateTimeImmutable $date, AudioRecordingStatus $status): void
+    {
+        $audioRecording = new AudioRecording();
+        $audioRecording
+            ->setTelegramMessageId($telegramMessageId)
+            ->setTelegramFileUniqueId($telegramMessageId.'-file')
+            ->setFilePath('/data/audio/'.$telegramMessageId.'.ogg')
+            ->setReceivedAt($date->setTime(11, 0, 0))
+            ->setDurationSeconds(10)
+            ->setStatus($status)
+        ;
+
+        if (AudioRecordingStatus::ERROR === $status) {
+            $audioRecording->setErrorCode('TIMEOUT')->setErrorMessage('algo falló');
+        }
+
+        $this->entityManager->persist($audioRecording);
+        $this->entityManager->flush();
     }
 
     private function bootServices(): void
@@ -116,7 +155,7 @@ class HistorialControllerTest extends WebTestCase
 
     private function cleanUp(): void
     {
-        foreach (['historial-ctrl-msg-1', 'historial-ctrl-msg-2'] as $messageId) {
+        foreach (['historial-ctrl-msg-1', 'historial-ctrl-msg-2', 'historial-ctrl-pending', 'historial-ctrl-error'] as $messageId) {
             $audioRecording = $this->audioRecordingRepository->findOneByTelegramMessageId($messageId);
             if (null !== $audioRecording) {
                 $this->entityManager->remove($audioRecording);

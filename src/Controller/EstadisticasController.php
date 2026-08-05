@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Entity\AudioRecordingStatus;
 use App\Repository\AudioRecordingRepository;
 use App\Repository\DailySummaryRepository;
 use App\Repository\TopicRepository;
@@ -30,11 +31,12 @@ class EstadisticasController
     {
         $today = DateRange::nowInMadrid()->setTime(0, 0, 0);
         $range = $request->query->get('range', '30');
+        $status = AudioRecordingStatus::tryFrom((string) $request->query->get('status'));
 
         [$from, $to] = $this->resolveRange($range, $request, $today);
         $totalDays = (int) $from->diff($to)->days + 1;
 
-        $countsByDate = $this->audioRecordingRepository->countByDateInRange($from, $to);
+        $countsByDate = $this->audioRecordingRepository->countByDateInRange($from, $to, $status);
         $series = [];
         $cursor = $from;
         while ($cursor <= $to) {
@@ -45,7 +47,7 @@ class EstadisticasController
 
         $totalAudios = array_sum(array_column($series, 'value'));
         $avgAudiosPerDay = $totalDays > 0 ? round($totalAudios / $totalDays, 1) : 0.0;
-        $avgDurationSeconds = (int) round($this->audioRecordingRepository->averageDurationInRange($from, $to));
+        $avgDurationSeconds = (int) round($this->audioRecordingRepository->averageDurationInRange($from, $to, $status));
         $daysWithSummary = $this->dailySummaryRepository->countInRange($from, $to);
         $statusCounts = $this->audioRecordingRepository->countByStatusInRange($from, $to);
         $topicFrequency = $this->topicRepository->findTopicFrequencyInRange($from, $to);
@@ -53,6 +55,7 @@ class EstadisticasController
 
         return new Response($this->twig->render('estadisticas/index.html.twig', [
             'range' => $range,
+            'status_filter' => $status,
             'from' => $from,
             'to' => $to,
             'series_json' => json_encode($series, \JSON_HEX_TAG | \JSON_THROW_ON_ERROR),

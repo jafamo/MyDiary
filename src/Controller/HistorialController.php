@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Entity\AudioRecordingStatus;
 use App\Repository\AudioRecordingRepository;
 use App\Repository\DailySummaryRepository;
 use App\Service\DateRange;
@@ -27,6 +28,7 @@ class HistorialController
         $now = DateRange::nowInMadrid();
         $year = (int) $request->query->get('year', $now->format('Y'));
         $month = (int) $request->query->get('month', $now->format('n'));
+        $status = AudioRecordingStatus::tryFrom((string) $request->query->get('status'));
 
         $firstOfMonth = (new \DateTimeImmutable())->setTimezone(new \DateTimeZone('Europe/Madrid'))->setDate($year, $month, 1)->setTime(0, 0, 0);
         $lastOfMonth = $firstOfMonth->modify('last day of this month');
@@ -66,7 +68,7 @@ class HistorialController
             $selectedDate = \DateTimeImmutable::createFromFormat('Y-m-d', $selectedDateParam);
             if (false !== $selectedDate) {
                 $selectedDate = $selectedDate->setTime(0, 0, 0);
-                $selectedEntries = $this->audioRecordingRepository->findAllReceivedOn($selectedDate);
+                $selectedEntries = $this->audioRecordingRepository->findAllReceivedOn($selectedDate, $status);
             } else {
                 $selectedDate = null;
             }
@@ -82,6 +84,7 @@ class HistorialController
             'next_month' => $nextMonth,
             'selected_date' => $selectedDate,
             'selected_entries' => $selectedEntries,
+            'status_filter' => $status,
         ]));
     }
 }
