@@ -6,6 +6,8 @@ namespace App\Service\Whisper;
 
 use App\Contract\TranscriberInterface;
 use App\Contract\TranscriptionException;
+use Symfony\Component\Mime\Part\DataPart;
+use Symfony\Component\Mime\Part\Multipart\FormDataPart;
 use Symfony\Contracts\HttpClient\Exception\HttpExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -24,15 +26,17 @@ class WhisperTranscriber implements TranscriberInterface
     public function transcribe(string $audioFilePath): string
     {
         try {
+            $formData = new FormDataPart([
+                'file' => DataPart::fromPath($audioFilePath),
+                'model' => 'whisper-1',
+            ]);
+
             $response = $this->httpClient->request('POST', rtrim($this->openWebUiBaseUrl, '/').'/api/v1/audio/transcriptions', [
                 'timeout' => self::REQUEST_TIMEOUT_SECONDS,
-                'headers' => [
+                'headers' => array_merge($formData->getPreparedHeaders()->toArray(), [
                     'Authorization' => 'Bearer '.$this->openWebUiApiKey,
-                ],
-                'body' => [
-                    'file' => fopen($audioFilePath, 'r'),
-                    'model' => 'whisper-1',
-                ],
+                ]),
+                'body' => $formData->bodyToIterable(),
             ]);
 
             $data = $response->toArray();
