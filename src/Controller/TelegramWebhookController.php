@@ -73,6 +73,9 @@ class TelegramWebhookController
             function () use ($fileId, $telegramFileUniqueId): string {
                 $file = $this->telegramClient->getFile($fileId);
                 $extension = pathinfo($file['file_path'] ?? '', PATHINFO_EXTENSION) ?: 'ogg';
+                if ('oga' === $extension) {
+                    $extension = 'ogg';
+                }
                 $destination = sprintf('%s/%s.%s', $this->audioStorageDir, $telegramFileUniqueId, $extension);
 
                 return $this->telegramClient->downloadFile($file['file_path'], $destination);
