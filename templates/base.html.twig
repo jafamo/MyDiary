@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>{% block title %}Diario{% endblock %}</title>
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 font-size=%2290%22><text y=%221.1em%22>📔</text></svg>">
+        <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+        {% block stylesheets %}{% endblock %}
+        {% block javascripts %}{% endblock %}
+    </head>
+    <body>
+        {% include '_partials/svg_sprite.html.twig' %}
+        <div class="app-shell">
+            <div class="topbar">
+                <div class="topbar__brand"><svg class="icon"><use href="#i-mic"></use></svg> Diario</div>
+                <div class="topbar__menu">
+                    <button type="button" class="topbar__menu-trigger" aria-haspopup="true" aria-expanded="false">
+                        <span class="topbar__avatar">{{ app.user.username|slice(0, 2)|upper }}</span>
+                        {{ app.user.username }}
+                        <svg class="icon icon--sm icon--chevron"><use href="#i-chevron-down"></use></svg>
+                    </button>
+                    <div class="topbar__dropdown" role="menu">
+                        <div class="topbar__dropdown-user"><svg class="icon icon--sm"><use href="#i-mic"></use></svg> Sesión de <strong>{{ app.user.username }}</strong></div>
+                        <a class="topbar__dropdown-item" role="menuitem" href="{{ path('app_logout') }}"><svg class="icon icon--sm"><use href="#i-logout"></use></svg> Cerrar sesión</a>
+                    </div>
+                </div>
+            </div>
+
+            <aside class="sidebar">
+                <div class="sidebar__brand"><svg class="icon"><use href="#i-mic"></use></svg> Diario</div>
+                <nav class="sidebar__nav">
+                    <a class="navlink" href="{{ path('app_diario') }}" {% if app.request.attributes.get('_route') == 'app_diario' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-mic"></use></svg> Diario</a>
+                    <a class="navlink" href="{{ path('app_historial') }}" {% if app.request.attributes.get('_route') == 'app_historial' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-calendar"></use></svg> Historial</a>
+                    <a class="navlink" href="{{ path('app_estadisticas') }}" {% if app.request.attributes.get('_route') == 'app_estadisticas' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-chart"></use></svg> Estadísticas</a>
+                </nav>
+                <div class="sidebar__footer">
+                    <div class="sidebar__user">{{ app.user.username }}</div>
+                    <a class="sidebar__logout" href="{{ path('app_logout') }}"><svg class="icon icon--sm"><use href="#i-logout"></use></svg> Cerrar sesión</a>
+                </div>
+            </aside>
+
+            {% block body %}{% endblock %}
+
+            <nav class="bottom-nav">
+                <a class="bottom-nav__item" href="{{ path('app_diario') }}" {% if app.request.attributes.get('_route') == 'app_diario' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-mic"></use></svg> Diario</a>
+                <a class="bottom-nav__item" href="{{ path('app_historial') }}" {% if app.request.attributes.get('_route') == 'app_historial' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-calendar"></use></svg> Historial</a>
+                <a class="bottom-nav__item" href="{{ path('app_estadisticas') }}" {% if app.request.attributes.get('_route') == 'app_estadisticas' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-chart"></use></svg> Estadísticas</a>
+            </nav>
+        </div>
+
+        <script>
+            document.querySelectorAll(".topbar__menu-trigger").forEach(function (trigger) {
+                trigger.addEventListener("click", function (e) {
+                    e.stopPropagation();
+                    var menu = trigger.closest(".topbar__menu");
+                    var wasOpen = menu.classList.contains("is-open");
+                    document.querySelectorAll(".topbar__menu.is-open").forEach(function (m) {
+                        m.classList.remove("is-open");
+                        m.querySelector(".topbar__menu-trigger").setAttribute("aria-expanded", "false");
+                    });
+                    if (!wasOpen) {
+                        menu.classList.add("is-open");
+                        trigger.setAttribute("aria-expanded", "true");
+                    }
+                });
+            });
+            document.addEventListener("click", function () {
+                document.querySelectorAll(".topbar__menu.is-open").forEach(function (m) {
+                    m.classList.remove("is-open");
+                    m.querySelector(".topbar__menu-trigger").setAttribute("aria-expanded", "false");
+                });
+            });
+            document.addEventListener("keydown", function (e) {
+                if (e.key === "Escape") {
+                    document.querySelectorAll(".topbar__menu.is-open").forEach(function (m) { m.classList.remove("is-open"); });
+                }
+            });
+        </script>
+    </body>
+</html>

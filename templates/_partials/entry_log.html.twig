@@ -1,0 +1,37 @@
+{% if entries is empty %}
+    <p class="entry-empty">Sin audios este día.</p>
+{% else %}
+    <div class="entry-log">
+        {% for entry in entries %}
+            <article class="entry">
+                <div class="entry__time">
+                    <svg class="icon icon--sm"><use href="#i-clock"></use></svg>
+                    {{ entry.receivedAt|date('H:i', 'Europe/Madrid') }}
+                </div>
+                <div class="entry__body">
+                    <div class="entry__meta">
+                        <span class="duration">{{ entry.durationSeconds // 60 }}:{{ '%02d'|format(entry.durationSeconds % 60) }}</span>
+                        {% if entry.status.value == 'TRANSCRIBED' %}
+                            <span class="status-pill status-pill--transcribed"><svg class="icon"><use href="#i-check"></use></svg> Transcrito</span>
+                        {% elseif entry.status.value == 'ERROR' %}
+                            <span class="status-pill status-pill--error"><svg class="icon"><use href="#i-alert"></use></svg> Error</span>
+                        {% else %}
+                            <span class="status-pill status-pill--pending"><svg class="icon"><use href="#i-clock"></use></svg> Transcribiendo…</span>
+                        {% endif %}
+                    </div>
+
+                    {% if entry.status.value == 'TRANSCRIBED' and entry.transcription %}
+                        <p class="entry__text">{{ entry.transcription.content }}</p>
+                    {% elseif entry.status.value == 'ERROR' %}
+                        <div class="entry__error-box">
+                            <svg class="icon"><use href="#i-error-outline"></use></svg>
+                            <span>{{ entry.errorMessage }}</span>
+                        </div>
+                    {% else %}
+                        <p class="entry__text entry__text--muted">Transcripción en curso — se actualizará automáticamente.</p>
+                    {% endif %}
+                </div>
+            </article>
+        {% endfor %}
+    </div>
+{% endif %}

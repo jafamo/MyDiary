@@ -1,0 +1,75 @@
+networks:
+  diary:
+    name: diary-network
+
+services:
+  diary-postgres:
+    image: postgres:${POSTGRES_VERSION}
+    container_name: diary-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ${DATA_PATH}/postgres:/var/lib/postgresql/data
+      - ${LOGS_PATH}/postgres:/var/log/postgresql
+    networks:
+      - diary
+
+  diary-redis:
+    image: redis:${REDIS_VERSION}
+    container_name: diary-redis
+    command: ["redis-server", "--logfile", "/var/log/redis/redis.log"]
+    volumes:
+      - ${LOGS_PATH}/redis:/var/log/redis
+    networks:
+      - diary
+
+  diary-php:
+    build:
+      context: ./docker/php
+      args:
+        PHP_VERSION: ${PHP_VERSION}
+    container_name: diary-php
+    volumes:
+      - ./:/var/www/html
+      - ${DATA_PATH}/audio:/var/www/html/var/audio
+      - ${DATA_PATH}/transcriptions:/var/www/html/var/transcriptions
+      - ${LOGS_PATH}/php:/var/log/php-diary
+    depends_on:
+      - diary-postgres
+      - diary-redis
+    networks:
+      - diary
+
+  diary-messenger-worker:
+    build:
+      context: ./docker/php
+      args:
+        PHP_VERSION: ${PHP_VERSION}
+    container_name: diary-messenger-worker
+    command: ["php", "bin/console", "messenger:consume", "async", "scheduler_default", "-vv"]
+    volumes:
+      - ./:/var/www/html
+      - ${DATA_PATH}/audio:/var/www/html/var/audio
+      - ${DATA_PATH}/transcriptions:/var/www/html/var/transcriptions
+      - ${LOGS_PATH}/messenger-worker:/var/log/php-diary
+    depends_on:
+      - diary-redis
+      - diary-postgres
+    networks:
+      - diary
+
+  diary-nginx:
+    image: nginx:${NGINX_VERSION}
+    container_name: diary-nginx
+    ports:
+      - "${NGINX_HTTP_PORT:-9008}:80"
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./:/var/www/html:ro
+      - ${LOGS_PATH}/nginx:/var/log/nginx-diary
+    depends_on:
+      - diary-php
+    networks:
+      - diary

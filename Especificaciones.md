@@ -16,7 +16,7 @@ Aplicación web que recibe notas de voz por Telegram, las transcribe automática
 | ORM | Doctrine |
 | Logging | Monolog |
 | Base de datos | PostgreSQL 16 |
-| Cola / async | Symfony Messenger (transporte Doctrine o Redis) |
+| Cola / async | Symfony Messenger (transporte Redis) |
 | Scheduler | Symfony Scheduler (componente `symfony/scheduler`) |
 | Contenedores | Docker + Docker Compose |
 | Transcripción | Open WebUI (Whisper local/remoto) o `whisper.cpp` como fallback |
@@ -74,7 +74,7 @@ Distinto del caso anterior: aquí el audio en sí es válido, pero el servicio d
 ### 3.5 Vistas / menús (navegación vertical, tras login)
 - **Login**
 - **Diario** — audios + transcripciones del día actual, con el resumen del día al final (visible cuando ya se generó, a partir de las 21:00).
-- **Historial** — vista histórica navegable por fecha/calendario de días anteriores.
+- **Historial** — vista de calendario (mes) navegable, con acceso a los audios/transcripciones de cada día anterior.
 - **Estadísticas** — agregados: nº de audios/día, duración media, temas más frecuentes.
 - **Logout**
 
@@ -89,7 +89,7 @@ Estas decisiones se tomaron explícitamente para evitar sobre-ingeniería en un 
   - `TranscriberInterface` (implementaciones: Open WebUI / whisper.cpp)
   - `SummaryGeneratorInterface` (implementación: Ollama)
 - **Symfony Messenger solo para lo async real**: la cadena Telegram → transcripción. No se convierte en bus general de la aplicación.
-- **Sin entidad `User` en BD.** Un único usuario, credenciales definidas por variables de entorno y `in_memory` provider de Symfony Security (hash de password en `.env`/config, no en tabla). No hay registro, recuperación de contraseña ni gestión de usuarios.
+- **Gestión de usuarios solo por consola, sin web.** Entidad `User` en BD (Symfony Security). Los usuarios se crean y las contraseñas se cambian con comandos (`bin/console app:user:create`, `bin/console app:user:change-password`) — quien tiene acceso al servidor/contenedor puede cambiar una contraseña sin conocer la actual. No hay registro, ni recuperación de contraseña vía web (sin email, sin tokens), ni gestión de usuarios desde la interfaz.
 - Regla general aplicada: **introducir un patrón solo cuando el problema que resuelve ya existe**, no de forma anticipada. Si en el futuro aparece una necesidad real de más desacoplo en un punto concreto, se extrae la interfaz correspondiente entonces.
 
 ## 5. Estructura de carpetas propuesta
@@ -99,11 +99,15 @@ src/
 ├── Entity/
 │   ├── AudioRecording.php
 │   ├── Transcription.php
-│   └── DailySummary.php
+│   ├── DailySummary.php
+│   ├── Topic.php
+│   └── User.php
 ├── Repository/
 │   ├── AudioRecordingRepository.php
 │   ├── TranscriptionRepository.php
-│   └── DailySummaryRepository.php
+│   ├── DailySummaryRepository.php
+│   ├── TopicRepository.php
+│   └── UserRepository.php
 ├── Service/
 │   ├── AudioRecordingService.php
 │   ├── DailySummaryService.php
@@ -127,7 +131,9 @@ src/
 ├── Form/
 │   └── TranscriptionEditType.php
 └── Command/
-    └── GenerateDailySummaryCommand.php         # invocado por Scheduler a las 21:00
+    ├── GenerateDailySummaryCommand.php         # invocado por Scheduler a las 21:00
+    ├── CreateUserCommand.php                   # app:user:create
+    └── ChangeUserPasswordCommand.php            # app:user:change-password
 ```
 
 ## 6. Modelo de datos (borrador)
@@ -164,8 +170,28 @@ No hay flujo de "regenerar": eliminar borra `AudioRecording` + `Transcription` +
 | id | int/uuid | PK |
 | date | date | unique |
 | summary_text | text | |
-| topics | json (o tabla `topic` normalizada N:M) | |
 | generated_at | datetime | |
+
+Relación N:M con `topic` a través de tabla pivote `daily_summary_topic`.
+
+### `topic`
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | int/uuid | PK |
+| name | string | **unique** — nombre normalizado del tema (permite agregarlo en Estadísticas: "temas más frecuentes" entre días) |
+
+No hay flujo de gestión manual de `topic`: se crean automáticamente al generar el resumen diario (3.3) si no existen ya con ese `name`.
+
+### `app_user`
+Nota: la tabla se llama `app_user`, no `user` — `user` es palabra reservada en PostgreSQL y provoca errores intermitentes de "column does not exist" en consultas generadas por Doctrine si no se cita de forma consistente; se evita el problema de raíz renombrando la tabla.
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | int/uuid | PK |
+| username | string | **unique** |
+| password_hash | string | hash de la contraseña (Symfony `PasswordHasher`) |
+| roles | json | p. ej. `["ROLE_USER"]` — sin niveles de rol complejos, un único usuario |
+
+Sin registro ni recuperación de contraseña vía web. Gestión exclusivamente por consola: `bin/console app:user:create <username>` (pide/genera la contraseña) y `bin/console app:user:change-password <username>` (fija una contraseña nueva sin pedir la actual — requiere acceso al servidor/contenedor, que ya implica confianza de administrador).
 
 ## 7. Infraestructura y servicios Docker Compose
 
@@ -174,9 +200,9 @@ docker-compose.yml (previsto)
 ├── app            # PHP-FPM 8.4 + Symfony
 ├── nginx           # o Caddy
 ├── postgres:16      # volumen persistente para datos de BD
+├── redis           # transporte de Symfony Messenger
 ├── messenger-worker  # misma imagen que app, comando: messenger:consume
-├── whisper (opcional) # solo si no se reutiliza el STT de Open WebUI existente
-└── (Ollama / Open WebUI ya están montados aparte — solo se consumen por URL vía variables de entorno)
+└── (Ollama / Open WebUI ya están montados aparte, en 192.168.4.200 — solo se consumen por URL vía variables de entorno)
 ```
 
 Volúmenes persistentes necesarios (compartidos entre `app` y `messenger-worker`, para que ambos accedan a los mismos ficheros):
@@ -187,23 +213,24 @@ Volúmenes persistentes necesarios (compartidos entre `app` y `messenger-worker`
 Variables de entorno necesarias (borrador):
 ```
 DATABASE_URL=postgresql://user:pass@postgres:5432/telegram_notes
+MESSENGER_TRANSPORT_DSN=redis://redis:6379/messages
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_AUTHORIZED_CHAT_ID=
-OLLAMA_BASE_URL=http://192.168.4.200:PUERTO
-OPENWEBUI_STT_BASE_URL=http://192.168.4.200:PUERTO
+OLLAMA_BASE_URL=http://192.168.4.200:11434
+OPENWEBUI_STT_BASE_URL=http://192.168.4.200:9006
 OPENWEBUI_API_KEY=
 APP_TIMEZONE=Europe/Madrid
-APP_AUTH_USERNAME=
-APP_AUTH_PASSWORD_HASH=
 ```
+
+El usuario (`user` en BD) se crea con `bin/console app:user:create`, no vía variables de entorno.
 
 ## 8. Pendiente de confirmar antes/durante el desarrollo
 
-- [ ] Confirmar en el panel de admin de Open WebUI qué motor de Speech-to-Text está activo (Web API / Local Whisper / OpenAI-compatible remoto) y su URL/puerto real.
-- [ ] Si Open WebUI no tiene STT operativo server-side, montar `whisper.cpp` como contenedor propio.
-- [ ] Decidir transporte de Symfony Messenger (Doctrine vs Redis) — Redis ya disponible en la infraestructura, se recomienda usarlo.
-- [ ] Definir si "Historial" usa vista calendario o listado simple por fecha.
-- [ ] Definir criterio exacto de "temas" en Estadísticas (¿tabla `topic` normalizada o array JSON?).
+- [x] Confirmar en el panel de admin de Open WebUI qué motor de Speech-to-Text está activo y su URL/puerto real. **Confirmado (2026-08-04):** Open WebUI v0.10.2 corriendo en `192.168.4.200:9006`, motor STT = **Whisper local**. `OPENWEBUI_STT_BASE_URL=http://192.168.4.200:9006`.
+- [x] ~~Si Open WebUI no tiene STT operativo server-side, montar `whisper.cpp` como contenedor propio.~~ No hace falta: Whisper local ya está operativo dentro de Open WebUI.
+- [x] Decidir transporte de Symfony Messenger. **Confirmado (2026-08-04): Redis** (nuevo contenedor `redis` en `docker-compose.yml`, ver sección 7).
+- [x] Definir si "Historial" usa vista calendario o listado simple por fecha. **Confirmado (2026-08-04): vista calendario.**
+- [x] Definir criterio exacto de "temas" en Estadísticas. **Confirmado (2026-08-04): tabla `topic` normalizada**, relación N:M con `daily_summary` (ver sección 6).
 
 ## 9. Orden de construcción recomendado
 

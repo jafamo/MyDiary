@@ -1,0 +1,23 @@
+#!/bin/sh
+# Bloquea el commit si los ficheros PHP en staging no cumplen PSR-12.
+# Activar con: git config core.hooksPath .githooks
+
+staged_php_files=$(git diff --cached --name-only --diff-filter=ACM -- '*.php')
+
+if [ -z "$staged_php_files" ]; then
+    exit 0
+fi
+
+echo "Comprobando PSR-12 en los ficheros PHP en staging..."
+
+docker compose exec -T diary-php vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff -- $staged_php_files
+status=$?
+
+if [ $status -ne 0 ]; then
+    echo ""
+    echo "Commit bloqueado: hay ficheros que no cumplen PSR-12."
+    echo "Ejecuta 'make cs-fix' para corregirlos automáticamente y vuelve a intentar el commit."
+    exit 1
+fi
+
+exit 0
