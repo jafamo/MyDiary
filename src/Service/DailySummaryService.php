@@ -35,9 +35,11 @@ class DailySummaryService
     ) {
     }
 
-    public function generateForDate(\DateTimeImmutable $date): void
+    public function generateForDate(\DateTimeImmutable $date, bool $waitForPending = true): void
     {
-        $this->waitForPendingTranscriptions($date);
+        if ($waitForPending) {
+            $this->waitForPendingTranscriptions($date);
+        }
 
         $transcribedRecords = $this->audioRecordingRepository->findTranscribedReceivedOn($date);
 

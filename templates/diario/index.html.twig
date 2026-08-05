@@ -45,6 +45,14 @@
 
         {% include '_partials/entry_log.html.twig' %}
 
+        <form class="summary-generate" method="post" action="{{ path('app_daily_summary_generate') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('daily_summary_generate') }}">
+            <button class="btn-action" type="submit">
+                <svg class="icon icon--sm"><use href="#i-refresh"></use></svg>
+                {{ daily_summary ? 'Regenerar resumen' : 'Generar resumen' }}
+            </button>
+        </form>
+
         {% if daily_summary %}
             <div class="summary-panel">
                 <div class="summary-panel__eyebrow"><svg class="icon"><use href="#i-dot"></use></svg> Resumen del día · generado {{ daily_summary.generatedAt|date('H:i', 'Europe/Madrid') }}</div>
