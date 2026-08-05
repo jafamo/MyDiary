@@ -23,6 +23,7 @@ security:
                 check_path: app_login
                 enable_csrf: true
                 default_target_path: app_diario
+                always_use_default_target_path: true
             logout:
                 path: app_logout
                 target: app_login
