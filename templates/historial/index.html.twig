@@ -1,0 +1,60 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Historial — {{ month_date|es_month_year }}{% endblock %}
+
+{% block body %}
+    <main class="content content--wide">
+        <div class="page-header"><h1>Historial</h1></div>
+
+        <div class="calendar-nav">
+            <a href="{{ path('app_historial', {year: previous_month.format('Y'), month: previous_month.format('n')}) }}" aria-label="Mes anterior">
+                <svg class="icon"><use href="#i-chevron-left"></use></svg>
+            </a>
+            <div class="calendar-nav__month">{{ month_date|es_month_year }}</div>
+            <a href="{{ path('app_historial', {year: next_month.format('Y'), month: next_month.format('n')}) }}" aria-label="Mes siguiente">
+                <svg class="icon"><use href="#i-chevron-right"></use></svg>
+            </a>
+        </div>
+
+        <div class="calendar">
+            <div class="calendar__weekday">L</div><div class="calendar__weekday">M</div><div class="calendar__weekday">X</div>
+            <div class="calendar__weekday">J</div><div class="calendar__weekday">V</div><div class="calendar__weekday">S</div><div class="calendar__weekday">D</div>
+
+            {% for week in weeks %}
+                {% for cell in week %}
+                    {% set classes = 'calendar__day' %}
+                    {% if cell.muted %}{% set classes = classes ~ ' calendar__day--muted' %}{% endif %}
+                    {% if cell.has_entries %}{% set classes = classes ~ ' calendar__day--has-entries' %}{% endif %}
+                    {% if not cell.has_summary and cell.has_entries %}{% set classes = classes ~ ' calendar__day--no-summary' %}{% endif %}
+                    {% if selected_date and cell.date == selected_date %}{% set classes = classes ~ ' calendar__day--selected' %}{% endif %}
+
+                    {% if cell.has_entries %}
+                        <a class="{{ classes }}" href="{{ path('app_historial', {year: month_date.format('Y'), month: month_date.format('n'), date: cell.date.format('Y-m-d')}) }}">
+                            {{ cell.day }}
+                            <span class="calendar__count"><svg class="icon"><use href="#i-dot"></use></svg></span>
+                        </a>
+                    {% else %}
+                        <div class="{{ classes }}">{{ cell.day }}</div>
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+        </div>
+
+        <div class="calendar-legend">
+            <span><svg class="icon" style="color:var(--accent)"><use href="#i-dot"></use></svg> Con resumen generado</span>
+            <span><svg class="icon" style="color:var(--text-muted)"><use href="#i-dot"></use></svg> Audios sin resumen (antes de las 21:00 o fallido)</span>
+        </div>
+
+        {% if selected_date %}
+            <div class="day-preview">
+                <div class="day-preview__label">
+                    <svg class="icon icon--sm"><use href="#i-mic"></use></svg>
+                    {{ selected_date|es_weekday_date }} — {{ selected_entries|length }} audio{{ selected_entries|length == 1 ? '' : 's' }}
+                </div>
+                {% with { entries: selected_entries } %}
+                    {% include '_partials/entry_log.html.twig' %}
+                {% endwith %}
+            </div>
+        {% endif %}
+    </main>
+{% endblock %}

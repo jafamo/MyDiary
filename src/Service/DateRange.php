@@ -27,4 +27,41 @@ final class DateRange
 
         return [$start, $end];
     }
+
+    /**
+     * Devuelve [inicio, fin) de la semana (lunes-domingo) que contiene $date, en Europe/Madrid, convertido a UTC.
+     *
+     * @return array{0: \DateTimeImmutable, 1: \DateTimeImmutable}
+     */
+    public static function weekBoundaries(\DateTimeImmutable $date): array
+    {
+        $utc = new \DateTimeZone('UTC');
+        $local = $date->setTimezone(new \DateTimeZone(self::TIMEZONE));
+        $dayOfWeek = (int) $local->format('N');
+        $monday = $local->setTime(0, 0, 0)->modify(sprintf('-%d days', $dayOfWeek - 1));
+        $nextMonday = $monday->modify('+7 days');
+
+        return [$monday->setTimezone($utc), $nextMonday->setTimezone($utc)];
+    }
+
+    /**
+     * Devuelve [inicio, fin) cubriendo desde el día $from hasta el día $to (ambos incluidos), en UTC.
+     *
+     * @return array{0: \DateTimeImmutable, 1: \DateTimeImmutable}
+     */
+    public static function boundariesForDates(\DateTimeImmutable $from, \DateTimeImmutable $to): array
+    {
+        [$start] = self::dayBoundaries($from);
+        [, $end] = self::dayBoundaries($to);
+
+        return [$start, $end];
+    }
+
+    /**
+     * "Ahora" en Europe/Madrid — para lógica de calendario/racha independiente de la BD.
+     */
+    public static function nowInMadrid(): \DateTimeImmutable
+    {
+        return new \DateTimeImmutable('now', new \DateTimeZone(self::TIMEZONE));
+    }
 }

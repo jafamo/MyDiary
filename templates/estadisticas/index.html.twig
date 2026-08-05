@@ -1,0 +1,116 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Estadísticas{% endblock %}
+
+{% block javascripts %}
+    <script src="{{ asset('js/estadisticas.js') }}" defer></script>
+{% endblock %}
+
+{% block body %}
+    <main class="content content--wide">
+        <div class="page-header">
+            <h1>Estadísticas</h1>
+            <div class="page-header__meta">{{ from|es_day_month }} – {{ to|es_day_month }} {{ to.format('Y') }}</div>
+        </div>
+
+        <div class="filter-row">
+            <div class="filter-pills" role="group" aria-label="Rango de fechas">
+                <a class="filter-pill" href="{{ path('app_estadisticas', {range: 15}) }}" aria-current="{{ range == '15' ? 'true' : 'false' }}">15 días</a>
+                <a class="filter-pill" href="{{ path('app_estadisticas', {range: 30}) }}" aria-current="{{ range == '30' ? 'true' : 'false' }}">1 mes</a>
+                <a class="filter-pill" href="{{ path('app_estadisticas', {range: 90}) }}" aria-current="{{ range == '90' ? 'true' : 'false' }}">3 meses</a>
+                <a class="filter-pill" href="{{ path('app_estadisticas', {range: 365}) }}" aria-current="{{ range == '365' ? 'true' : 'false' }}">1 año</a>
+            </div>
+            <form class="filter-custom" method="get" action="{{ path('app_estadisticas') }}">
+                <input type="hidden" name="range" value="custom">
+                <input type="date" name="from" value="{{ from.format('Y-m-d') }}">
+                <span>–</span>
+                <input type="date" name="to" value="{{ to.format('Y-m-d') }}">
+                <button class="btn-apply" type="submit">Aplicar</button>
+            </form>
+        </div>
+
+        <div class="stat-grid">
+            <div class="stat-tile">
+                <div class="stat-tile__label"><svg class="icon"><use href="#i-mic"></use></svg> Audios / día</div>
+                <div class="stat-tile__value">{{ avg_audios_per_day }}</div>
+            </div>
+            <div class="stat-tile">
+                <div class="stat-tile__label"><svg class="icon"><use href="#i-clock"></use></svg> Duración media</div>
+                <div class="stat-tile__value">{{ avg_duration_seconds // 60 }}:{{ '%02d'|format(avg_duration_seconds % 60) }} <small>min</small></div>
+            </div>
+            <div class="stat-tile">
+                <div class="stat-tile__label"><svg class="icon"><use href="#i-calendar"></use></svg> Días con resumen</div>
+                <div class="stat-tile__value">{{ days_with_summary }} <small>/ {{ total_days }}</small></div>
+            </div>
+            <div class="stat-tile">
+                <div class="stat-tile__label"><svg class="icon"><use href="#i-alert"></use></svg> Errores de transcripción</div>
+                <div class="stat-tile__value">{{ status_counts.ERROR }}</div>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <div class="chart-card__header">
+                <div class="section-title"><svg class="icon icon--sm"><use href="#i-chart"></use></svg> Audios por día</div>
+                <button class="chart-table-toggle" id="table-toggle" type="button" aria-pressed="false">Ver como tabla</button>
+            </div>
+            <div class="chart-wrap">
+                <svg class="line-chart" id="line-chart" viewBox="0 0 640 220" role="img" aria-label="Audios por día en el rango seleccionado">
+                    <line class="grid-line" x1="32" y1="16" x2="628" y2="16"></line>
+                    <line class="grid-line" x1="32" y1="118" x2="628" y2="118"></line>
+                    <line class="grid-line" x1="32" y1="192" x2="628" y2="192"></line>
+                    <text class="axis-label" id="axis-max" x="4" y="19"></text>
+                    <text class="axis-label" id="axis-mid" x="4" y="121"></text>
+                    <text class="axis-label" x="4" y="195">0</text>
+                    <g id="x-axis-labels"></g>
+                    <path class="area-fill" id="area-path"></path>
+                    <path class="line-path" id="line-path"></path>
+                    <line class="crosshair-line" id="crosshair" x1="0" y1="16" x2="0" y2="192"></line>
+                    <circle class="hover-dot" id="hover-dot" r="4"></circle>
+                    <circle class="endpoint-dot" id="endpoint-dot" r="4"></circle>
+                    <text class="endpoint-label" id="endpoint-label"></text>
+                    <rect class="hit-area" id="hit-area" x="32" y="0" width="596" height="220"></rect>
+                </svg>
+                <div class="chart-tooltip" id="chart-tooltip">
+                    <div class="chart-tooltip__date" id="tooltip-date"></div>
+                    <div class="chart-tooltip__value" id="tooltip-value"></div>
+                </div>
+            </div>
+            <table class="chart-table" id="chart-table">
+                <thead><tr><th>Fecha</th><th>Audios</th></tr></thead>
+                <tbody id="chart-table-body"></tbody>
+            </table>
+        </div>
+
+        <div class="chart-card">
+            <div class="section-title"><svg class="icon icon--sm"><use href="#i-check"></use></svg> Estado de las transcripciones</div>
+            <div class="status-bar" role="img" aria-label="Distribución de estados de transcripción" style="margin-top:0.9rem">
+                {% set statusTotal = status_counts.TRANSCRIBED + status_counts.PENDING + status_counts.ERROR %}
+                <div class="status-bar__segment" style="background:var(--status-transcribed); width: {{ statusTotal > 0 ? (status_counts.TRANSCRIBED / statusTotal * 100) : 0 }}%"></div>
+                <div class="status-bar__segment" style="background:var(--status-pending); width: {{ statusTotal > 0 ? (status_counts.PENDING / statusTotal * 100) : 0 }}%"></div>
+                <div class="status-bar__segment" style="background:var(--status-error); width: {{ statusTotal > 0 ? (status_counts.ERROR / statusTotal * 100) : 0 }}%"></div>
+            </div>
+            <div class="status-legend">
+                <span><svg class="icon" style="color:var(--status-transcribed)"><use href="#i-check"></use></svg> Transcritos <strong>{{ status_counts.TRANSCRIBED }}</strong></span>
+                <span><svg class="icon" style="color:var(--status-pending)"><use href="#i-clock"></use></svg> Pendientes <strong>{{ status_counts.PENDING }}</strong></span>
+                <span><svg class="icon" style="color:var(--status-error)"><use href="#i-alert"></use></svg> Errores <strong>{{ status_counts.ERROR }}</strong></span>
+            </div>
+        </div>
+
+        <div class="section-title"><svg class="icon icon--sm"><use href="#i-tag"></use></svg> Temas más frecuentes</div>
+        <div class="topic-freq" style="margin-top:1rem">
+            {% if topic_frequency is empty %}
+                <p class="topic-freq-empty">Sin temas registrados en este rango.</p>
+            {% else %}
+                {% for topic in topic_frequency %}
+                    <div class="topic-freq__row">
+                        <span class="topic-freq__name"><svg class="icon"><use href="#i-tag"></use></svg> {{ topic.name }}</span>
+                        <div class="topic-freq__bar-track"><div class="topic-freq__bar" style="width: {{ (topic.count / max_topic_count * 100) }}%"></div></div>
+                        <span class="topic-freq__count">{{ topic.count }}</span>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <script id="chart-data" type="application/json">{{ series_json|raw }}</script>
+    </main>
+{% endblock %}

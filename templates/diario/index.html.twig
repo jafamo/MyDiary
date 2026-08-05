@@ -1,0 +1,62 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Diario — {{ today|es_weekday_date }}{% endblock %}
+
+{% block body %}
+    <main class="content">
+        <div class="page-header">
+            <h1>{{ today|es_weekday_date }}</h1>
+            <div class="page-header__meta">
+                <svg class="icon icon--sm"><use href="#i-mic"></use></svg>
+                {{ entries|length }} audio{{ entries|length == 1 ? '' : 's' }}
+            </div>
+        </div>
+
+        <div class="mini-stats">
+            <div class="mini-stat">
+                <div class="mini-stat__label"><svg class="icon"><use href="#i-flame"></use></svg> Racha</div>
+                <div class="mini-stat__value">{{ streak }} <small>día{{ streak == 1 ? '' : 's' }} seguido{{ streak == 1 ? '' : 's' }}</small></div>
+                <div class="mini-stat__foot">Tu mejor racha: {{ best_streak }} día{{ best_streak == 1 ? '' : 's' }}</div>
+            </div>
+            <div class="mini-stat">
+                <div class="mini-stat__label"><svg class="icon"><use href="#i-mic"></use></svg> Esta semana</div>
+                <div class="mini-stat__value">{{ week.total }} <small>audio{{ week.total == 1 ? '' : 's' }}</small></div>
+                <div class="mini-stat__foot">
+                    {% if week.delta > 0 %}
+                        <svg class="icon"><use href="#i-trend-up"></use></svg> +{{ week.delta }} vs. semana anterior
+                    {% elseif week.delta < 0 %}
+                        {{ week.delta }} vs. semana anterior
+                    {% else %}
+                        Igual que la semana anterior
+                    {% endif %}
+                </div>
+            </div>
+            <div class="mini-stat">
+                <div class="mini-stat__label"><svg class="icon"><use href="#i-tag"></use></svg> Tema del mes</div>
+                {% if top_topic %}
+                    <div class="mini-stat__value mini-stat__value--text">{{ top_topic.name }}</div>
+                    <div class="mini-stat__foot">{{ top_topic.count }} mención{{ top_topic.count == 1 ? '' : 'es' }} este mes</div>
+                {% else %}
+                    <div class="mini-stat__value mini-stat__value--text">—</div>
+                    <div class="mini-stat__foot">Todavía sin resúmenes este mes</div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% include '_partials/entry_log.html.twig' %}
+
+        {% if daily_summary %}
+            <div class="summary-panel">
+                <div class="summary-panel__eyebrow"><svg class="icon"><use href="#i-dot"></use></svg> Resumen del día · generado {{ daily_summary.generatedAt|date('H:i', 'Europe/Madrid') }}</div>
+                <p>{{ daily_summary.summaryText }}</p>
+                {% if daily_summary.topics|length > 0 %}
+                    <div class="topic-chips">
+                        {% for topic in daily_summary.topics %}
+                            <span class="topic-chip"><svg class="icon icon--sm"><use href="#i-tag"></use></svg> {{ topic.name }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
+    </main>
+{% endblock %}

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Diario — Iniciar sesión</title>
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 font-size=%2290%22><text y=%221.1em%22>📔</text></svg>">
+        <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+    </head>
+    <body>
+        {% include '_partials/svg_sprite.html.twig' %}
+        <div class="login-screen">
+            <div class="login-card">
+                <div class="brand">
+                    <div class="brand__mark"><svg class="icon"><use href="#i-mic"></use></svg></div>
+                    <div class="brand__title">Diario<small>Notas de voz por Telegram</small></div>
+                </div>
+
+                {% if error %}
+                    <div class="login-error">Usuario o contraseña incorrectos.</div>
+                {% endif %}
+
+                <form class="login-card" method="post" action="{{ path('app_login') }}">
+                    <div class="field">
+                        <label for="username">Usuario</label>
+                        <input id="username" name="_username" type="text" value="{{ last_username }}" autocomplete="username" required autofocus>
+                    </div>
+                    <div class="field">
+                        <label for="password">Contraseña</label>
+                        <input id="password" name="_password" type="password" autocomplete="current-password" required>
+                    </div>
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+                    <button class="btn-primary" type="submit"><svg class="icon icon--sm"><use href="#i-logout"></use></svg> Entrar</button>
+                </form>
+                <p class="login-note">Acceso de un único usuario — sin registro ni recuperación por email.</p>
+            </div>
+        </div>
+    </body>
+</html>
