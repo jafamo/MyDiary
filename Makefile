@@ -1,4 +1,4 @@
-.PHONY: up down build restart logs ps sh cs-check cs-fix test test-coverage composer-install migrate migration-diff console
+.PHONY: up down build restart logs ps sh cs-check cs-fix test test-coverage composer-install migrate migration-diff console cache-clear
 
 COMPOSE = docker compose --env-file .env
 
@@ -45,3 +45,6 @@ migration-diff:
 
 console:
 	$(COMPOSE) exec diary-php php bin/console $(ARGS)
+
+cache-clear:
+	$(COMPOSE) exec diary-php php bin/console cache:clear
