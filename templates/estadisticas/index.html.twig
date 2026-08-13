@@ -59,6 +59,38 @@
                 <div class="stat-tile__label"><svg class="icon"><use href="#i-alert"></use></svg> Errores de transcripción</div>
                 <div class="stat-tile__value">{{ status_counts.ERROR }}</div>
             </div>
+            <div class="stat-tile">
+                <div class="stat-tile__label"><svg class="icon"><use href="#i-mic"></use></svg> Total de audios</div>
+                <div class="stat-tile__value">{{ total_audios }}</div>
+            </div>
+            <div class="stat-tile">
+                <div class="stat-tile__label"><svg class="icon"><use href="#i-dot"></use></svg> Racha</div>
+                <div class="stat-tile__value">{{ current_streak }} <small>día{{ current_streak == 1 ? '' : 's' }}</small></div>
+                {% if best_streak > current_streak %}
+                    <div class="stat-tile__hint">Mejor racha: {{ best_streak }} días</div>
+                {% endif %}
+            </div>
+            <div class="stat-tile">
+                <div class="stat-tile__label"><svg class="icon"><use href="#i-chart"></use></svg> Día récord</div>
+                {% if record_day %}
+                    <div class="stat-tile__value">{{ record_day.value }} <small>audio{{ record_day.value == 1 ? '' : 's' }}</small></div>
+                    <div class="stat-tile__hint">{{ date(record_day.date)|es_weekday_date }}</div>
+                {% else %}
+                    <div class="stat-tile__value">—</div>
+                    <div class="stat-tile__hint">Sin audios en el rango</div>
+                {% endif %}
+            </div>
+            <div class="stat-tile">
+                <div class="stat-tile__label"><svg class="icon"><use href="#i-chart"></use></svg> vs. periodo anterior</div>
+                {% if previous_period_comparison.available %}
+                    <div class="stat-tile__value stat-tile__value--{{ previous_period_comparison.percentage >= 0 ? 'positive' : 'negative' }}">
+                        {{ previous_period_comparison.percentage >= 0 ? '↑' : '↓' }} {{ previous_period_comparison.percentage|abs }}%
+                    </div>
+                {% else %}
+                    <div class="stat-tile__value">—</div>
+                    <div class="stat-tile__hint">Sin datos del periodo anterior</div>
+                {% endif %}
+            </div>
         </div>
 
         <div class="chart-card">

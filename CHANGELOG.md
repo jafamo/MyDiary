@@ -2,6 +2,20 @@
 
 Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado según [SemVer](https://semver.org/lang/es/). Flujo de ramas: [Git Flow](CLAUDE.md).
 
+## [0.4.0] - 2026-08-13
+
+### Ramas integradas en `develop`
+- `feature/chores`
+- `feature/estadisticas-insights`
+
+### Añadido
+- **Estadísticas**: total de audios del rango, racha de días consecutivos con audio (actual y mejor racha), día récord (fecha con más audios) y comparación porcentual de audios/día frente al periodo anterior equivalente; los cuatro indicadores respetan los filtros de rango y estado ya existentes.
+- **Historial**: el calendario muestra ahora el número de audios de cada día junto al indicador de estado.
+- `make cache-clear`: nuevo target para limpiar la caché de Symfony en el contenedor.
+
+### Cambiado
+- Ajustes de espaciado y jerarquía visual en las tarjetas de la vista Resúmenes.
+
 ## [0.3.0] - 2026-08-13
 
 ### Ramas integradas en `develop`

@@ -31,7 +31,7 @@
                     {% if cell.has_entries %}
                         <a class="{{ classes }}" href="{{ path('app_historial', {year: month_date.format('Y'), month: month_date.format('n'), date: cell.date.format('Y-m-d')}) }}">
                             {{ cell.day }}
-                            <span class="calendar__count"><svg class="icon"><use href="#i-dot"></use></svg></span>
+                            <span class="calendar__count"><svg class="icon"><use href="#i-dot"></use></svg> {{ cell.count }}</span>
                         </a>
                     {% else %}
                         <div class="{{ classes }}">{{ cell.day }}</div>
