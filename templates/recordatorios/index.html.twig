@@ -122,7 +122,10 @@
         <div class="summary-generate">
             <div class="section-title"><svg class="icon icon--sm"><use href="#i-bell"></use></svg> Nuevo recordatorio</div>
             <form class="entry__edit-form" method="post" action="{{ path('app_recordatorios_create') }}" style="margin-top:0.75rem">
-                <input type="date" name="reminder[date]" value="{{ new_reminder_date }}">
+                <div class="reminder-form-row">
+                    <input type="date" name="reminder[date]" value="{{ new_reminder_date }}">
+                    <input type="time" name="reminder[time]" placeholder="Hora (opcional)">
+                </div>
                 <textarea name="reminder[text]" rows="3" placeholder="¿Qué quieres recordar?"></textarea>
                 <input type="hidden" name="reminder[_token]" value="{{ csrf_token('reminder') }}">
                 <button class="btn-action btn-action--primary" type="submit">Crear recordatorio</button>

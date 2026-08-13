@@ -18,6 +18,9 @@ class Reminder
     #[ORM\Column(type: 'date_immutable')]
     private \DateTimeImmutable $date;
 
+    #[ORM\Column(type: 'time_immutable', nullable: true)]
+    private ?\DateTimeImmutable $time = null;
+
     #[ORM\Column(type: 'text')]
     private string $text;
 
@@ -46,6 +49,18 @@ class Reminder
     public function setDate(\DateTimeImmutable $date): static
     {
         $this->date = $date;
+
+        return $this;
+    }
+
+    public function getTime(): ?\DateTimeImmutable
+    {
+        return $this->time;
+    }
+
+    public function setTime(?\DateTimeImmutable $time): static
+    {
+        $this->time = $time;
 
         return $this;
     }

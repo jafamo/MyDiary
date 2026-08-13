@@ -4,15 +4,22 @@
     <div class="reminder-grid">
         {% for reminder in reminders %}
             <article class="reminder-card">
-                {% if show_date|default(true) %}
-                    <div class="reminder-card__date"><svg class="icon icon--sm"><use href="#i-calendar"></use></svg> {{ reminder.date|es_weekday_date }}</div>
+                {% if show_date|default(true) or reminder.time %}
+                    <div class="reminder-card__date">
+                        <svg class="icon icon--sm"><use href="#i-calendar"></use></svg>
+                        {% if show_date|default(true) %}{{ reminder.date|es_weekday_date }}{% endif %}
+                        {% if reminder.time %}<span class="reminder-card__time"><svg class="icon icon--sm"><use href="#i-clock"></use></svg> {{ reminder.time|date('H:i') }}</span>{% endif %}
+                    </div>
                 {% endif %}
                 <p class="reminder-card__text">{{ reminder.text }}</p>
                 <div class="reminder-card__actions">
                     <details class="entry__edit">
                         <summary class="btn-action"><svg class="icon icon--sm"><use href="#i-edit"></use></svg> Editar</summary>
                         <form class="entry__edit-form" method="post" action="{{ path('app_recordatorios_edit', {reminder: reminder.id}) }}">
-                            <input type="date" name="reminder[date]" value="{{ reminder.date.format('Y-m-d') }}">
+                            <div class="reminder-form-row">
+                                <input type="date" name="reminder[date]" value="{{ reminder.date.format('Y-m-d') }}">
+                                <input type="time" name="reminder[time]" value="{{ reminder.time ? reminder.time.format('H:i') : '' }}">
+                            </div>
                             <textarea name="reminder[text]" rows="3">{{ reminder.text }}</textarea>
                             <input type="hidden" name="reminder[_token]" value="{{ csrf_token('reminder') }}">
                             <button class="btn-action btn-action--primary" type="submit">Guardar</button>
