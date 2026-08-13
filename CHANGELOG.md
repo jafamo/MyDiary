@@ -2,6 +2,24 @@
 
 Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado según [SemVer](https://semver.org/lang/es/). Flujo de ramas: [Git Flow](CLAUDE.md).
 
+## [0.5.0] - 2026-08-13
+
+### Ramas integradas en `develop`
+- `feature/deploy-tooling`
+- `feature/recordatorios`
+
+### Añadido
+- **Recordatorios**: nuevo menú (`/recordatorios`) para anotar eventos futuros (citas, compromisos, tareas con fecha), con calendario mensual navegable (mismo patrón que Historial), creación/edición/borrado desde la web, y varios recordatorios por día.
+  - Listado paginado de **próximos recordatorios** (todas las fechas futuras, no solo el mes visible) y un **historial paginado** de recordatorios pasados (se derivan solo de la fecha, sin campo de estado nuevo), ambos presentados como cards y plegables en acordeón.
+  - Stat-grid con total de recordatorios, recordatorios del mes en curso y cuenta atrás hasta el próximo.
+  - **Icono de campana global**, visible en todas las páginas (barra lateral en escritorio, barra superior en móvil), con badge de recordatorios "próximos" (ventana de 5 días, con nivel de urgencia visual) y un panel desplegable con el/los recordatorio(s) más cercano(s) sin salir de la página.
+  - **Aviso diario por Telegram** a las 08:00 (Europe/Madrid) con los recordatorios del día, si existen (`app:notify-reminders`, vía Symfony Scheduler).
+  - **Estadísticas**: nuevo tile "Recordatorios en el rango" y una segunda línea (naranja) en el gráfico de audios por día con los recordatorios de cada día; la tabla accesible del gráfico ahora incluye esa columna y se ordena de más reciente a más antigua.
+- `make deploy`: nuevo target que encadena `git pull origin main`, `cache:clear` y el reinicio de `diary-php`/`diary-messenger-worker` — evita el error de caché obsoleta en el worker tras un despliegue sin reiniciar los procesos de larga duración.
+
+### Corregido
+- El worker de Messenger podía fallar con `Failed to open stream` tras un `cache:clear` en producción si no se reiniciaba junto con `diary-php`; documentado y resuelto vía `make deploy`.
+
 ## [0.4.0] - 2026-08-13
 
 ### Ramas integradas en `develop`
