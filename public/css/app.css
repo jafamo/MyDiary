@@ -222,6 +222,9 @@ table { border-collapse: collapse; width: 100%; }
 .stat-tile__label .icon { color: var(--accent); width: 0.95em; height: 0.95em; }
 .stat-tile__value { font-family: var(--font-display); font-size: 1.6rem; font-variant-numeric: tabular-nums; }
 .stat-tile__value small { font-size: 0.95rem; color: var(--text-muted); font-weight: 400; }
+.stat-tile__value--positive { color: var(--status-transcribed); }
+.stat-tile__value--negative { color: var(--status-error); }
+.stat-tile__hint { font-size: 0.78rem; color: var(--text-muted); }
 
 .section-title { font-size: 0.92rem; margin-bottom: 0; display: flex; align-items: baseline; gap: 0.55rem; flex-wrap: wrap; }
 .section-title span { font-size: 0.72rem; color: var(--text-muted); font-weight: 400; font-family: var(--font-body); }

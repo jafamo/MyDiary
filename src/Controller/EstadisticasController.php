@@ -66,7 +66,95 @@ class EstadisticasController
             'status_counts' => $statusCounts,
             'topic_frequency' => $topicFrequency,
             'max_topic_count' => $maxTopicCount,
+            'total_audios' => $totalAudios,
+            'current_streak' => $this->currentStreak($series),
+            'best_streak' => $this->bestStreak($series),
+            'record_day' => $this->recordDay($series),
+            'previous_period_comparison' => $this->previousPeriodComparison($from, $totalDays, $avgAudiosPerDay, $status),
         ]));
+    }
+
+    /**
+     * Racha final del rango: días consecutivos con audio contando hacia atrás desde el último día.
+     *
+     * @param list<array{date: string, value: int}> $series
+     */
+    private function currentStreak(array $series): int
+    {
+        $streak = 0;
+        for ($i = \count($series) - 1; $i >= 0; --$i) {
+            if ($series[$i]['value'] <= 0) {
+                break;
+            }
+            ++$streak;
+        }
+
+        return $streak;
+    }
+
+    /**
+     * Racha más larga de días consecutivos con audio dentro del rango.
+     *
+     * @param list<array{date: string, value: int}> $series
+     */
+    private function bestStreak(array $series): int
+    {
+        $best = 0;
+        $current = 0;
+        foreach ($series as $day) {
+            if ($day['value'] > 0) {
+                ++$current;
+                $best = max($best, $current);
+            } else {
+                $current = 0;
+            }
+        }
+
+        return $best;
+    }
+
+    /**
+     * Día con más audios del rango; en empate, el más antiguo. Null si no hay audios.
+     *
+     * @param list<array{date: string, value: int}> $series
+     *
+     * @return array{date: string, value: int}|null
+     */
+    private function recordDay(array $series): ?array
+    {
+        $record = null;
+        foreach ($series as $day) {
+            if ($day['value'] > 0 && (null === $record || $day['value'] > $record['value'])) {
+                $record = $day;
+            }
+        }
+
+        return $record;
+    }
+
+    /**
+     * Variación de la media de audios/día frente al periodo inmediatamente anterior de igual duración.
+     *
+     * @return array{available: bool, percentage: float|null}
+     */
+    private function previousPeriodComparison(\DateTimeImmutable $from, int $totalDays, float $avgAudiosPerDay, ?AudioRecordingStatus $status): array
+    {
+        $previousTo = $from->modify('-1 day');
+        $previousFrom = $previousTo->modify(sprintf('-%d days', $totalDays - 1));
+
+        $previousCounts = $this->audioRecordingRepository->countByDateInRange($previousFrom, $previousTo, $status);
+        $previousTotal = array_sum($previousCounts);
+
+        if ($previousTotal <= 0) {
+            return ['available' => false, 'percentage' => null];
+        }
+
+        $previousAvg = $previousTotal / $totalDays;
+
+        return [
+            'available' => true,
+            'percentage' => round((($avgAudiosPerDay - $previousAvg) / $previousAvg) * 100, 1),
+        ];
     }
 
     /**
