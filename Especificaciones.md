@@ -238,12 +238,13 @@ Elasticsearch y Kibana ya están desplegados aparte en el mismo servidor de prod
 #### Envío a Elasticsearch (Filebeat)
 
 - Servicio `diary-filebeat` (`docker-compose.yml`), imagen `docker.elastic.co/beats/filebeat:${FILEBEAT_VERSION}`.
-- Config en `docker/filebeat/filebeat.yml`: 4 inputs de fichero (`nginx`, `postgres`, `redis`, `php`) sobre `${LOGS_PATH}` montado en modo lectura (`/logs:ro`), cada uno etiquetado con el campo `service`. El input `php` parsea JSON directamente (los logs de Monolog ya lo son).
+- Config en `docker/filebeat/filebeat.yml`: 4 inputs de fichero (`nginx`, `postgres`, `redis`, `php`) sobre `${LOGS_PATH}` montado en modo lectura (`/logs:ro`), cada uno etiquetado con el campo `log_service` (no `service`: ese nombre choca con el campo objeto `service.*` de ECS y Elasticsearch rechaza el documento con `mapper_parsing_exception`). El input `php` parsea JSON directamente (los logs de Monolog ya lo son).
 - No lee logs de contenedor Docker ni monta el socket: como la app ya escribe a fichero en todos los entornos, todo es lectura de fichero.
+- El `command` del servicio (`["-e", "--strict.perms=false"]`) sustituye el `CMD` por defecto de la imagen entera, así que hay que mantener `-e` explícito (si no, Filebeat deja de loguear a stderr y `docker compose logs` no muestra nada) además de `--strict.perms=false` (el `filebeat.yml` montado por bind mount conserva el propietario del host, no root, y sin ese flag Filebeat rechaza arrancar).
 - Variables en `.env` (ajustar a la instancia real de ES/Kibana del servidor):
 
   ```env
-  FILEBEAT_VERSION=8.15.0
+  FILEBEAT_VERSION=8.15.1
   ELASTICSEARCH_HOSTS=http://host.docker.internal:9200
   ELASTICSEARCH_USERNAME=
   ELASTICSEARCH_PASSWORD=

@@ -3,21 +3,21 @@ filebeat.inputs:
     paths:
       - /logs/nginx/*.log
     fields:
-      service: nginx
+      log_service: nginx
     fields_under_root: true
 
   - type: log
     paths:
       - /logs/postgres/*.log
     fields:
-      service: postgres
+      log_service: postgres
     fields_under_root: true
 
   - type: log
     paths:
       - /logs/redis/*.log
     fields:
-      service: redis
+      log_service: redis
     fields_under_root: true
 
   - type: log
@@ -25,7 +25,7 @@ filebeat.inputs:
       - /logs/php/*.log
       - /logs/messenger-worker/*.log
     fields:
-      service: php
+      log_service: php
     fields_under_root: true
     json.keys_under_root: true
     json.add_error_key: true
