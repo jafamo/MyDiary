@@ -225,6 +225,40 @@ APP_TIMEZONE=Europe/Madrid
 
 El usuario (`user` en BD) se crea con `bin/console app:user:create`, no vía variables de entorno.
 
+### 7.1 Logging y auditoría (ELK)
+
+Elasticsearch y Kibana ya están desplegados aparte en el mismo servidor de producción (no forman parte de este `docker-compose.yml`, igual que Ollama/Open WebUI). Este repo solo aporta la retención local y el envío de logs hacia ellos:
+
+#### Retención local
+
+- Logs de la app PHP (`diary-php` y `diary-messenger-worker`): Monolog con handler `rotating_file` (`config/packages/monolog.yaml`), formato JSON, rotación diaria y borrado automático a los **60 días** (`max_files: 60`). En `prod` escriben a fichero (`/var/log/php-diary/app-prod.log`), no a `stderr`.
+- Logs de todos los contenedores (stdout/stderr — `console`/`deprecation` de PHP, logs propios de nginx/postgres/redis si no van a fichero): driver `json-file` de Docker limitado a 50MB por servicio (`max-size: 10m`, `max-file: 5`, anchor `x-logging` en `docker-compose.yml`). Requiere recrear el contenedor (`docker compose up -d --force-recreate`) para aplicar, no basta con un restart.
+- nginx, postgres y redis además escriben a fichero bajo `${LOGS_PATH}/{nginx,postgres,redis}` (bind mounts ya existentes). Nota: postgres solo escribe ahí si tiene `logging_collector` activado; por defecto postgres loguea a stderr — pendiente de confirmar/activar si se quiere auditar en Kibana.
+
+#### Envío a Elasticsearch (Filebeat)
+
+- Servicio `diary-filebeat` (`docker-compose.yml`), imagen `docker.elastic.co/beats/filebeat:${FILEBEAT_VERSION}`.
+- Config en `docker/filebeat/filebeat.yml`: 4 inputs de fichero (`nginx`, `postgres`, `redis`, `php`) sobre `${LOGS_PATH}` montado en modo lectura (`/logs:ro`), cada uno etiquetado con el campo `service`. El input `php` parsea JSON directamente (los logs de Monolog ya lo son).
+- No lee logs de contenedor Docker ni monta el socket: como la app ya escribe a fichero en todos los entornos, todo es lectura de fichero.
+- Variables en `.env` (ajustar a la instancia real de ES/Kibana del servidor):
+
+  ```env
+  FILEBEAT_VERSION=8.15.0
+  ELASTICSEARCH_HOSTS=http://host.docker.internal:9200
+  ELASTICSEARCH_USERNAME=
+  ELASTICSEARCH_PASSWORD=
+  KIBANA_HOST=http://host.docker.internal:5601
+  ```
+
+  `host.docker.internal` asume ES/Kibana corriendo directamente en el host del servidor; si en realidad son contenedores Docker, hay que apuntar a su hostname/red en vez de `host.docker.internal`.
+
+#### Puesta en marcha (una vez, en el servidor)
+
+1. Rellenar las variables de ES/Kibana en el `.env` del servidor con los valores reales.
+2. `docker compose up -d diary-filebeat`
+3. `docker compose exec diary-filebeat filebeat setup -e` (crea el index template e ILM policy en Elasticsearch).
+4. En Kibana: crear el Data View `filebeat-*` para poder explorar/filtrar por `service` en *Discover*.
+
 ## 8. Pendiente de confirmar antes/durante el desarrollo
 
 - [x] Confirmar en el panel de admin de Open WebUI qué motor de Speech-to-Text está activo y su URL/puerto real. **Confirmado (2026-08-04):** Open WebUI v0.10.2 corriendo en `192.168.4.200:9006`, motor STT = **Whisper local**. `OPENWEBUI_STT_BASE_URL=http://192.168.4.200:9006`.

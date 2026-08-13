@@ -6,8 +6,9 @@ when@dev:
     monolog:
         handlers:
             main:
-                type: stream
+                type: rotating_file
                 path: "/var/log/php-diary/app-%kernel.environment%.log"
+                max_files: 60
                 level: debug
                 channels: ["!event"]
                 formatter: monolog.formatter.json
@@ -41,8 +42,9 @@ when@prod:
                 channels: ["!deprecation"]
                 buffer_size: 50 # How many messages should be saved? Prevent memory leaks
             nested:
-                type: stream
-                path: php://stderr
+                type: rotating_file
+                path: "/var/log/php-diary/app-%kernel.environment%.log"
+                max_files: 60
                 level: debug
                 formatter: monolog.formatter.json
             console:
