@@ -1,0 +1,40 @@
+filebeat.inputs:
+  - type: log
+    paths:
+      - /logs/nginx/*.log
+    fields:
+      service: nginx
+    fields_under_root: true
+
+  - type: log
+    paths:
+      - /logs/postgres/*.log
+    fields:
+      service: postgres
+    fields_under_root: true
+
+  - type: log
+    paths:
+      - /logs/redis/*.log
+    fields:
+      service: redis
+    fields_under_root: true
+
+  - type: log
+    paths:
+      - /logs/php/*.log
+      - /logs/messenger-worker/*.log
+    fields:
+      service: php
+    fields_under_root: true
+    json.keys_under_root: true
+    json.add_error_key: true
+    json.overwrite_keys: true
+
+output.elasticsearch:
+  hosts: ["${ELASTICSEARCH_HOSTS}"]
+  username: "${ELASTICSEARCH_USERNAME:-}"
+  password: "${ELASTICSEARCH_PASSWORD:-}"
+
+setup.kibana:
+  host: "${KIBANA_HOST:-}"

@@ -2,6 +2,12 @@ networks:
   diary:
     name: diary-network
 
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   diary-postgres:
     image: postgres:${POSTGRES_VERSION}
@@ -15,6 +21,7 @@ services:
       - ${LOGS_PATH}/postgres:/var/log/postgresql
     networks:
       - diary
+    logging: *default-logging
 
   diary-redis:
     image: redis:${REDIS_VERSION}
@@ -24,6 +31,7 @@ services:
       - ${LOGS_PATH}/redis:/var/log/redis
     networks:
       - diary
+    logging: *default-logging
 
   diary-php:
     build:
@@ -41,6 +49,29 @@ services:
       - diary-redis
     networks:
       - diary
+    logging: *default-logging
+
+  diary-filebeat:
+    image: docker.elastic.co/beats/filebeat:${FILEBEAT_VERSION}
+    container_name: diary-filebeat
+    user: root
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./docker/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ${LOGS_PATH}:/logs:ro
+      - ${DATA_PATH}/filebeat:/usr/share/filebeat/data
+    environment:
+      ELASTICSEARCH_HOSTS: ${ELASTICSEARCH_HOSTS}
+      ELASTICSEARCH_USERNAME: ${ELASTICSEARCH_USERNAME:-}
+      ELASTICSEARCH_PASSWORD: ${ELASTICSEARCH_PASSWORD:-}
+      KIBANA_HOST: ${KIBANA_HOST:-}
+    depends_on:
+      - diary-php
+      - diary-nginx
+    networks:
+      - diary
+    logging: *default-logging
 
   diary-messenger-worker:
     build:
@@ -59,6 +90,7 @@ services:
       - diary-postgres
     networks:
       - diary
+    logging: *default-logging
 
   diary-nginx:
     image: nginx:${NGINX_VERSION}
@@ -73,3 +105,4 @@ services:
       - diary-php
     networks:
       - diary
+    logging: *default-logging
