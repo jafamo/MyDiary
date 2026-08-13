@@ -55,6 +55,7 @@ services:
     image: docker.elastic.co/beats/filebeat:${FILEBEAT_VERSION}
     container_name: diary-filebeat
     user: root
+    command: ["--strict.perms=false"]
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
