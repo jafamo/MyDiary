@@ -66,6 +66,40 @@ class DiarioControllerTest extends WebTestCase
         self::assertSelectorExists('.mini-stats');
     }
 
+    public function testDiarioFiltersEntriesByStatus(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+
+        $this->createAudioRecording('diario-ctrl-pending', AudioRecordingStatus::PENDING);
+        $this->createAudioRecording('diario-ctrl-error', AudioRecordingStatus::ERROR);
+
+        $client->loginUser($user);
+        $client->request('GET', '/?status=ERROR');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorCount(1, '.entry');
+        self::assertSelectorExists('.status-pill--error');
+        self::assertSelectorNotExists('.status-pill--pending');
+    }
+
+    public function testDiarioIgnoresInvalidStatusFilter(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+
+        $this->createAudioRecording('diario-ctrl-pending', AudioRecordingStatus::PENDING);
+        $this->createAudioRecording('diario-ctrl-error', AudioRecordingStatus::ERROR);
+
+        $client->loginUser($user);
+        $client->request('GET', '/?status=NOT_A_STATUS');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorCount(2, '.entry');
+    }
+
     public function testDiarioWithoutEntriesShowsEmptyState(): void
     {
         $client = static::createClient();
@@ -77,6 +111,26 @@ class DiarioControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('.entry-empty');
+    }
+
+    private function createAudioRecording(string $telegramMessageId, AudioRecordingStatus $status): void
+    {
+        $audioRecording = new AudioRecording();
+        $audioRecording
+            ->setTelegramMessageId($telegramMessageId)
+            ->setTelegramFileUniqueId($telegramMessageId.'-file')
+            ->setFilePath('/data/audio/'.$telegramMessageId.'.ogg')
+            ->setReceivedAt(DateRange::nowInMadrid()->setTime(9, 0, 0))
+            ->setDurationSeconds(10)
+            ->setStatus($status)
+        ;
+
+        if (AudioRecordingStatus::ERROR === $status) {
+            $audioRecording->setErrorCode('TIMEOUT')->setErrorMessage('algo falló');
+        }
+
+        $this->entityManager->persist($audioRecording);
+        $this->entityManager->flush();
     }
 
     private function bootServices(): void
@@ -104,9 +158,11 @@ class DiarioControllerTest extends WebTestCase
 
     private function cleanUp(): void
     {
-        $audioRecording = $this->audioRecordingRepository->findOneByTelegramMessageId('diario-ctrl-msg-1');
-        if (null !== $audioRecording) {
-            $this->entityManager->remove($audioRecording);
+        foreach (['diario-ctrl-msg-1', 'diario-ctrl-pending', 'diario-ctrl-error'] as $telegramMessageId) {
+            $audioRecording = $this->audioRecordingRepository->findOneByTelegramMessageId($telegramMessageId);
+            if (null !== $audioRecording) {
+                $this->entityManager->remove($audioRecording);
+            }
         }
 
         $user = $this->userRepository->findOneByUsername('test_diario_user');

@@ -32,6 +32,7 @@
                 <nav class="sidebar__nav">
                     <a class="navlink" href="{{ path('app_diario') }}" {% if app.request.attributes.get('_route') == 'app_diario' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-mic"></use></svg> Diario</a>
                     <a class="navlink" href="{{ path('app_historial') }}" {% if app.request.attributes.get('_route') == 'app_historial' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-calendar"></use></svg> Historial</a>
+                    <a class="navlink" href="{{ path('app_resumenes') }}" {% if app.request.attributes.get('_route') == 'app_resumenes' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-tag"></use></svg> Resúmenes</a>
                     <a class="navlink" href="{{ path('app_estadisticas') }}" {% if app.request.attributes.get('_route') == 'app_estadisticas' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-chart"></use></svg> Estadísticas</a>
                 </nav>
                 <div class="sidebar__footer">
@@ -45,6 +46,7 @@
             <nav class="bottom-nav">
                 <a class="bottom-nav__item" href="{{ path('app_diario') }}" {% if app.request.attributes.get('_route') == 'app_diario' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-mic"></use></svg> Diario</a>
                 <a class="bottom-nav__item" href="{{ path('app_historial') }}" {% if app.request.attributes.get('_route') == 'app_historial' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-calendar"></use></svg> Historial</a>
+                <a class="bottom-nav__item" href="{{ path('app_resumenes') }}" {% if app.request.attributes.get('_route') == 'app_resumenes' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-tag"></use></svg> Resúmenes</a>
                 <a class="bottom-nav__item" href="{{ path('app_estadisticas') }}" {% if app.request.attributes.get('_route') == 'app_estadisticas' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-chart"></use></svg> Estadísticas</a>
             </nav>
         </div>

@@ -1,0 +1,11 @@
+{% set statuses = [
+    {value: null, label: 'Todos'},
+    {value: 'PENDING', label: 'Pendiente'},
+    {value: 'TRANSCRIBED', label: 'Transcrito'},
+    {value: 'ERROR', label: 'Error'},
+] %}
+<div class="filter-pills" role="group" aria-label="Filtrar por estado">
+    {% for s in statuses %}
+        <a class="filter-pill" href="{{ path(route, s.value ? route_params|merge({status: s.value}) : route_params) }}" aria-current="{{ (status_filter is null and s.value is null) or (status_filter is not null and status_filter.value == s.value) ? 'true' : 'false' }}">{{ s.label }}</a>
+    {% endfor %}
+</div>

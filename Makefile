@@ -1,4 +1,4 @@
-.PHONY: up down build restart logs ps sh cs-check cs-fix test
+.PHONY: up down build restart logs ps sh cs-check cs-fix test test-coverage composer-install migrate migration-diff console
 
 COMPOSE = docker compose --env-file .env
 
@@ -30,3 +30,18 @@ cs-fix:
 
 test:
 	$(COMPOSE) exec diary-php bin/phpunit $(ARGS)
+
+test-coverage:
+	$(COMPOSE) exec diary-php bin/phpunit --coverage-text $(ARGS)
+
+composer-install:
+	$(COMPOSE) exec diary-php composer install
+
+migrate:
+	$(COMPOSE) exec diary-php php bin/console doctrine:migrations:migrate --no-interaction
+
+migration-diff:
+	$(COMPOSE) exec diary-php php bin/console doctrine:migrations:diff
+
+console:
+	$(COMPOSE) exec diary-php php bin/console $(ARGS)

@@ -66,23 +66,27 @@ class AudioRecordingRepository extends ServiceEntityRepository
     }
 
     /**
-     * Todas las entradas (cualquier estado) recibidas ese día, ordenadas cronológicamente.
+     * Entradas recibidas ese día, ordenadas cronológicamente. Sin `$status`, incluye cualquier estado.
      *
      * @return list<AudioRecording>
      */
-    public function findAllReceivedOn(\DateTimeImmutable $date): array
+    public function findAllReceivedOn(\DateTimeImmutable $date, ?AudioRecordingStatus $status = null): array
     {
         [$start, $end] = DateRange::dayBoundaries($date);
 
-        return $this->createQueryBuilder('a')
+        $qb = $this->createQueryBuilder('a')
             ->andWhere('a.receivedAt >= :start')
             ->andWhere('a.receivedAt < :end')
             ->orderBy('a.receivedAt', 'ASC')
             ->setParameter('start', $start)
             ->setParameter('end', $end)
-            ->getQuery()
-            ->getResult()
         ;
+
+        if (null !== $status) {
+            $qb->andWhere('a.status = :status')->setParameter('status', $status);
+        }
+
+        return $qb->getQuery()->getResult();
     }
 
     /**
@@ -109,19 +113,23 @@ class AudioRecordingRepository extends ServiceEntityRepository
         return array_keys($dates);
     }
 
-    public function averageDurationInRange(\DateTimeImmutable $from, \DateTimeImmutable $to): float
+    public function averageDurationInRange(\DateTimeImmutable $from, \DateTimeImmutable $to, ?AudioRecordingStatus $status = null): float
     {
         [$start, $end] = DateRange::boundariesForDates($from, $to);
 
-        $result = $this->createQueryBuilder('a')
+        $qb = $this->createQueryBuilder('a')
             ->select('AVG(a.durationSeconds)')
             ->andWhere('a.receivedAt >= :start')
             ->andWhere('a.receivedAt < :end')
             ->setParameter('start', $start)
             ->setParameter('end', $end)
-            ->getQuery()
-            ->getSingleScalarResult()
         ;
+
+        if (null !== $status) {
+            $qb->andWhere('a.status = :status')->setParameter('status', $status);
+        }
+
+        $result = $qb->getQuery()->getSingleScalarResult();
 
         return null !== $result ? (float) $result : 0.0;
     }
@@ -141,22 +149,27 @@ class AudioRecordingRepository extends ServiceEntityRepository
 
     /**
      * Número de audios por día (Y-m-d, Europe/Madrid) dentro del rango, incluyendo días sin audios.
+     * Sin `$status`, cuenta cualquier estado.
      *
      * @return array<string, int>
      */
-    public function countByDateInRange(\DateTimeImmutable $from, \DateTimeImmutable $to): array
+    public function countByDateInRange(\DateTimeImmutable $from, \DateTimeImmutable $to, ?AudioRecordingStatus $status = null): array
     {
         [$start, $end] = DateRange::boundariesForDates($from, $to);
 
-        $rows = $this->createQueryBuilder('a')
+        $qb = $this->createQueryBuilder('a')
             ->select('a.receivedAt')
             ->andWhere('a.receivedAt >= :start')
             ->andWhere('a.receivedAt < :end')
             ->setParameter('start', $start)
             ->setParameter('end', $end)
-            ->getQuery()
-            ->getArrayResult()
         ;
+
+        if (null !== $status) {
+            $qb->andWhere('a.status = :status')->setParameter('status', $status);
+        }
+
+        $rows = $qb->getQuery()->getArrayResult();
 
         $tz = new \DateTimeZone('Europe/Madrid');
         $counts = [];

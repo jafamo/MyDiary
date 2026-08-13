@@ -43,6 +43,14 @@
             </div>
         </div>
 
+        <div class="filter-row">
+            {% include '_partials/status_filter.html.twig' with {
+                route: 'app_diario',
+                route_params: {},
+                status_filter: status_filter,
+            } %}
+        </div>
+
         {% include '_partials/entry_log.html.twig' %}
 
         <form class="summary-generate" method="post" action="{{ path('app_daily_summary_generate') }}">

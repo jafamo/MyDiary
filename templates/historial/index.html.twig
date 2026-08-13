@@ -51,6 +51,14 @@
                     <svg class="icon icon--sm"><use href="#i-mic"></use></svg>
                     {{ selected_date|es_weekday_date }} — {{ selected_entries|length }} audio{{ selected_entries|length == 1 ? '' : 's' }}
                 </div>
+                <div class="filter-row">
+                    {% include '_partials/status_filter.html.twig' with {
+                        route: 'app_historial',
+                        route_params: {year: month_date.format('Y'), month: month_date.format('n'), date: selected_date.format('Y-m-d')},
+                        status_filter: status_filter,
+                    } %}
+                </div>
+
                 {% with { entries: selected_entries } %}
                     {% include '_partials/entry_log.html.twig' %}
                 {% endwith %}
