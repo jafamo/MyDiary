@@ -40,7 +40,12 @@ class NotifyRemindersCommand extends Command
             return Command::SUCCESS;
         }
 
-        $lines = array_map(static fn ($reminder) => '• '.$reminder->getText(), $reminders);
+        usort($reminders, static fn ($a, $b) => ($a->getTime()?->format('H:i') ?? '99:99') <=> ($b->getTime()?->format('H:i') ?? '99:99'));
+
+        $lines = array_map(
+            static fn ($reminder) => '• '.(null !== $reminder->getTime() ? $reminder->getTime()->format('H:i').' — ' : '').$reminder->getText(),
+            $reminders,
+        );
         $message = "Recordatorios de hoy 🔔\n".implode("\n", $lines);
 
         $this->telegramClient->sendMessage((int) $this->authorizedChatId, $message);

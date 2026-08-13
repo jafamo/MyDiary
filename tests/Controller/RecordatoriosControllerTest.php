@@ -54,6 +54,31 @@ class RecordatoriosControllerTest extends WebTestCase
         $reminders = $this->reminderRepository->findAllOn(new \DateTimeImmutable('2020-02-01'));
         self::assertCount(1, $reminders);
         self::assertSame('Entrenamiento de pádel', $reminders[0]->getText());
+        self::assertNull($reminders[0]->getTime());
+    }
+
+    public function testCreateReminderWithTime(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $this->bootServices();
+        $user = $this->createTestUser();
+
+        $client->loginUser($user);
+        $client->request('POST', '/recordatorios', [
+            'reminder' => [
+                'date' => '2020-02-01',
+                'time' => '10:00',
+                'text' => 'Cita médica',
+                '_token' => $this->csrfToken($client, 'reminder'),
+            ],
+        ]);
+
+        self::assertResponseRedirects();
+
+        $reminders = $this->reminderRepository->findAllOn(new \DateTimeImmutable('2020-02-01'));
+        self::assertCount(1, $reminders);
+        self::assertSame('10:00', $reminders[0]->getTime()->format('H:i'));
     }
 
     public function testCreateWithoutTextIsRejected(): void

@@ -24,6 +24,7 @@ services:
             string $transcriptionStorageDir: '%kernel.project_dir%/var/transcriptions'
             string $ollamaBaseUrl: '%env(OLLAMA_BASE_URL)%'
             string $ollamaModel: '%env(OLLAMA_MODEL)%'
+            string $publicDir: '%kernel.project_dir%/public'
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name
