@@ -20,7 +20,7 @@ El sistema SHALL exponer un formulario de login (`/login`) autenticando contra l
 - **THEN** la sesión se cierra y el sistema redirige a `/login`
 
 ### Requirement: Navegación responsive
-El sistema SHALL mostrar una barra de navegación lateral vertical (Diario, Historial, Resúmenes, Estadísticas, usuario, logout) en anchos de ≥760px, y en anchos menores SHALL mostrar una barra superior con desplegable de usuario (sesión + logout) más una barra de navegación inferior fija con los mismos cuatro destinos (Diario, Historial, Resúmenes, Estadísticas).
+El sistema SHALL mostrar una barra de navegación lateral vertical (Diario, Historial, Resúmenes, Recordatorios, Estadísticas, usuario, logout) en anchos de ≥760px, y en anchos menores SHALL mostrar una barra superior con desplegable de usuario (sesión + logout) más una barra de navegación inferior fija con los mismos cinco destinos (Diario, Historial, Resúmenes, Recordatorios, Estadísticas). En ambos anchos, el sistema SHALL mostrar además un icono de campana (con el badge de recordatorios próximos, ver capability `reminders`) junto al resto de la navegación global, visible en cualquier página de la aplicación.
 
 #### Scenario: Navegación en escritorio
 - **WHEN** la ventana tiene 760px de ancho o más
@@ -33,6 +33,10 @@ El sistema SHALL mostrar una barra de navegación lateral vertical (Diario, Hist
 #### Scenario: Acceder a Resúmenes desde la navegación
 - **WHEN** el usuario pulsa el ítem "Resúmenes" de la barra lateral o de la barra inferior
 - **THEN** el sistema navega a `/resumenes` y marca ese ítem como activo (`aria-current="page"`)
+
+#### Scenario: Acceder a Recordatorios desde la navegación
+- **WHEN** el usuario pulsa el ítem "Recordatorios" de la barra lateral o de la barra inferior
+- **THEN** el sistema navega a `/recordatorios` y marca ese ítem como activo (`aria-current="page"`)
 
 ### Requirement: Vista Diario con mini-dashboard
 El sistema SHALL mostrar, como página principal tras el login, el día actual con: un mini-dashboard (racha de días consecutivos con audio, total de audios de la semana en curso con tendencia respecto a la anterior, tema más mencionado del mes en curso), el log cronológico de `AudioRecording`/`Transcription` del día (con su estado y, si es `ERROR`, el `error_message` descriptivo), y el panel de `DailySummary` cuando existe para ese día. El log SHALL poder filtrarse por estado (`PENDING`/`TRANSCRIBED`/`ERROR`, o sin filtro); el mini-dashboard no se ve afectado por este filtro.
@@ -80,6 +84,8 @@ El sistema SHALL mostrar, además de los indicadores existentes, cuatro señales
 - **Día récord**: la fecha con más audios del rango y su cantidad; en caso de empate, se toma la fecha más antigua.
 - **Comparación con el periodo anterior**: variación porcentual de la media de audios/día frente a un periodo inmediatamente anterior de igual duración, calculado con el mismo filtro de estado activo.
 
+El sistema SHALL mostrar además, sin filtro de estado (los recordatorios no tienen estado de transcripción): un tile con el total de recordatorios cuya fecha cae dentro del rango seleccionado, y una segunda serie en el gráfico de audios por día con el número de recordatorios por día del mismo rango, visualmente diferenciada (color y trazo distintos de la serie de audios) y con leyenda. La tabla accesible del gráfico ("Ver como tabla") SHALL incluir esta segunda serie como columna adicional, y SHALL listar las fechas de más reciente a más antigua (orden inverso al eje cronológico del propio gráfico).
+
 #### Scenario: Cambiar el rango de fechas
 - **WHEN** el usuario selecciona el filtro "3 meses"
 - **THEN** el gráfico, los tiles y el desglose de estados se recalculan sobre los últimos 3 meses, y la URL refleja el rango seleccionado
@@ -90,11 +96,11 @@ El sistema SHALL mostrar, además de los indicadores existentes, cuatro señales
 
 #### Scenario: Ver los datos del gráfico como tabla
 - **WHEN** el usuario activa "Ver como tabla" en el gráfico de audios por día
-- **THEN** se muestra una tabla accesible con fecha y valor de cada punto, con los mismos datos que el gráfico
+- **THEN** se muestra una tabla accesible con fecha, audios y recordatorios de cada punto, ordenada de la fecha más reciente a la más antigua
 
 #### Scenario: Filtrar por estado combinado con el rango
 - **WHEN** el usuario tiene seleccionado el rango "3 meses" y aplica el filtro de estado "Error"
-- **THEN** el gráfico de audios por día, la media de audios/día, la duración media, el total de audios, la racha, el día récord y la comparación con el periodo anterior se recalculan usando solo audios `ERROR` de esos 3 meses, mientras que el desglose de estados y el ranking de temas siguen mostrando todos los estados del mismo rango
+- **THEN** el gráfico de audios por día, la media de audios/día, la duración media, el total de audios, la racha, el día récord y la comparación con el periodo anterior se recalculan usando solo audios `ERROR` de esos 3 meses, mientras que el desglose de estados, el ranking de temas y la serie de recordatorios siguen mostrando todos los estados/recordatorios del mismo rango
 
 #### Scenario: Filtro de estado inválido recae en "sin filtro"
 - **WHEN** la URL contiene un valor de `status` que no corresponde a ningún estado válido
@@ -123,3 +129,11 @@ El sistema SHALL mostrar, además de los indicadores existentes, cuatro señales
 #### Scenario: Comparación con periodo anterior sin datos
 - **WHEN** el periodo inmediatamente anterior no tiene ningún audio (p. ej. es el primer rango con actividad de la aplicación)
 - **THEN** el tile de comparación se muestra indicando que no hay datos del periodo anterior, sin calcular ni mostrar un porcentaje
+
+#### Scenario: Ver el total de recordatorios del rango
+- **WHEN** el usuario consulta Estadísticas con cualquier rango seleccionado
+- **THEN** se muestra un tile con el número de recordatorios cuya fecha cae dentro de ese rango
+
+#### Scenario: Ver la serie de recordatorios en el gráfico
+- **WHEN** el usuario consulta el gráfico de audios por día con recordatorios en el rango seleccionado
+- **THEN** se muestra una segunda línea con el número de recordatorios por día, visualmente distinguible de la línea de audios mediante la leyenda
