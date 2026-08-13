@@ -6,6 +6,7 @@ namespace App\Tests\Controller;
 
 use App\Entity\AudioRecording;
 use App\Entity\AudioRecordingStatus;
+use App\Entity\Reminder;
 use App\Entity\User;
 use App\Repository\AudioRecordingRepository;
 use App\Repository\UserRepository;
@@ -136,7 +137,7 @@ class EstadisticasControllerTest extends WebTestCase
         $crawler = $client->request('GET', '/estadisticas?range=custom&from=2026-06-01&to=2026-06-10');
 
         self::assertResponseIsSuccessful();
-        self::assertStringContainsString('4', $crawler->filter('.stat-tile')->eq(5)->filter('.stat-tile__value')->text());
+        self::assertStringContainsString('4', $crawler->filter('.stat-tile')->eq(6)->filter('.stat-tile__value')->text());
     }
 
     public function testCurrentStreakIsZeroWhenLastDayHasNoAudio(): void
@@ -152,7 +153,7 @@ class EstadisticasControllerTest extends WebTestCase
         $crawler = $client->request('GET', '/estadisticas?range=custom&from=2026-06-01&to=2026-06-10');
 
         self::assertResponseIsSuccessful();
-        self::assertStringContainsString('0', $crawler->filter('.stat-tile')->eq(5)->filter('.stat-tile__value')->text());
+        self::assertStringContainsString('0', $crawler->filter('.stat-tile')->eq(6)->filter('.stat-tile__value')->text());
     }
 
     public function testRecordDayPicksEarliestOnTie(): void
@@ -172,7 +173,7 @@ class EstadisticasControllerTest extends WebTestCase
         $crawler = $client->request('GET', '/estadisticas?range=custom&from=2026-06-01&to=2026-06-10');
 
         self::assertResponseIsSuccessful();
-        $tile = $crawler->filter('.stat-tile')->eq(6);
+        $tile = $crawler->filter('.stat-tile')->eq(7);
         self::assertStringContainsString('3', $tile->filter('.stat-tile__value')->text());
         self::assertStringContainsString('2 de jun', $tile->filter('.stat-tile__hint')->text());
     }
@@ -191,7 +192,7 @@ class EstadisticasControllerTest extends WebTestCase
         $crawler = $client->request('GET', '/estadisticas?range=custom&from=2026-07-01&to=2026-07-02');
 
         self::assertResponseIsSuccessful();
-        $tileText = $crawler->filter('.stat-tile')->eq(7)->filter('.stat-tile__value')->text();
+        $tileText = $crawler->filter('.stat-tile')->eq(8)->filter('.stat-tile__value')->text();
         self::assertStringContainsString('↑', $tileText);
         self::assertStringContainsString('100', $tileText);
     }
@@ -208,8 +209,37 @@ class EstadisticasControllerTest extends WebTestCase
         $crawler = $client->request('GET', '/estadisticas?range=custom&from=2026-08-01&to=2026-08-02');
 
         self::assertResponseIsSuccessful();
-        $tile = $crawler->filter('.stat-tile')->eq(7);
+        $tile = $crawler->filter('.stat-tile')->eq(8);
         self::assertStringContainsString('Sin datos del periodo anterior', $tile->text());
+    }
+
+    public function testRemindersTileAndChartSeriesShowRangeTotal(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+
+        $reminder1 = new Reminder();
+        $reminder1->setDate(new \DateTimeImmutable('2026-06-03'))->setText('Cita médica');
+        $reminder2 = new Reminder();
+        $reminder2->setDate(new \DateTimeImmutable('2026-06-03'))->setText('Entrenamiento');
+        $this->entityManager->persist($reminder1);
+        $this->entityManager->persist($reminder2);
+        $this->entityManager->flush();
+
+        $client->loginUser($user);
+        $crawler = $client->request('GET', '/estadisticas?range=custom&from=2026-06-01&to=2026-06-10');
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('2', $crawler->filter('.stat-tile')->eq(5)->filter('.stat-tile__value')->text());
+
+        $remindersData = json_decode($crawler->filter('#chart-data-reminders')->text(), true);
+        $entry = current(array_filter($remindersData, fn (array $point) => '2026-06-03' === $point['date']));
+        self::assertSame(2, $entry['value']);
+
+        $this->entityManager->remove($reminder1);
+        $this->entityManager->remove($reminder2);
+        $this->entityManager->flush();
     }
 
     public function testNewStatTilesRespectStatusFilter(): void
@@ -226,7 +256,7 @@ class EstadisticasControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertStringContainsString('1', $crawler->filter('.stat-tile')->eq(4)->filter('.stat-tile__value')->text());
-        self::assertStringContainsString('1', $crawler->filter('.stat-tile')->eq(6)->filter('.stat-tile__value')->text());
+        self::assertStringContainsString('1', $crawler->filter('.stat-tile')->eq(7)->filter('.stat-tile__value')->text());
     }
 
     private function bootServices(): void

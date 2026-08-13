@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Entity\AudioRecordingStatus;
 use App\Repository\AudioRecordingRepository;
 use App\Repository\DailySummaryRepository;
+use App\Repository\ReminderRepository;
 use App\Repository\TopicRepository;
 use App\Service\DateRange;
 use Symfony\Component\HttpFoundation\Request;
@@ -22,6 +23,7 @@ class EstadisticasController
         private readonly AudioRecordingRepository $audioRecordingRepository,
         private readonly DailySummaryRepository $dailySummaryRepository,
         private readonly TopicRepository $topicRepository,
+        private readonly ReminderRepository $reminderRepository,
         private readonly Environment $twig,
     ) {
     }
@@ -37,15 +39,19 @@ class EstadisticasController
         $totalDays = (int) $from->diff($to)->days + 1;
 
         $countsByDate = $this->audioRecordingRepository->countByDateInRange($from, $to, $status);
+        $reminderCountsByDate = $this->reminderRepository->countByDateInRange($from, $to);
         $series = [];
+        $remindersSeries = [];
         $cursor = $from;
         while ($cursor <= $to) {
             $key = $cursor->format('Y-m-d');
             $series[] = ['date' => $key, 'value' => $countsByDate[$key] ?? 0];
+            $remindersSeries[] = ['date' => $key, 'value' => $reminderCountsByDate[$key] ?? 0];
             $cursor = $cursor->modify('+1 day');
         }
 
         $totalAudios = array_sum(array_column($series, 'value'));
+        $totalReminders = array_sum(array_column($remindersSeries, 'value'));
         $avgAudiosPerDay = $totalDays > 0 ? round($totalAudios / $totalDays, 1) : 0.0;
         $avgDurationSeconds = (int) round($this->audioRecordingRepository->averageDurationInRange($from, $to, $status));
         $daysWithSummary = $this->dailySummaryRepository->countInRange($from, $to);
@@ -59,6 +65,8 @@ class EstadisticasController
             'from' => $from,
             'to' => $to,
             'series_json' => json_encode($series, \JSON_HEX_TAG | \JSON_THROW_ON_ERROR),
+            'reminders_series_json' => json_encode($remindersSeries, \JSON_HEX_TAG | \JSON_THROW_ON_ERROR),
+            'total_reminders_in_range' => $totalReminders,
             'avg_audios_per_day' => $avgAudiosPerDay,
             'avg_duration_seconds' => $avgDurationSeconds,
             'days_with_summary' => $daysWithSummary,
