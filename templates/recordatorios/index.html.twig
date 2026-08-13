@@ -1,0 +1,132 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Recordatorios — {{ month_date|es_month_year }}{% endblock %}
+
+{% block body %}
+    <main class="content content--wide">
+        <div class="page-header"><h1>Recordatorios</h1></div>
+
+        <div class="stat-grid">
+            <div class="stat-tile">
+                <div class="stat-tile__label"><svg class="icon"><use href="#i-bell"></use></svg> Total de recordatorios</div>
+                <div class="stat-tile__value">{{ total_reminders }}</div>
+            </div>
+            <div class="stat-tile">
+                <div class="stat-tile__label"><svg class="icon"><use href="#i-calendar"></use></svg> Este mes</div>
+                <div class="stat-tile__value">{{ month_total }}</div>
+            </div>
+            <div class="stat-tile">
+                <div class="stat-tile__label"><svg class="icon"><use href="#i-clock"></use></svg> Próximo recordatorio</div>
+                {% if next_reminder %}
+                    <div class="stat-tile__value">{{ days_until_next == 0 ? 'Hoy' : (days_until_next == 1 ? 'Mañana' : 'En ' ~ days_until_next ~ ' días') }}</div>
+                    <div class="stat-tile__hint">{{ next_reminder.date|es_weekday_date }}</div>
+                {% else %}
+                    <div class="stat-tile__value">—</div>
+                    <div class="stat-tile__hint">Sin recordatorios futuros</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="calendar-nav">
+            <a href="{{ path('app_recordatorios', {year: previous_month.format('Y'), month: previous_month.format('n')}) }}" aria-label="Mes anterior">
+                <svg class="icon"><use href="#i-chevron-left"></use></svg>
+            </a>
+            <div class="calendar-nav__month">{{ month_date|es_month_year }}</div>
+            <a href="{{ path('app_recordatorios', {year: next_month.format('Y'), month: next_month.format('n')}) }}" aria-label="Mes siguiente">
+                <svg class="icon"><use href="#i-chevron-right"></use></svg>
+            </a>
+        </div>
+
+        <div class="calendar">
+            <div class="calendar__weekday">L</div><div class="calendar__weekday">M</div><div class="calendar__weekday">X</div>
+            <div class="calendar__weekday">J</div><div class="calendar__weekday">V</div><div class="calendar__weekday">S</div><div class="calendar__weekday">D</div>
+
+            {% for week in weeks %}
+                {% for cell in week %}
+                    {% set classes = 'calendar__day' %}
+                    {% if cell.muted %}{% set classes = classes ~ ' calendar__day--muted' %}{% endif %}
+                    {% if cell.has_reminders %}{% set classes = classes ~ ' calendar__day--has-entries' %}{% endif %}
+                    {% if selected_date and cell.date == selected_date %}{% set classes = classes ~ ' calendar__day--selected' %}{% endif %}
+
+                    <a class="{{ classes }}" href="{{ path('app_recordatorios', {year: month_date.format('Y'), month: month_date.format('n'), date: cell.date.format('Y-m-d')}) }}">
+                        {{ cell.day }}
+                        {% if cell.has_reminders %}
+                            <span class="calendar__count"><svg class="icon"><use href="#i-dot"></use></svg> {{ cell.count }}</span>
+                        {% endif %}
+                    </a>
+                {% endfor %}
+            {% endfor %}
+        </div>
+
+        <div class="day-preview">
+            <div class="day-preview__label">
+                <svg class="icon icon--sm"><use href="#i-tag"></use></svg>
+                {% if selected_date %}
+                    {{ selected_date|es_weekday_date }} — {{ selected_reminders|length }} recordatorio{{ selected_reminders|length == 1 ? '' : 's' }}
+                {% else %}
+                    Selecciona un día en el calendario para ver sus recordatorios
+                {% endif %}
+            </div>
+
+            {% if selected_date %}
+                {% include '_partials/reminder_cards.html.twig' with {
+                    reminders: selected_reminders,
+                    empty_message: 'Sin recordatorios este día.',
+                    show_date: false,
+                } %}
+            {% endif %}
+        </div>
+
+        <details class="upcoming-reminders" open>
+            <summary class="section-title"><svg class="icon icon--sm"><use href="#i-bell"></use></svg> Próximos recordatorios <span>({{ upcoming_total }})</span></summary>
+
+            {% include '_partials/reminder_cards.html.twig' with {
+                reminders: upcoming_reminders,
+                empty_message: 'Sin recordatorios futuros.',
+            } %}
+
+            {% if upcoming_reminders is not empty and upcoming_total_pages > 1 %}
+                <nav class="pagination" aria-label="Paginación de próximos recordatorios">
+                    <a class="pagination__link {{ upcoming_page <= 1 ? 'is-disabled' : '' }}" href="{{ upcoming_page > 1 ? path('app_recordatorios', {year: month_date.format('Y'), month: month_date.format('n'), page: upcoming_page - 1}) : '#' }}" aria-disabled="{{ upcoming_page <= 1 ? 'true' : 'false' }}">
+                        <svg class="icon"><use href="#i-chevron-left"></use></svg> Anterior
+                    </a>
+                    <span class="pagination__status">Página {{ upcoming_page }} de {{ upcoming_total_pages }}</span>
+                    <a class="pagination__link {{ upcoming_page >= upcoming_total_pages ? 'is-disabled' : '' }}" href="{{ upcoming_page < upcoming_total_pages ? path('app_recordatorios', {year: month_date.format('Y'), month: month_date.format('n'), page: upcoming_page + 1}) : '#' }}" aria-disabled="{{ upcoming_page >= upcoming_total_pages ? 'true' : 'false' }}">
+                        Siguiente <svg class="icon"><use href="#i-chevron-right"></use></svg>
+                    </a>
+                </nav>
+            {% endif %}
+        </details>
+
+        <details class="reminder-history">
+            <summary class="section-title"><svg class="icon icon--sm"><use href="#i-calendar"></use></svg> Historial de recordatorios <span>({{ history_total }})</span></summary>
+
+            {% include '_partials/reminder_cards.html.twig' with {
+                reminders: history_reminders,
+                empty_message: 'Sin recordatorios pasados todavía.',
+            } %}
+
+            {% if history_reminders is not empty and history_total_pages > 1 %}
+                <nav class="pagination" aria-label="Paginación del historial de recordatorios">
+                    <a class="pagination__link {{ history_page <= 1 ? 'is-disabled' : '' }}" href="{{ history_page > 1 ? path('app_recordatorios', {year: month_date.format('Y'), month: month_date.format('n'), history_page: history_page - 1}) : '#' }}" aria-disabled="{{ history_page <= 1 ? 'true' : 'false' }}">
+                        <svg class="icon"><use href="#i-chevron-left"></use></svg> Anterior
+                    </a>
+                    <span class="pagination__status">Página {{ history_page }} de {{ history_total_pages }}</span>
+                    <a class="pagination__link {{ history_page >= history_total_pages ? 'is-disabled' : '' }}" href="{{ history_page < history_total_pages ? path('app_recordatorios', {year: month_date.format('Y'), month: month_date.format('n'), history_page: history_page + 1}) : '#' }}" aria-disabled="{{ history_page >= history_total_pages ? 'true' : 'false' }}">
+                        Siguiente <svg class="icon"><use href="#i-chevron-right"></use></svg>
+                    </a>
+                </nav>
+            {% endif %}
+        </details>
+
+        <div class="summary-generate">
+            <div class="section-title"><svg class="icon icon--sm"><use href="#i-bell"></use></svg> Nuevo recordatorio</div>
+            <form class="entry__edit-form" method="post" action="{{ path('app_recordatorios_create') }}" style="margin-top:0.75rem">
+                <input type="date" name="reminder[date]" value="{{ new_reminder_date }}">
+                <textarea name="reminder[text]" rows="3" placeholder="¿Qué quieres recordar?"></textarea>
+                <input type="hidden" name="reminder[_token]" value="{{ csrf_token('reminder') }}">
+                <button class="btn-action btn-action--primary" type="submit">Crear recordatorio</button>
+            </form>
+        </div>
+    </main>
+{% endblock %}

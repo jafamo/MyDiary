@@ -1,0 +1,29 @@
+{% if reminders is empty %}
+    <p class="entry-empty">{{ empty_message }}</p>
+{% else %}
+    <div class="reminder-grid">
+        {% for reminder in reminders %}
+            <article class="reminder-card">
+                {% if show_date|default(true) %}
+                    <div class="reminder-card__date"><svg class="icon icon--sm"><use href="#i-calendar"></use></svg> {{ reminder.date|es_weekday_date }}</div>
+                {% endif %}
+                <p class="reminder-card__text">{{ reminder.text }}</p>
+                <div class="reminder-card__actions">
+                    <details class="entry__edit">
+                        <summary class="btn-action"><svg class="icon icon--sm"><use href="#i-edit"></use></svg> Editar</summary>
+                        <form class="entry__edit-form" method="post" action="{{ path('app_recordatorios_edit', {reminder: reminder.id}) }}">
+                            <input type="date" name="reminder[date]" value="{{ reminder.date.format('Y-m-d') }}">
+                            <textarea name="reminder[text]" rows="3">{{ reminder.text }}</textarea>
+                            <input type="hidden" name="reminder[_token]" value="{{ csrf_token('reminder') }}">
+                            <button class="btn-action btn-action--primary" type="submit">Guardar</button>
+                        </form>
+                    </details>
+                    <form method="post" action="{{ path('app_recordatorios_delete', {reminder: reminder.id}) }}" onsubmit="return confirm('¿Eliminar este recordatorio?');">
+                        <input type="hidden" name="_token" value="{{ csrf_token('reminder_delete') }}">
+                        <button class="btn-action btn-action--danger" type="submit"><svg class="icon icon--sm"><use href="#i-trash"></use></svg> Eliminar</button>
+                    </form>
+                </div>
+            </article>
+        {% endfor %}
+    </div>
+{% endif %}
