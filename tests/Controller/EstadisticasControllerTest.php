@@ -121,6 +121,114 @@ class EstadisticasControllerTest extends WebTestCase
         self::assertSelectorTextContains('[aria-label="Filtrar por estado"] .filter-pill[aria-current="true"]', 'Todos');
     }
 
+    public function testCurrentStreakCountsConsecutiveDaysEndingAtRangeEnd(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+
+        $this->createAudio('estadisticas-ctrl-streak-1', 'estadisticas-ctrl-streak-file-1', new \DateTimeImmutable('2026-06-07'));
+        $this->createAudio('estadisticas-ctrl-streak-2', 'estadisticas-ctrl-streak-file-2', new \DateTimeImmutable('2026-06-08'));
+        $this->createAudio('estadisticas-ctrl-streak-3', 'estadisticas-ctrl-streak-file-3', new \DateTimeImmutable('2026-06-09'));
+        $this->createAudio('estadisticas-ctrl-streak-4', 'estadisticas-ctrl-streak-file-4', new \DateTimeImmutable('2026-06-10'));
+
+        $client->loginUser($user);
+        $crawler = $client->request('GET', '/estadisticas?range=custom&from=2026-06-01&to=2026-06-10');
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('4', $crawler->filter('.stat-tile')->eq(5)->filter('.stat-tile__value')->text());
+    }
+
+    public function testCurrentStreakIsZeroWhenLastDayHasNoAudio(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+
+        $this->createAudio('estadisticas-ctrl-streak-zero-1', 'estadisticas-ctrl-streak-zero-file-1', new \DateTimeImmutable('2026-06-08'));
+        $this->createAudio('estadisticas-ctrl-streak-zero-2', 'estadisticas-ctrl-streak-zero-file-2', new \DateTimeImmutable('2026-06-09'));
+
+        $client->loginUser($user);
+        $crawler = $client->request('GET', '/estadisticas?range=custom&from=2026-06-01&to=2026-06-10');
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('0', $crawler->filter('.stat-tile')->eq(5)->filter('.stat-tile__value')->text());
+    }
+
+    public function testRecordDayPicksEarliestOnTie(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+
+        foreach (range(1, 3) as $i) {
+            $this->createAudio("estadisticas-ctrl-record-a-{$i}", "estadisticas-ctrl-record-a-file-{$i}", new \DateTimeImmutable('2026-06-02'));
+        }
+        foreach (range(1, 3) as $i) {
+            $this->createAudio("estadisticas-ctrl-record-b-{$i}", "estadisticas-ctrl-record-b-file-{$i}", new \DateTimeImmutable('2026-06-05'));
+        }
+
+        $client->loginUser($user);
+        $crawler = $client->request('GET', '/estadisticas?range=custom&from=2026-06-01&to=2026-06-10');
+
+        self::assertResponseIsSuccessful();
+        $tile = $crawler->filter('.stat-tile')->eq(6);
+        self::assertStringContainsString('3', $tile->filter('.stat-tile__value')->text());
+        self::assertStringContainsString('2 de jun', $tile->filter('.stat-tile__hint')->text());
+    }
+
+    public function testPreviousPeriodComparisonWhenPreviousHasData(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+
+        $this->createAudio('estadisticas-ctrl-prev-cur-1', 'estadisticas-ctrl-prev-cur-file-1', new \DateTimeImmutable('2026-07-01'));
+        $this->createAudio('estadisticas-ctrl-prev-cur-2', 'estadisticas-ctrl-prev-cur-file-2', new \DateTimeImmutable('2026-07-02'));
+        $this->createAudio('estadisticas-ctrl-prev-old-1', 'estadisticas-ctrl-prev-old-file-1', new \DateTimeImmutable('2026-06-29'));
+
+        $client->loginUser($user);
+        $crawler = $client->request('GET', '/estadisticas?range=custom&from=2026-07-01&to=2026-07-02');
+
+        self::assertResponseIsSuccessful();
+        $tileText = $crawler->filter('.stat-tile')->eq(7)->filter('.stat-tile__value')->text();
+        self::assertStringContainsString('↑', $tileText);
+        self::assertStringContainsString('100', $tileText);
+    }
+
+    public function testPreviousPeriodComparisonWhenPreviousHasNoData(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+
+        $this->createAudio('estadisticas-ctrl-prev-none-1', 'estadisticas-ctrl-prev-none-file-1', new \DateTimeImmutable('2026-08-01'));
+
+        $client->loginUser($user);
+        $crawler = $client->request('GET', '/estadisticas?range=custom&from=2026-08-01&to=2026-08-02');
+
+        self::assertResponseIsSuccessful();
+        $tile = $crawler->filter('.stat-tile')->eq(7);
+        self::assertStringContainsString('Sin datos del periodo anterior', $tile->text());
+    }
+
+    public function testNewStatTilesRespectStatusFilter(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+
+        $this->createAudio('estadisticas-ctrl-newtiles-pending', 'estadisticas-ctrl-newtiles-pending-file', new \DateTimeImmutable('2026-09-01'), AudioRecordingStatus::PENDING);
+        $this->createAudio('estadisticas-ctrl-newtiles-error', 'estadisticas-ctrl-newtiles-error-file', new \DateTimeImmutable('2026-09-02'), AudioRecordingStatus::ERROR);
+
+        $client->loginUser($user);
+        $crawler = $client->request('GET', '/estadisticas?range=custom&from=2026-09-01&to=2026-09-02&status=ERROR');
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('1', $crawler->filter('.stat-tile')->eq(4)->filter('.stat-tile__value')->text());
+        self::assertStringContainsString('1', $crawler->filter('.stat-tile')->eq(6)->filter('.stat-tile__value')->text());
+    }
+
     private function bootServices(): void
     {
         $this->entityManager = self::getContainer()->get(EntityManagerInterface::class);
@@ -168,7 +276,18 @@ class EstadisticasControllerTest extends WebTestCase
 
     private function cleanUp(): void
     {
-        foreach (['estadisticas-ctrl-msg-1', 'estadisticas-ctrl-pending', 'estadisticas-ctrl-error'] as $messageId) {
+        $messageIds = [
+            'estadisticas-ctrl-msg-1', 'estadisticas-ctrl-pending', 'estadisticas-ctrl-error',
+            'estadisticas-ctrl-streak-1', 'estadisticas-ctrl-streak-2', 'estadisticas-ctrl-streak-3', 'estadisticas-ctrl-streak-4',
+            'estadisticas-ctrl-streak-zero-1', 'estadisticas-ctrl-streak-zero-2',
+            'estadisticas-ctrl-record-a-1', 'estadisticas-ctrl-record-a-2', 'estadisticas-ctrl-record-a-3',
+            'estadisticas-ctrl-record-b-1', 'estadisticas-ctrl-record-b-2', 'estadisticas-ctrl-record-b-3',
+            'estadisticas-ctrl-prev-cur-1', 'estadisticas-ctrl-prev-cur-2', 'estadisticas-ctrl-prev-old-1',
+            'estadisticas-ctrl-prev-none-1',
+            'estadisticas-ctrl-newtiles-pending', 'estadisticas-ctrl-newtiles-error',
+        ];
+
+        foreach ($messageIds as $messageId) {
             $audioRecording = $this->audioRecordingRepository->findOneByTelegramMessageId($messageId);
             if (null !== $audioRecording) {
                 $this->entityManager->remove($audioRecording);
