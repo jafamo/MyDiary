@@ -1,0 +1,74 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Resúmenes{% endblock %}
+
+{% block body %}
+    <main class="content">
+        <div class="page-header">
+            <h1>Resúmenes</h1>
+            <div class="page-header__meta">
+                {% if 'range' == mode %}
+                    {{ from|es_day_month }} – {{ to|es_day_month }} {{ to.format('Y') }}
+                {% else %}
+                    Últimos {{ summaries|length }} resúmenes
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="filter-row">
+            <form class="filter-custom" method="get" action="{{ path('app_resumenes') }}">
+                <input type="date" name="from" value="{{ from ? from.format('Y-m-d') : '' }}">
+                <span>–</span>
+                <input type="date" name="to" value="{{ to ? to.format('Y-m-d') : '' }}">
+                <button class="btn-apply" type="submit">Aplicar</button>
+                {% if 'range' == mode %}
+                    <a class="btn-action" href="{{ path('app_resumenes') }}">Quitar filtro</a>
+                {% endif %}
+            </form>
+        </div>
+
+        {% if summaries is empty %}
+            <p class="entry-empty">
+                {% if 'range' == mode %}
+                    Sin resúmenes en el rango seleccionado.
+                {% else %}
+                    Todavía no hay resúmenes generados.
+                {% endif %}
+            </p>
+        {% else %}
+            <div class="summary-list">
+                {% for summary in summaries %}
+                    <article class="summary-card">
+                        <div class="summary-card__header">
+                            <div class="summary-panel__eyebrow"><svg class="icon"><use href="#i-dot"></use></svg> {{ summary.date|es_weekday_date }}</div>
+                            {% set audio_count = audio_counts[summary.date.format('Y-m-d')] ?? 0 %}
+                            <a class="btn-action summary-card__audio-count" href="{{ path('app_historial', {date: summary.date.format('Y-m-d')}) }}">
+                                <svg class="icon icon--sm"><use href="#i-mic"></use></svg> {{ audio_count }} audio{{ audio_count == 1 ? '' : 's' }}
+                            </a>
+                        </div>
+                        <p>{{ summary.summaryText }}</p>
+                        {% if summary.topics|length > 0 %}
+                            <div class="topic-chips">
+                                {% for topic in summary.topics %}
+                                    <span class="topic-chip"><svg class="icon icon--sm"><use href="#i-tag"></use></svg> {{ topic.name }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </article>
+                {% endfor %}
+            </div>
+
+            {% if 'range' == mode and total_pages > 1 %}
+                <nav class="pagination" aria-label="Paginación de resúmenes">
+                    <a class="pagination__link {{ page <= 1 ? 'is-disabled' : '' }}" href="{{ page > 1 ? path('app_resumenes', {from: from.format('Y-m-d'), to: to.format('Y-m-d'), page: page - 1}) : '#' }}" aria-disabled="{{ page <= 1 ? 'true' : 'false' }}">
+                        <svg class="icon"><use href="#i-chevron-left"></use></svg> Anterior
+                    </a>
+                    <span class="pagination__status">Página {{ page }} de {{ total_pages }}</span>
+                    <a class="pagination__link {{ page >= total_pages ? 'is-disabled' : '' }}" href="{{ page < total_pages ? path('app_resumenes', {from: from.format('Y-m-d'), to: to.format('Y-m-d'), page: page + 1}) : '#' }}" aria-disabled="{{ page >= total_pages ? 'true' : 'false' }}">
+                        Siguiente <svg class="icon"><use href="#i-chevron-right"></use></svg>
+                    </a>
+                </nav>
+            {% endif %}
+        {% endif %}
+    </main>
+{% endblock %}

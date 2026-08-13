@@ -265,6 +265,17 @@ table { border-collapse: collapse; width: 100%; }
 .topic-freq__count { grid-area: count; font-family: var(--font-display); font-size: 0.78rem; color: var(--text-muted); text-align: right; font-variant-numeric: tabular-nums; }
 .topic-freq-empty { color: var(--text-muted); font-size: 0.85rem; }
 
+/* ---- Resúmenes ---- */
+.summary-list { display: flex; flex-direction: column; gap: 1rem; }
+.summary-card { border: 1px solid var(--border); border-radius: 8px; background: var(--panel); padding: 1.35rem; }
+.summary-card__header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.summary-card__audio-count .icon { color: var(--accent-dusk); }
+.summary-card p { max-width: 42rem; margin-bottom: 1rem; white-space: pre-line; }
+.pagination { display: flex; align-items: center; justify-content: center; gap: 1.25rem; margin-top: 1.5rem; }
+.pagination__link { display: inline-flex; align-items: center; gap: 0.35rem; color: var(--text); text-decoration: none; font-size: 0.85rem; }
+.pagination__link.is-disabled { color: var(--text-muted); pointer-events: none; }
+.pagination__status { font-size: 0.82rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
 @media (min-width: 760px) {
   .topbar, .bottom-nav { display: none; }
   .app-shell { flex-direction: row; }
