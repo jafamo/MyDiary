@@ -2,6 +2,18 @@
 
 Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado según [SemVer](https://semver.org/lang/es/). Flujo de ramas: [Git Flow](CLAUDE.md).
 
+## [0.6.0] - 2026-08-13
+
+### Ramas integradas en `develop`
+- `feature/reminder-time`
+
+### Añadido
+- **Recordatorios**: campo de hora opcional al crear/editar, visible en las cards, en el panel de la campana y en el aviso diario de Telegram (ordenado por hora, con los recordatorios sin hora al final).
+- Versionado automático de assets estáticos (`app.css?v=<fecha de modificación>`, `App\Asset\FileModificationVersionStrategy`): cada despliegue fuerza a los navegadores a pedir la versión nueva de CSS/JS en vez de servir una copia cacheada.
+
+### Corregido
+- En móvil, tras un despliegue el navegador podía seguir usando una versión antigua de `app.css` cacheada (mismo nombre de fichero en cada release), haciendo que vistas nuevas como las cards de Recordatorios o el desplegable de la campana se vieran sin estilo, como bloques de texto apilados. Resuelto con el versionado automático de assets.
+
 ## [0.5.0] - 2026-08-13
 
 ### Ramas integradas en `develop`
