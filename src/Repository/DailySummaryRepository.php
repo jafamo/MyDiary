@@ -24,6 +24,37 @@ class DailySummaryRepository extends ServiceEntityRepository
     }
 
     /**
+     * @return list<DailySummary> los $limit DailySummary más recientes, de más reciente a más antiguo
+     */
+    public function findLatest(int $limit = 5): array
+    {
+        return $this->createQueryBuilder('d')
+            ->orderBy('d.date', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult()
+        ;
+    }
+
+    /**
+     * @return list<DailySummary> página de DailySummary dentro de [$from, $to], de más reciente a más antiguo
+     */
+    public function findPageInRange(\DateTimeImmutable $from, \DateTimeImmutable $to, int $page, int $pageSize): array
+    {
+        return $this->createQueryBuilder('d')
+            ->andWhere('d.date >= :from')
+            ->andWhere('d.date <= :to')
+            ->orderBy('d.date', 'DESC')
+            ->setParameter('from', $from)
+            ->setParameter('to', $to)
+            ->setFirstResult(($page - 1) * $pageSize)
+            ->setMaxResults($pageSize)
+            ->getQuery()
+            ->getResult()
+        ;
+    }
+
+    /**
      * @return list<string> fechas (Y-m-d) con DailySummary generado dentro del rango
      */
     public function findDatesWithSummaryInRange(\DateTimeImmutable $from, \DateTimeImmutable $to): array
