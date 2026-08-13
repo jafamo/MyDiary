@@ -1,0 +1,11 @@
+<div class="reminder-dropdown" role="menu">
+    {% if upcoming_reminders_data.nearest_reminders is empty %}
+        <p class="reminder-dropdown__empty">Sin recordatorios en los próximos días.</p>
+    {% else %}
+        <div class="reminder-dropdown__date"><svg class="icon icon--sm"><use href="#i-calendar"></use></svg> {{ upcoming_reminders_data.nearest_date|es_weekday_date }}</div>
+        {% for reminder in upcoming_reminders_data.nearest_reminders %}
+            <p class="reminder-dropdown__text">{{ reminder.text }}</p>
+        {% endfor %}
+    {% endif %}
+    <a class="reminder-dropdown__link" role="menuitem" href="{{ path('app_recordatorios') }}">Ver todos <svg class="icon icon--sm"><use href="#i-chevron-right"></use></svg></a>
+</div>

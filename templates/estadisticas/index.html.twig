@@ -64,6 +64,10 @@
                 <div class="stat-tile__value">{{ total_audios }}</div>
             </div>
             <div class="stat-tile">
+                <div class="stat-tile__label"><svg class="icon"><use href="#i-bell"></use></svg> Recordatorios en el rango</div>
+                <div class="stat-tile__value">{{ total_reminders_in_range }}</div>
+            </div>
+            <div class="stat-tile">
                 <div class="stat-tile__label"><svg class="icon"><use href="#i-dot"></use></svg> Racha</div>
                 <div class="stat-tile__value">{{ current_streak }} <small>día{{ current_streak == 1 ? '' : 's' }}</small></div>
                 {% if best_streak > current_streak %}
@@ -95,11 +99,11 @@
 
         <div class="chart-card">
             <div class="chart-card__header">
-                <div class="section-title"><svg class="icon icon--sm"><use href="#i-chart"></use></svg> Audios por día</div>
+                <div class="section-title"><svg class="icon icon--sm"><use href="#i-chart"></use></svg> Audios y recordatorios por día</div>
                 <button class="chart-table-toggle" id="table-toggle" type="button" aria-pressed="false">Ver como tabla</button>
             </div>
             <div class="chart-wrap">
-                <svg class="line-chart" id="line-chart" viewBox="0 0 640 220" role="img" aria-label="Audios por día en el rango seleccionado">
+                <svg class="line-chart" id="line-chart" viewBox="0 0 640 220" role="img" aria-label="Audios y recordatorios por día en el rango seleccionado">
                     <line class="grid-line" x1="32" y1="16" x2="628" y2="16"></line>
                     <line class="grid-line" x1="32" y1="118" x2="628" y2="118"></line>
                     <line class="grid-line" x1="32" y1="192" x2="628" y2="192"></line>
@@ -108,20 +112,29 @@
                     <text class="axis-label" x="4" y="195">0</text>
                     <g id="x-axis-labels"></g>
                     <path class="area-fill" id="area-path"></path>
+                    <path class="line-path line-path--reminders" id="line-path-reminders"></path>
                     <path class="line-path" id="line-path"></path>
                     <line class="crosshair-line" id="crosshair" x1="0" y1="16" x2="0" y2="192"></line>
                     <circle class="hover-dot" id="hover-dot" r="4"></circle>
+                    <circle class="hover-dot hover-dot--reminders" id="hover-dot-reminders" r="4"></circle>
                     <circle class="endpoint-dot" id="endpoint-dot" r="4"></circle>
                     <text class="endpoint-label" id="endpoint-label"></text>
+                    <circle class="endpoint-dot endpoint-dot--reminders" id="endpoint-dot-reminders" r="4"></circle>
+                    <text class="endpoint-label endpoint-label--reminders" id="endpoint-label-reminders"></text>
                     <rect class="hit-area" id="hit-area" x="32" y="0" width="596" height="220"></rect>
                 </svg>
                 <div class="chart-tooltip" id="chart-tooltip">
                     <div class="chart-tooltip__date" id="tooltip-date"></div>
-                    <div class="chart-tooltip__value" id="tooltip-value"></div>
+                    <div class="chart-tooltip__value"><span class="chart-tooltip__dot"></span> Audios: <span id="tooltip-value"></span></div>
+                    <div class="chart-tooltip__value"><span class="chart-tooltip__dot chart-tooltip__dot--reminders"></span> Recordatorios: <span id="tooltip-value-reminders"></span></div>
                 </div>
             </div>
+            <div class="chart-legend">
+                <span><svg class="icon" style="color:var(--accent)"><use href="#i-dot"></use></svg> Audios</span>
+                <span><svg class="icon" style="color:var(--accent-dusk)"><use href="#i-dot"></use></svg> Recordatorios</span>
+            </div>
             <table class="chart-table" id="chart-table">
-                <thead><tr><th>Fecha</th><th>Audios</th></tr></thead>
+                <thead><tr><th>Fecha</th><th>Audios</th><th>Recordatorios</th></tr></thead>
                 <tbody id="chart-table-body"></tbody>
             </table>
         </div>
@@ -157,5 +170,6 @@
         </div>
 
         <script id="chart-data" type="application/json">{{ series_json|raw }}</script>
+        <script id="chart-data-reminders" type="application/json">{{ reminders_series_json|raw }}</script>
     </main>
 {% endblock %}

@@ -11,18 +11,28 @@
     </head>
     <body>
         {% include '_partials/svg_sprite.html.twig' %}
+        {% set upcoming_reminders_data = upcoming_reminders() %}
         <div class="app-shell">
             <div class="topbar">
                 <div class="topbar__brand"><svg class="icon"><use href="#i-mic"></use></svg> Diario</div>
-                <div class="topbar__menu">
-                    <button type="button" class="topbar__menu-trigger" aria-haspopup="true" aria-expanded="false">
-                        <span class="topbar__avatar">{{ app.user.username|slice(0, 2)|upper }}</span>
-                        {{ app.user.username }}
-                        <svg class="icon icon--sm icon--chevron"><use href="#i-chevron-down"></use></svg>
-                    </button>
-                    <div class="topbar__dropdown" role="menu">
-                        <div class="topbar__dropdown-user"><svg class="icon icon--sm"><use href="#i-mic"></use></svg> Sesión de <strong>{{ app.user.username }}</strong></div>
-                        <a class="topbar__dropdown-item" role="menuitem" href="{{ path('app_logout') }}"><svg class="icon icon--sm"><use href="#i-logout"></use></svg> Cerrar sesión</a>
+                <div class="topbar__actions">
+                    <div class="menu reminder-menu">
+                        <button type="button" class="menu-trigger reminder-menu__trigger" aria-haspopup="true" aria-expanded="false" aria-label="Recordatorios próximos">
+                            <svg class="icon"><use href="#i-bell"></use></svg>
+                            {% if upcoming_reminders_data.count > 0 %}<span class="nav-badge nav-badge--{{ upcoming_reminders_data.level }}">{{ upcoming_reminders_data.count }}</span>{% endif %}
+                        </button>
+                        {% include '_partials/reminder_dropdown.html.twig' %}
+                    </div>
+                    <div class="menu topbar__menu">
+                        <button type="button" class="menu-trigger topbar__menu-trigger" aria-haspopup="true" aria-expanded="false">
+                            <span class="topbar__avatar">{{ app.user.username|slice(0, 2)|upper }}</span>
+                            {{ app.user.username }}
+                            <svg class="icon icon--sm icon--chevron"><use href="#i-chevron-down"></use></svg>
+                        </button>
+                        <div class="topbar__dropdown" role="menu">
+                            <div class="topbar__dropdown-user"><svg class="icon icon--sm"><use href="#i-mic"></use></svg> Sesión de <strong>{{ app.user.username }}</strong></div>
+                            <a class="topbar__dropdown-item" role="menuitem" href="{{ path('app_logout') }}"><svg class="icon icon--sm"><use href="#i-logout"></use></svg> Cerrar sesión</a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -33,9 +43,20 @@
                     <a class="navlink" href="{{ path('app_diario') }}" {% if app.request.attributes.get('_route') == 'app_diario' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-mic"></use></svg> Diario</a>
                     <a class="navlink" href="{{ path('app_historial') }}" {% if app.request.attributes.get('_route') == 'app_historial' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-calendar"></use></svg> Historial</a>
                     <a class="navlink" href="{{ path('app_resumenes') }}" {% if app.request.attributes.get('_route') == 'app_resumenes' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-tag"></use></svg> Resúmenes</a>
+                    <a class="navlink" href="{{ path('app_recordatorios') }}" {% if app.request.attributes.get('_route') starts with 'app_recordatorios' %}aria-current="page"{% endif %}>
+                        <svg class="icon"><use href="#i-bell"></use></svg> Recordatorios
+                        {% if upcoming_reminders_data.count > 0 %}<span class="nav-badge nav-badge--{{ upcoming_reminders_data.level }}">{{ upcoming_reminders_data.count }}</span>{% endif %}
+                    </a>
                     <a class="navlink" href="{{ path('app_estadisticas') }}" {% if app.request.attributes.get('_route') == 'app_estadisticas' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-chart"></use></svg> Estadísticas</a>
                 </nav>
                 <div class="sidebar__footer">
+                    <div class="menu reminder-menu reminder-menu--sidebar">
+                        <button type="button" class="menu-trigger reminder-menu__trigger" aria-haspopup="true" aria-expanded="false">
+                            <svg class="icon"><use href="#i-bell"></use></svg> Recordatorios próximos
+                            {% if upcoming_reminders_data.count > 0 %}<span class="nav-badge nav-badge--{{ upcoming_reminders_data.level }}">{{ upcoming_reminders_data.count }}</span>{% endif %}
+                        </button>
+                        {% include '_partials/reminder_dropdown.html.twig' %}
+                    </div>
                     <div class="sidebar__user">{{ app.user.username }}</div>
                     <a class="sidebar__logout" href="{{ path('app_logout') }}"><svg class="icon icon--sm"><use href="#i-logout"></use></svg> Cerrar sesión</a>
                 </div>
@@ -47,19 +68,23 @@
                 <a class="bottom-nav__item" href="{{ path('app_diario') }}" {% if app.request.attributes.get('_route') == 'app_diario' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-mic"></use></svg> Diario</a>
                 <a class="bottom-nav__item" href="{{ path('app_historial') }}" {% if app.request.attributes.get('_route') == 'app_historial' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-calendar"></use></svg> Historial</a>
                 <a class="bottom-nav__item" href="{{ path('app_resumenes') }}" {% if app.request.attributes.get('_route') == 'app_resumenes' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-tag"></use></svg> Resúmenes</a>
+                <a class="bottom-nav__item" href="{{ path('app_recordatorios') }}" {% if app.request.attributes.get('_route') starts with 'app_recordatorios' %}aria-current="page"{% endif %}>
+                    <svg class="icon"><use href="#i-bell"></use></svg> Recordatorios
+                    {% if upcoming_reminders_data.count > 0 %}<span class="nav-badge nav-badge--{{ upcoming_reminders_data.level }}">{{ upcoming_reminders_data.count }}</span>{% endif %}
+                </a>
                 <a class="bottom-nav__item" href="{{ path('app_estadisticas') }}" {% if app.request.attributes.get('_route') == 'app_estadisticas' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-chart"></use></svg> Estadísticas</a>
             </nav>
         </div>
 
         <script>
-            document.querySelectorAll(".topbar__menu-trigger").forEach(function (trigger) {
+            document.querySelectorAll(".menu-trigger").forEach(function (trigger) {
                 trigger.addEventListener("click", function (e) {
                     e.stopPropagation();
-                    var menu = trigger.closest(".topbar__menu");
+                    var menu = trigger.closest(".menu");
                     var wasOpen = menu.classList.contains("is-open");
-                    document.querySelectorAll(".topbar__menu.is-open").forEach(function (m) {
+                    document.querySelectorAll(".menu.is-open").forEach(function (m) {
                         m.classList.remove("is-open");
-                        m.querySelector(".topbar__menu-trigger").setAttribute("aria-expanded", "false");
+                        m.querySelector(".menu-trigger").setAttribute("aria-expanded", "false");
                     });
                     if (!wasOpen) {
                         menu.classList.add("is-open");
@@ -68,14 +93,14 @@
                 });
             });
             document.addEventListener("click", function () {
-                document.querySelectorAll(".topbar__menu.is-open").forEach(function (m) {
+                document.querySelectorAll(".menu.is-open").forEach(function (m) {
                     m.classList.remove("is-open");
-                    m.querySelector(".topbar__menu-trigger").setAttribute("aria-expanded", "false");
+                    m.querySelector(".menu-trigger").setAttribute("aria-expanded", "false");
                 });
             });
             document.addEventListener("keydown", function (e) {
                 if (e.key === "Escape") {
-                    document.querySelectorAll(".topbar__menu.is-open").forEach(function (m) { m.classList.remove("is-open"); });
+                    document.querySelectorAll(".menu.is-open").forEach(function (m) { m.classList.remove("is-open"); });
                 }
             });
         </script>
