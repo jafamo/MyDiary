@@ -2,6 +2,17 @@
 
 Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado según [SemVer](https://semver.org/lang/es/). Flujo de ramas: [Git Flow](CLAUDE.md).
 
+## [0.7.0] - 2026-08-14
+
+### Ramas integradas en `develop`
+- `feature/observability-elk-logging`
+
+### Añadido
+- Envío de logs a Elasticsearch/Kibana (ya desplegados en el servidor): nuevo servicio `diary-filebeat` en `docker-compose.yml` que lee los logs de app, nginx, postgres y redis desde `${LOGS_PATH}` y los indexa en Elasticsearch.
+- Retención de logs de la app PHP: Monolog rota diariamente y borra automáticamente pasados 60 días (`rotating_file`, `config/packages/monolog.yaml`); en producción ahora escribe a fichero en vez de a `stderr`.
+- Límite de tamaño en los logs de todos los contenedores Docker (`json-file`, 50MB por servicio) para evitar crecimiento sin control en disco.
+- Documentación del setup de logging/ELK en `Especificaciones.md` (sección 7.1).
+
 ## [0.6.0] - 2026-08-13
 
 ### Ramas integradas en `develop`
