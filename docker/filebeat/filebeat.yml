@@ -1,9 +1,21 @@
 filebeat.inputs:
   - type: log
     paths:
-      - /logs/nginx/*.log
+      - /logs/nginx/access.log
     fields:
       log_service: nginx
+      log_type: access
+    fields_under_root: true
+    json.keys_under_root: true
+    json.add_error_key: true
+    json.overwrite_keys: true
+
+  - type: log
+    paths:
+      - /logs/nginx/error.log
+    fields:
+      log_service: nginx
+      log_type: error
     fields_under_root: true
 
   - type: log
