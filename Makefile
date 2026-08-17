@@ -1,4 +1,4 @@
-.PHONY: up down build restart logs ps sh cs-check cs-fix test test-coverage composer-install migrate migration-diff console cache-clear deploy
+.PHONY: up down build restart logs ps sh cs-check cs-fix test test-coverage composer-install migrate migration-diff console cache-clear deploy audio-retry
 
 COMPOSE = docker compose --env-file .env
 
@@ -45,6 +45,9 @@ migration-diff:
 
 console:
 	$(COMPOSE) exec diary-php php bin/console $(ARGS)
+
+audio-retry:
+	$(COMPOSE) exec diary-php php bin/console app:audio:retry-transcription $(ARGS)
 
 cache-clear:
 	$(COMPOSE) exec diary-php php bin/console cache:clear
