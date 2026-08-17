@@ -83,11 +83,20 @@ class TelegramWebhookController
         );
 
         if (AudioRecordingReceiveResult::DUPLICATE_MESSAGE !== $result) {
-            $this->telegramClient->sendMessage((int) $chatId, match ($result) {
-                AudioRecordingReceiveResult::CREATED => self::MESSAGE_RECEIVED,
-                AudioRecordingReceiveResult::DUPLICATE_FILE => self::MESSAGE_DUPLICATE,
-                AudioRecordingReceiveResult::RETRYING_AFTER_ERROR => self::MESSAGE_RETRYING,
-            });
+            try {
+                $this->telegramClient->sendMessage((int) $chatId, match ($result) {
+                    AudioRecordingReceiveResult::CREATED => self::MESSAGE_RECEIVED,
+                    AudioRecordingReceiveResult::DUPLICATE_FILE => self::MESSAGE_DUPLICATE,
+                    AudioRecordingReceiveResult::RETRYING_AFTER_ERROR => self::MESSAGE_RETRYING,
+                });
+            } catch (\Throwable $exception) {
+                $this->logger->error('No se pudo enviar la confirmación de recepción a Telegram', [
+                    'event' => 'telegram.ack_send_failed',
+                    'chat_id' => $chatId,
+                    'telegram_message_id' => $telegramMessageId,
+                    'exception' => $exception->getMessage(),
+                ]);
+            }
         }
 
         return new JsonResponse(['ok' => true]);
