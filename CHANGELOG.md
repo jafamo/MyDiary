@@ -2,6 +2,11 @@
 
 Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado según [SemVer](https://semver.org/lang/es/). Flujo de ramas: [Git Flow](CLAUDE.md).
 
+## [0.7.1] - 2026-08-17
+
+### Corregido
+- El webhook de Telegram dejaba de enviar el mensaje de confirmación ("Audio recibido ✅") sin avisar cuando fallaba la llamada a la API de Telegram, ya que ese envío ocurría sin try/catch después de haber persistido el audio y encolado la transcripción: el fallo tumbaba el webhook con un 500 aunque el audio se procesara igualmente. Ahora el fallo se loguea (`telegram.ack_send_failed`) y no interrumpe la respuesta del webhook.
+
 ## [0.7.0] - 2026-08-14
 
 ### Ramas integradas en `develop`
