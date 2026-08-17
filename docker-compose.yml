@@ -12,6 +12,7 @@ services:
   diary-postgres:
     image: postgres:${POSTGRES_VERSION}
     container_name: diary-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -26,6 +27,7 @@ services:
   diary-redis:
     image: redis:${REDIS_VERSION}
     container_name: diary-redis
+    restart: unless-stopped
     command: ["redis-server", "--logfile", "/var/log/redis/redis.log"]
     volumes:
       - ${LOGS_PATH}/redis:/var/log/redis
@@ -39,6 +41,7 @@ services:
       args:
         PHP_VERSION: ${PHP_VERSION}
     container_name: diary-php
+    restart: unless-stopped
     volumes:
       - ./:/var/www/html
       - ${DATA_PATH}/audio:/var/www/html/var/audio
@@ -54,6 +57,7 @@ services:
   diary-filebeat:
     image: docker.elastic.co/beats/filebeat:${FILEBEAT_VERSION}
     container_name: diary-filebeat
+    restart: unless-stopped
     user: root
     command: ["-e", "--strict.perms=false"]
     extra_hosts:
@@ -80,6 +84,7 @@ services:
       args:
         PHP_VERSION: ${PHP_VERSION}
     container_name: diary-messenger-worker
+    restart: unless-stopped
     command: ["php", "bin/console", "messenger:consume", "async", "scheduler_default", "-vv"]
     volumes:
       - ./:/var/www/html
@@ -96,6 +101,7 @@ services:
   diary-nginx:
     image: nginx:${NGINX_VERSION}
     container_name: diary-nginx
+    restart: unless-stopped
     ports:
       - "${NGINX_HTTP_PORT:-9008}:80"
     volumes:
