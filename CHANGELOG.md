@@ -2,6 +2,14 @@
 
 Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado según [SemVer](https://semver.org/lang/es/). Flujo de ramas: [Git Flow](CLAUDE.md).
 
+## [Sin publicar]
+
+### Ramas integradas en `develop`
+- `feature/audio-retry-transcription-command`
+
+### Añadido
+- Comando `bin/console app:audio:retry-transcription [ids...]` para reencolar transcripciones atascadas en `PENDING` (por defecto, más de 15 minutos) o marcadas como `ERROR`, sin tener que hacer `UPDATE` manuales en la base de datos.
+
 ## [0.7.1] - 2026-08-17
 
 ### Corregido

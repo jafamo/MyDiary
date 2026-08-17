@@ -70,6 +70,22 @@ class AudioRecordingRepository extends ServiceEntityRepository
      *
      * @return list<AudioRecording>
      */
+    /**
+     * @return AudioRecording[]
+     */
+    public function findStuck(\DateTimeImmutable $pendingOlderThan): array
+    {
+        return $this->createQueryBuilder('a')
+            ->andWhere('a.status = :error OR (a.status = :pending AND a.receivedAt < :threshold)')
+            ->setParameter('error', AudioRecordingStatus::ERROR)
+            ->setParameter('pending', AudioRecordingStatus::PENDING)
+            ->setParameter('threshold', $pendingOlderThan)
+            ->orderBy('a.receivedAt', 'ASC')
+            ->getQuery()
+            ->getResult()
+        ;
+    }
+
     public function findAllReceivedOn(\DateTimeImmutable $date, ?AudioRecordingStatus $status = null): array
     {
         [$start, $end] = DateRange::dayBoundaries($date);
