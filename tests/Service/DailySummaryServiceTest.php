@@ -16,6 +16,7 @@ use App\Service\DailySummaryService;
 use App\Service\Telegram\TelegramClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\HttpClient\Exception\TransportException;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -28,6 +29,10 @@ class DailySummaryServiceTest extends KernelTestCase
     private TopicRepository $topicRepository;
     private \DateTimeImmutable $testDate;
 
+    /** @var list<array{url: string, body: mixed}> */
+    private array $httpRequests = [];
+    private \Closure $httpResponder;
+
     protected function setUp(): void
     {
         self::bootKernel();
@@ -38,6 +43,17 @@ class DailySummaryServiceTest extends KernelTestCase
         $this->dailySummaryRepository = $container->get(DailySummaryRepository::class);
         $this->topicRepository = $container->get(TopicRepository::class);
         $this->testDate = new \DateTimeImmutable('2026-08-04 12:00:00');
+
+        $this->httpRequests = [];
+        $this->httpResponder = static fn (): MockResponse => new MockResponse('{"ok":true}');
+
+        self::getContainer()->set(HttpClientInterface::class, new MockHttpClient(
+            function (string $method, string $url, array $options): MockResponse {
+                $this->httpRequests[] = ['url' => $url, 'body' => $options['body'] ?? null];
+
+                return ($this->httpResponder)($method, $url, $options);
+            },
+        ));
 
         $this->cleanUp();
     }
@@ -117,8 +133,6 @@ class DailySummaryServiceTest extends KernelTestCase
     {
         $this->createTranscribedAudioRecording('summary-msg-3', 'summary-file-3', 'transcripción');
 
-        self::getContainer()->set(HttpClientInterface::class, new MockHttpClient(new MockResponse('{"ok":true}')));
-
         $alwaysFailingGenerator = new class () implements SummaryGeneratorInterface {
             public int $calls = 0;
 
@@ -135,6 +149,62 @@ class DailySummaryServiceTest extends KernelTestCase
 
         self::assertNull($this->dailySummaryRepository->findOneByDate($this->testDate));
         self::assertSame(3, $alwaysFailingGenerator->calls);
+    }
+
+    public function testSuccessfulGenerationNotifiesByTelegram(): void
+    {
+        $this->createTranscribedAudioRecording('summary-msg-5', 'summary-file-5', 'transcripción del día');
+
+        $service = $this->createService($this->fakeGenerator(['summary' => 'Un resumen para Telegram', 'topics' => []]));
+        $service->generateForDate($this->testDate);
+
+        self::assertNotNull($this->dailySummaryRepository->findOneByDate($this->testDate));
+
+        $sendMessageRequests = $this->sendMessageRequests();
+        self::assertCount(1, $sendMessageRequests);
+
+        $body = json_decode((string) $sendMessageRequests[0]['body'], true);
+        self::assertSame((int) $_ENV['TELEGRAM_AUTHORIZED_CHAT_ID'], $body['chat_id']);
+        self::assertSame('Un resumen para Telegram', $body['text']);
+    }
+
+    public function testRegenerationNotifiesWithUpdatedText(): void
+    {
+        $this->createTranscribedAudioRecording('summary-msg-6', 'summary-file-6', 'transcripción');
+
+        $service = $this->createService($this->fakeGenerator(['summary' => 'Primera versión', 'topics' => []]));
+        $service->generateForDate($this->testDate);
+
+        $service2 = $this->createService($this->fakeGenerator(['summary' => 'Segunda versión', 'topics' => []]));
+        $service2->generateForDate($this->testDate);
+
+        $sendMessageRequests = $this->sendMessageRequests();
+        self::assertCount(2, $sendMessageRequests);
+
+        $lastBody = json_decode((string) $sendMessageRequests[1]['body'], true);
+        self::assertSame('Segunda versión', $lastBody['text']);
+    }
+
+    public function testTelegramNotificationFailureDoesNotPreventPersistence(): void
+    {
+        $this->createTranscribedAudioRecording('summary-msg-7', 'summary-file-7', 'transcripción');
+
+        $this->httpResponder = static fn (): MockResponse => throw new TransportException('fallo de red simulado');
+
+        $service = $this->createService($this->fakeGenerator(['summary' => 'Resumen pese al fallo', 'topics' => []]));
+        $service->generateForDate($this->testDate);
+
+        $dailySummary = $this->dailySummaryRepository->findOneByDate($this->testDate);
+        self::assertNotNull($dailySummary);
+        self::assertSame('Resumen pese al fallo', $dailySummary->getSummaryText());
+    }
+
+    /**
+     * @return list<array{url: string, body: mixed}>
+     */
+    private function sendMessageRequests(): array
+    {
+        return array_values(array_filter($this->httpRequests, static fn (array $request) => str_contains($request['url'], '/sendMessage')));
     }
 
     private function createService(
@@ -223,7 +293,7 @@ class DailySummaryServiceTest extends KernelTestCase
             $this->entityManager->remove($dailySummary);
         }
 
-        foreach (['summary-msg-1', 'summary-msg-2', 'summary-msg-3', 'summary-msg-4', 'summary-msg-4b'] as $telegramMessageId) {
+        foreach (['summary-msg-1', 'summary-msg-2', 'summary-msg-3', 'summary-msg-4', 'summary-msg-4b', 'summary-msg-5', 'summary-msg-6', 'summary-msg-7'] as $telegramMessageId) {
             $audioRecording = $this->audioRecordingRepository->findOneByTelegramMessageId($telegramMessageId);
             if (null !== $audioRecording) {
                 $this->entityManager->remove($audioRecording);

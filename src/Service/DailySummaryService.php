@@ -148,5 +148,20 @@ class DailySummaryService
         }
 
         $this->entityManager->flush();
+
+        $this->notifySummaryGenerated($date, $summaryText);
+    }
+
+    private function notifySummaryGenerated(\DateTimeImmutable $date, string $summaryText): void
+    {
+        try {
+            $this->telegramClient->sendMessage((int) $this->authorizedChatId, $summaryText);
+        } catch (\Throwable $exception) {
+            $this->logger->error('Fallo al enviar la notificación del resumen diario por Telegram', [
+                'event' => 'daily_summary.telegram_notification_failed',
+                'date' => $date->format('Y-m-d'),
+                'error_message' => $exception->getMessage(),
+            ]);
+        }
     }
 }

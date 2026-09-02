@@ -55,8 +55,9 @@ Aplicación web que recibe notas de voz por Telegram, las transcribe automática
 3. Recoge todas las transcripciones en estado `TRANSCRIBED` del día en curso.
 4. Llama a Ollama para generar: (a) resumen del día, (b) lista de temas tratados.
 5. Guarda/actualiza el registro `DailySummary` de esa fecha.
-6. **Manejo de errores**: si la llamada a Ollama falla, se reintenta un par de veces con espera corta; si sigue fallando, se loguea el error (Monolog), no se genera `DailySummary` ese día (la vista Diario simplemente no muestra resumen) y se notifica al usuario por Telegram (*"No se pudo generar el resumen de hoy ⚠️"*). No hay reintento automático al día siguiente.
-7. **Generación bajo demanda desde Diario**: además del disparo programado, la vista Diario tiene un botón "Generar resumen" (o "Regenerar resumen" si ya existe uno) que dispara la misma lógica de forma síncrona dentro de la petición HTTP, para el día actual. A diferencia del disparo programado, **no espera** por `AudioRecording` en `PENDING` — genera de inmediato con las transcripciones ya disponibles en ese momento.
+6. Tras guardar con éxito, envía el texto del resumen por Telegram al usuario. Si ese envío falla (p. ej. error de red con la API de Telegram), el `DailySummary` ya guardado no se revierte; el fallo solo se loguea.
+7. **Manejo de errores**: si la llamada a Ollama falla, se reintenta un par de veces con espera corta; si sigue fallando, se loguea el error (Monolog), no se genera `DailySummary` ese día (la vista Diario simplemente no muestra resumen) y se notifica al usuario por Telegram (*"No se pudo generar el resumen de hoy ⚠️"*). No hay reintento automático al día siguiente.
+8. **Generación bajo demanda desde Diario**: además del disparo programado, la vista Diario tiene un botón "Generar resumen" (o "Regenerar resumen" si ya existe uno) que dispara la misma lógica de forma síncrona dentro de la petición HTTP, para el día actual. A diferencia del disparo programado, **no espera** por `AudioRecording` en `PENDING` — genera de inmediato con las transcripciones ya disponibles en ese momento.
 
 ### 3.4 Edición y eliminación
 - Desde la web se puede editar manualmente el texto de una transcripción.
