@@ -11,7 +11,7 @@ when@dev:
                 max_files: 60
                 level: debug
                 channels: ["!event"]
-                formatter: monolog.formatter.json
+                formatter: App\Logger\FlattenedContextJsonFormatter
             console:
                 type: console
                 process_psr_3_messages: false
@@ -46,7 +46,7 @@ when@prod:
                 path: "/var/log/php-diary/app-%kernel.environment%.log"
                 max_files: 60
                 level: debug
-                formatter: monolog.formatter.json
+                formatter: App\Logger\FlattenedContextJsonFormatter
             console:
                 type: console
                 process_psr_3_messages: false
@@ -55,4 +55,4 @@ when@prod:
                 type: stream
                 channels: [deprecation]
                 path: php://stderr
-                formatter: monolog.formatter.json
+                formatter: App\Logger\FlattenedContextJsonFormatter
