@@ -24,6 +24,7 @@ services:
             string $transcriptionStorageDir: '%kernel.project_dir%/var/transcriptions'
             string $ollamaBaseUrl: '%env(OLLAMA_BASE_URL)%'
             string $ollamaModel: '%env(OLLAMA_MODEL)%'
+            string $ollamaEmbeddingModel: '%env(OLLAMA_EMBEDDING_MODEL)%'
             string $publicDir: '%kernel.project_dir%/public'
 
     # makes classes in src/ available to be used as services
@@ -35,3 +36,4 @@ services:
     # please note that last definitions always *replace* previous ones
     App\Contract\TranscriberInterface: '@App\Service\Whisper\WhisperTranscriber'
     App\Contract\SummaryGeneratorInterface: '@App\Service\Ollama\OllamaSummaryGenerator'
+    App\Contract\EmbeddingGeneratorInterface: '@App\Service\Ollama\OllamaEmbeddingGenerator'

@@ -2,6 +2,28 @@
 
 Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado según [SemVer](https://semver.org/lang/es/). Flujo de ramas: [Git Flow](CLAUDE.md).
 
+## [Sin publicar]
+
+## [0.8.0] - 2026-09-06
+
+### Ramas integradas en `develop`
+- `feature/add-semantic-search`
+- `feature/audio-retry-transcription-command`
+- Commits directos sobre `develop`: notificación del resumen por Telegram, aplanado de logs JSON, timeout de nginx, política de reinicio de contenedores y varios fixes de Filebeat/ELK.
+
+### Añadido
+- **Búsqueda semántica** (`/busqueda`): nueva vista para buscar en lenguaje natural sobre transcripciones y resúmenes diarios, con resultados combinados y ordenados por similitud coseno (`pgvector`) sobre embeddings generados con Ollama (`nomic-embed-text`). Los embeddings se generan/regeneran automáticamente al transcribir un audio, editar manualmente una transcripción, y generar/regenerar el resumen diario (sin bloquear esos flujos si Ollama falla). Comandos `bin/console app:transcription:backfill-embeddings` / `app:daily-summary:backfill-embeddings` (`make embeddings-backfill`) para regenerar embeddings faltantes del histórico.
+  - **Cambio de infraestructura**: la imagen de `diary-postgres` pasa de `postgres:${POSTGRES_VERSION}` a `pgvector/pgvector:pg${POSTGRES_VERSION}` (incluye la extensión `pgvector`); nueva migración Doctrine para activarla y añadir las columnas `embedding`. Requiere tener el modelo `nomic-embed-text` descargado en el servidor de Ollama.
+- Notificación del resumen diario por Telegram al generarse con éxito (antes solo se notificaba el fallo de generación).
+- Comando `bin/console app:audio:retry-transcription [ids...]` para reencolar transcripciones atascadas en `PENDING` (por defecto, más de 15 minutos) o marcadas como `ERROR`, sin tener que hacer `UPDATE` manuales en la base de datos (`make audio-retry`).
+- Logs de acceso de nginx en JSON estructurado (`status`, `request_uri`, `remote_addr`...) para poder filtrar por código HTTP en Kibana sin grok/dissect.
+- `restart: unless-stopped` en todos los servicios `diary-*` de `docker-compose.yml`, para que un crash (p. ej. `diary-messenger-worker` perdiendo la conexión con Redis) no deje audios atascados indefinidamente hasta un reinicio manual.
+
+### Corregido
+- Monolog anidaba `context`/`extra` bajo esas claves en el JSON de log, por lo que Filebeat/Kibana no podían filtrar por campos como `error_code` como si fueran de primer nivel; ahora se aplanan a la raíz del log (`FlattenedContextJsonFormatter`).
+- El timeout por defecto de nginx (60s) cortaba la generación bajo demanda del resumen diario antes de que Ollama respondiera (hasta 120s), devolviendo un 499 sin ningún log de aplicación asociado.
+- Varios problemas de arranque/indexado de Filebeat detectados tras el despliegue de ELK en 0.7.0: conflicto de mapeo ECS con el campo `service` (renombrado a `log_service`), logging silencioso a fichero en vez de a stdout/stderr, rechazo por permisos estrictos del fichero de configuración montado, y versión de imagen desalineada con el stack ELK ya desplegado.
+
 ## [0.7.1] - 2026-08-17
 
 ### Corregido

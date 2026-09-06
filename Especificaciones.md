@@ -15,12 +15,13 @@ Aplicación web que recibe notas de voz por Telegram, las transcribe automática
 | Vistas | Twig |
 | ORM | Doctrine |
 | Logging | Monolog |
-| Base de datos | PostgreSQL 16 |
+| Base de datos | PostgreSQL 16 + extensión `pgvector` (imagen `pgvector/pgvector:pg16`) |
 | Cola / async | Symfony Messenger (transporte Redis) |
 | Scheduler | Symfony Scheduler (componente `symfony/scheduler`) |
 | Contenedores | Docker + Docker Compose |
 | Transcripción | Open WebUI (Whisper local/remoto) o `whisper.cpp` como fallback |
 | Resumen / extracción de temas | Ollama (modelos existentes: qwen2.5:14b, llama3.1:8b, gemma2:27b, deepseek-r1:14b) vía API compatible OpenAI |
+| Búsqueda semántica | Embeddings de Ollama (`nomic-embed-text`, 768 dimensiones) + similitud coseno vía `pgvector` |
 | Infraestructura destino | Mini PC con 32GB RAM (recursos no son una restricción) |
 
 **Decisión explícita de arquitectura:** NO se usa hexagonal estricta ni CQRS ni EasyAdmin (ver sección 4 — Decisiones de diseño y motivos).
@@ -55,8 +56,9 @@ Aplicación web que recibe notas de voz por Telegram, las transcribe automática
 3. Recoge todas las transcripciones en estado `TRANSCRIBED` del día en curso.
 4. Llama a Ollama para generar: (a) resumen del día, (b) lista de temas tratados.
 5. Guarda/actualiza el registro `DailySummary` de esa fecha.
-6. **Manejo de errores**: si la llamada a Ollama falla, se reintenta un par de veces con espera corta; si sigue fallando, se loguea el error (Monolog), no se genera `DailySummary` ese día (la vista Diario simplemente no muestra resumen) y se notifica al usuario por Telegram (*"No se pudo generar el resumen de hoy ⚠️"*). No hay reintento automático al día siguiente.
-7. **Generación bajo demanda desde Diario**: además del disparo programado, la vista Diario tiene un botón "Generar resumen" (o "Regenerar resumen" si ya existe uno) que dispara la misma lógica de forma síncrona dentro de la petición HTTP, para el día actual. A diferencia del disparo programado, **no espera** por `AudioRecording` en `PENDING` — genera de inmediato con las transcripciones ya disponibles en ese momento.
+6. Tras guardar con éxito, envía el texto del resumen por Telegram al usuario. Si ese envío falla (p. ej. error de red con la API de Telegram), el `DailySummary` ya guardado no se revierte; el fallo solo se loguea.
+7. **Manejo de errores**: si la llamada a Ollama falla, se reintenta un par de veces con espera corta; si sigue fallando, se loguea el error (Monolog), no se genera `DailySummary` ese día (la vista Diario simplemente no muestra resumen) y se notifica al usuario por Telegram (*"No se pudo generar el resumen de hoy ⚠️"*). No hay reintento automático al día siguiente.
+8. **Generación bajo demanda desde Diario**: además del disparo programado, la vista Diario tiene un botón "Generar resumen" (o "Regenerar resumen" si ya existe uno) que dispara la misma lógica de forma síncrona dentro de la petición HTTP, para el día actual. A diferencia del disparo programado, **no espera** por `AudioRecording` en `PENDING` — genera de inmediato con las transcripciones ya disponibles en ese momento.
 
 ### 3.4 Edición y eliminación
 - Desde la web se puede editar manualmente el texto de una transcripción.
@@ -79,6 +81,14 @@ Distinto del caso anterior: aquí el audio en sí es válido, pero el servicio d
 - **Estadísticas** — agregados: nº de audios/día, duración media, temas más frecuentes. Filtrable por rango de fechas y, combinable con este, por estado (recalcula la serie de audios/día, la media diaria y la duración media; el desglose de estados y el ranking de temas siempre muestran el total sin filtrar).
 - **Logout**
 
+### 3.6 Búsqueda semántica
+
+- El usuario dispone de una vista **Búsqueda** (accesible tras login) donde escribe una consulta en lenguaje natural.
+- El sistema genera el embedding de la consulta vía `EmbeddingGeneratorInterface` (implementación Ollama, modelo `nomic-embed-text`) y devuelve una lista combinada de `Transcription` y `DailySummary` con embedding guardado, ordenada por similitud coseno (`pgvector`, operador `<=>`) — no por coincidencia literal de palabra. Cada resultado enlaza al día correspondiente en Historial/Diario e indica su tipo (transcripción individual o resumen del día).
+- El embedding de cada `Transcription` se genera justo después de crearla (flujo 3.2) y se regenera cada vez que se edita manualmente su `content` (flujo 3.4). El embedding de cada `DailySummary` se genera/regenera justo después de guardarlo (flujo 3.3, paso 5).
+- Un fallo al generar un embedding (p. ej. Ollama inaccesible) se loguea y no bloquea el flujo principal (transcripción, edición o resumen diario): el registro queda guardado sin embedding y, por tanto, invisible para la búsqueda hasta que se regenere. Los comandos `bin/console app:transcription:backfill-embeddings` y `bin/console app:daily-summary:backfill-embeddings` (o `make embeddings-backfill`) regeneran los embeddings faltantes bajo demanda.
+- Cambiar `OLLAMA_EMBEDDING_MODEL` invalida los embeddings ya guardados (dimensiones/espacio semántico distintos) y requiere reindexar todo el histórico con los comandos de backfill.
+
 ## 4. Decisiones de diseño y motivos (importante para no reintroducir complejidad innecesaria)
 
 Estas decisiones se tomaron explícitamente para evitar sobre-ingeniería en un proyecto personal con un solo usuario:
@@ -89,6 +99,7 @@ Estas decisiones se tomaron explícitamente para evitar sobre-ingeniería en un 
 - **Sí se usan interfaces (puertos) puntuales** donde existe razón real para ello, por experiencia previa de cambiar de proveedor:
   - `TranscriberInterface` (implementaciones: Open WebUI / whisper.cpp)
   - `SummaryGeneratorInterface` (implementación: Ollama)
+  - `EmbeddingGeneratorInterface` (implementación: Ollama, modelo `nomic-embed-text`) — usado para la búsqueda semántica (3.6)
 - **Symfony Messenger solo para lo async real**: la cadena Telegram → transcripción. No se convierte en bus general de la aplicación.
 - **Gestión de usuarios solo por consola, sin web.** Entidad `User` en BD (Symfony Security). Los usuarios se crean y las contraseñas se cambian con comandos (`bin/console app:user:create`, `bin/console app:user:change-password`) — quien tiene acceso al servidor/contenedor puede cambiar una contraseña sin conocer la actual. No hay registro, ni recuperación de contraseña vía web (sin email, sin tokens), ni gestión de usuarios desde la interfaz.
 - Regla general aplicada: **introducir un patrón solo cuando el problema que resuelve ya existe**, no de forma anticipada. Si en el futuro aparece una necesidad real de más desacoplo en un punto concreto, se extrae la interfaz correspondiente entonces.
@@ -162,6 +173,7 @@ src/
 | edited_manually | bool | default false |
 | created_at | datetime | |
 | updated_at | datetime | |
+| embedding | vector(768), nullable | Embedding de `content` (Ollama `nomic-embed-text`), para búsqueda semántica (3.6). Nulo si su generación falló |
 
 No hay flujo de "regenerar": eliminar borra `AudioRecording` + `Transcription` + ficheros en cascada (ver 3.4).
 
@@ -172,6 +184,7 @@ No hay flujo de "regenerar": eliminar borra `AudioRecording` + `Transcription` +
 | date | date | unique |
 | summary_text | text | |
 | generated_at | datetime | |
+| embedding | vector(768), nullable | Embedding de `summary_text` (Ollama `nomic-embed-text`), para búsqueda semántica (3.6). Nulo si su generación falló |
 
 Relación N:M con `topic` a través de tabla pivote `daily_summary_topic`.
 
@@ -200,7 +213,7 @@ Sin registro ni recuperación de contraseña vía web. Gestión exclusivamente p
 docker-compose.yml (previsto)
 ├── app            # PHP-FPM 8.4 + Symfony
 ├── nginx           # o Caddy
-├── postgres:16      # volumen persistente para datos de BD
+├── postgres (pgvector/pgvector:pg16) # volumen persistente para datos de BD; incluye la extensión pgvector (búsqueda semántica, 3.6)
 ├── redis           # transporte de Symfony Messenger
 ├── messenger-worker  # misma imagen que app, comando: messenger:consume
 └── (Ollama / Open WebUI ya están montados aparte, en 192.168.4.200 — solo se consumen por URL vía variables de entorno)
@@ -234,16 +247,19 @@ Elasticsearch y Kibana ya están desplegados aparte en el mismo servidor de prod
 - Logs de la app PHP (`diary-php` y `diary-messenger-worker`): Monolog con handler `rotating_file` (`config/packages/monolog.yaml`), formato JSON, rotación diaria y borrado automático a los **60 días** (`max_files: 60`). En `prod` escriben a fichero (`/var/log/php-diary/app-prod.log`), no a `stderr`.
 - Logs de todos los contenedores (stdout/stderr — `console`/`deprecation` de PHP, logs propios de nginx/postgres/redis si no van a fichero): driver `json-file` de Docker limitado a 50MB por servicio (`max-size: 10m`, `max-file: 5`, anchor `x-logging` en `docker-compose.yml`). Requiere recrear el contenedor (`docker compose up -d --force-recreate`) para aplicar, no basta con un restart.
 - nginx, postgres y redis además escriben a fichero bajo `${LOGS_PATH}/{nginx,postgres,redis}` (bind mounts ya existentes). Nota: postgres solo escribe ahí si tiene `logging_collector` activado; por defecto postgres loguea a stderr — pendiente de confirmar/activar si se quiere auditar en Kibana.
+- El `access_log` de nginx (`docker/nginx/default.conf`) usa un `log_format json_combined` propio (JSON con `status`, `request_uri`, `remote_addr`, etc. como campos separados) en vez del formato combinado de texto por defecto, para poder filtrar por código de estado (p. ej. 404, 500) directamente en Kibana sin grok/dissect. El `error_log` se deja en texto plano.
 
 #### Envío a Elasticsearch (Filebeat)
 
 - Servicio `diary-filebeat` (`docker-compose.yml`), imagen `docker.elastic.co/beats/filebeat:${FILEBEAT_VERSION}`.
-- Config en `docker/filebeat/filebeat.yml`: 4 inputs de fichero (`nginx`, `postgres`, `redis`, `php`) sobre `${LOGS_PATH}` montado en modo lectura (`/logs:ro`), cada uno etiquetado con el campo `service`. El input `php` parsea JSON directamente (los logs de Monolog ya lo son).
+- Config en `docker/filebeat/filebeat.yml`: inputs de fichero (`nginx` access + error por separado, `postgres`, `redis`, `php`) sobre `${LOGS_PATH}` montado en modo lectura (`/logs:ro`), cada uno etiquetado con los campos `log_service` y (nginx) `log_type` (no `service`: ese nombre choca con el campo objeto `service.*` de ECS y Elasticsearch rechaza el documento con `mapper_parsing_exception`). Los inputs de `nginx access.log` y `php` parsean JSON directamente.
+- Bind mount de un único fichero (`filebeat.yml`, `default.conf`): Docker fija el bind al inodo que exista en el momento de crear el contenedor. Si el fichero se reescribe después (nuevo inodo, p. ej. al editarlo), un `nginx -s reload` o reinicio normal no recoge el cambio — hace falta `docker compose up -d --force-recreate <servicio>`.
 - No lee logs de contenedor Docker ni monta el socket: como la app ya escribe a fichero en todos los entornos, todo es lectura de fichero.
+- El `command` del servicio (`["-e", "--strict.perms=false"]`) sustituye el `CMD` por defecto de la imagen entera, así que hay que mantener `-e` explícito (si no, Filebeat deja de loguear a stderr y `docker compose logs` no muestra nada) además de `--strict.perms=false` (el `filebeat.yml` montado por bind mount conserva el propietario del host, no root, y sin ese flag Filebeat rechaza arrancar).
 - Variables en `.env` (ajustar a la instancia real de ES/Kibana del servidor):
 
   ```env
-  FILEBEAT_VERSION=8.15.0
+  FILEBEAT_VERSION=8.15.1
   ELASTICSEARCH_HOSTS=http://host.docker.internal:9200
   ELASTICSEARCH_USERNAME=
   ELASTICSEARCH_PASSWORD=

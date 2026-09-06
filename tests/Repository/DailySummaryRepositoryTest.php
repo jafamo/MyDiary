@@ -83,13 +83,51 @@ class DailySummaryRepositoryTest extends KernelTestCase
         self::assertSame([], $this->repository->findPageInRange($from, $to, 1, 20));
     }
 
-    private function createDailySummary(string $date): void
+    public function testSearchBySimilarityOrdersByCosineDistanceAscending(): void
+    {
+        $this->createDailySummary('2020-01-01', $this->unitVector(0));
+        $this->createDailySummary('2020-01-02', $this->unitVector(1));
+        $this->createDailySummary('2020-01-03', null);
+
+        $results = $this->repository->searchBySimilarity($this->unitVector(0), 10);
+
+        self::assertCount(2, $results);
+        self::assertSame('2020-01-01', $results[0]['dailySummary']->getDate()->format('Y-m-d'));
+        self::assertSame('2020-01-02', $results[1]['dailySummary']->getDate()->format('Y-m-d'));
+        self::assertLessThan($results[1]['distance'], $results[0]['distance']);
+    }
+
+    public function testSearchBySimilarityExcludesDailySummariesWithoutEmbedding(): void
+    {
+        $this->createDailySummary('2020-01-03', null);
+
+        $results = $this->repository->searchBySimilarity($this->unitVector(0), 10);
+
+        self::assertSame([], $results);
+    }
+
+    /**
+     * @return list<float> vector de 768 dimensiones (una embedding de nomic-embed-text) con un único 1.0 en $activeIndex
+     */
+    private function unitVector(int $activeIndex): array
+    {
+        $vector = array_fill(0, 768, 0.0);
+        $vector[$activeIndex] = 1.0;
+
+        return $vector;
+    }
+
+    /**
+     * @param list<float>|null $embedding
+     */
+    private function createDailySummary(string $date, ?array $embedding = null): void
     {
         $dailySummary = new DailySummary();
         $dailySummary
             ->setDate(new \DateTimeImmutable($date))
             ->setSummaryText('Resumen de '.$date)
             ->setGeneratedAt(new \DateTimeImmutable())
+            ->setEmbedding($embedding)
         ;
         $this->entityManager->persist($dailySummary);
         $this->entityManager->flush();

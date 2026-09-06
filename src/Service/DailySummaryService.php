@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Contract\EmbeddingGenerationException;
+use App\Contract\EmbeddingGeneratorInterface;
 use App\Contract\SummaryGenerationException;
 use App\Contract\SummaryGeneratorInterface;
 use App\Entity\DailySummary;
@@ -24,6 +26,7 @@ class DailySummaryService
         private readonly DailySummaryRepository $dailySummaryRepository,
         private readonly TopicRepository $topicRepository,
         private readonly SummaryGeneratorInterface $summaryGenerator,
+        private readonly EmbeddingGeneratorInterface $embeddingGenerator,
         private readonly EntityManagerInterface $entityManager,
         private readonly TelegramClient $telegramClient,
         private readonly LoggerInterface $logger,
@@ -148,5 +151,40 @@ class DailySummaryService
         }
 
         $this->entityManager->flush();
+
+        $this->generateEmbedding($dailySummary);
+        $this->notifySummaryGenerated($date, $summaryText);
+    }
+
+    private function generateEmbedding(DailySummary $dailySummary): void
+    {
+        try {
+            $embedding = $this->embeddingGenerator->generate($dailySummary->getSummaryText());
+        } catch (EmbeddingGenerationException $exception) {
+            $this->logger->error('Fallo al generar el embedding del resumen diario', [
+                'event' => 'daily_summary.embedding_generation_failed',
+                'date' => $dailySummary->getDate()->format('Y-m-d'),
+                'error_code' => $exception->getErrorCode(),
+                'error_message' => $exception->getErrorMessage(),
+            ]);
+
+            return;
+        }
+
+        $dailySummary->setEmbedding($embedding);
+        $this->entityManager->flush();
+    }
+
+    private function notifySummaryGenerated(\DateTimeImmutable $date, string $summaryText): void
+    {
+        try {
+            $this->telegramClient->sendMessage((int) $this->authorizedChatId, $summaryText);
+        } catch (\Throwable $exception) {
+            $this->logger->error('Fallo al enviar la notificación del resumen diario por Telegram', [
+                'event' => 'daily_summary.telegram_notification_failed',
+                'date' => $date->format('Y-m-d'),
+                'error_message' => $exception->getMessage(),
+            ]);
+        }
     }
 }
