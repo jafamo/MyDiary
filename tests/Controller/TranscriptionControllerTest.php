@@ -14,7 +14,10 @@ use App\Service\DateRange;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\BrowserKit\AbstractBrowser;
+use Symfony\Component\HttpClient\MockHttpClient;
+use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class TranscriptionControllerTest extends WebTestCase
 {
@@ -67,6 +70,7 @@ class TranscriptionControllerTest extends WebTestCase
         self::assertSame('texto corregido a mano', $updated->getTranscription()->getContent());
         self::assertTrue($updated->getTranscription()->isEditedManually());
         self::assertSame('texto corregido a mano', file_get_contents($exportFile));
+        self::assertSame($this->unitVector(0), array_map('floatval', $updated->getTranscription()->getEmbedding()->toArray()));
     }
 
     public function testEditOnAudioWithoutTranscriptionIsRejected(): void
@@ -228,10 +232,23 @@ class TranscriptionControllerTest extends WebTestCase
 
     private function bootServices(): void
     {
+        self::getContainer()->set(HttpClientInterface::class, new MockHttpClient(new MockResponse(json_encode(['embedding' => $this->unitVector(0)]))));
+
         $this->entityManager = self::getContainer()->get(EntityManagerInterface::class);
         $this->userRepository = self::getContainer()->get(UserRepository::class);
         $this->audioRecordingRepository = self::getContainer()->get(AudioRecordingRepository::class);
         $this->cleanUp();
+    }
+
+    /**
+     * @return list<float> vector de 768 dimensiones (una embedding de nomic-embed-text) con un único 1.0 en $activeIndex
+     */
+    private function unitVector(int $activeIndex): array
+    {
+        $vector = array_fill(0, 768, 0.0);
+        $vector[$activeIndex] = 1.0;
+
+        return $vector;
     }
 
     private function createTestUser(): User

@@ -15,12 +15,13 @@ Aplicación web que recibe notas de voz por Telegram, las transcribe automática
 | Vistas | Twig |
 | ORM | Doctrine |
 | Logging | Monolog |
-| Base de datos | PostgreSQL 16 |
+| Base de datos | PostgreSQL 16 + extensión `pgvector` (imagen `pgvector/pgvector:pg16`) |
 | Cola / async | Symfony Messenger (transporte Redis) |
 | Scheduler | Symfony Scheduler (componente `symfony/scheduler`) |
 | Contenedores | Docker + Docker Compose |
 | Transcripción | Open WebUI (Whisper local/remoto) o `whisper.cpp` como fallback |
 | Resumen / extracción de temas | Ollama (modelos existentes: qwen2.5:14b, llama3.1:8b, gemma2:27b, deepseek-r1:14b) vía API compatible OpenAI |
+| Búsqueda semántica | Embeddings de Ollama (`nomic-embed-text`, 768 dimensiones) + similitud coseno vía `pgvector` |
 | Infraestructura destino | Mini PC con 32GB RAM (recursos no son una restricción) |
 
 **Decisión explícita de arquitectura:** NO se usa hexagonal estricta ni CQRS ni EasyAdmin (ver sección 4 — Decisiones de diseño y motivos).
@@ -80,6 +81,14 @@ Distinto del caso anterior: aquí el audio en sí es válido, pero el servicio d
 - **Estadísticas** — agregados: nº de audios/día, duración media, temas más frecuentes. Filtrable por rango de fechas y, combinable con este, por estado (recalcula la serie de audios/día, la media diaria y la duración media; el desglose de estados y el ranking de temas siempre muestran el total sin filtrar).
 - **Logout**
 
+### 3.6 Búsqueda semántica
+
+- El usuario dispone de una vista **Búsqueda** (accesible tras login) donde escribe una consulta en lenguaje natural.
+- El sistema genera el embedding de la consulta vía `EmbeddingGeneratorInterface` (implementación Ollama, modelo `nomic-embed-text`) y devuelve una lista combinada de `Transcription` y `DailySummary` con embedding guardado, ordenada por similitud coseno (`pgvector`, operador `<=>`) — no por coincidencia literal de palabra. Cada resultado enlaza al día correspondiente en Historial/Diario e indica su tipo (transcripción individual o resumen del día).
+- El embedding de cada `Transcription` se genera justo después de crearla (flujo 3.2) y se regenera cada vez que se edita manualmente su `content` (flujo 3.4). El embedding de cada `DailySummary` se genera/regenera justo después de guardarlo (flujo 3.3, paso 5).
+- Un fallo al generar un embedding (p. ej. Ollama inaccesible) se loguea y no bloquea el flujo principal (transcripción, edición o resumen diario): el registro queda guardado sin embedding y, por tanto, invisible para la búsqueda hasta que se regenere. Los comandos `bin/console app:transcription:backfill-embeddings` y `bin/console app:daily-summary:backfill-embeddings` (o `make embeddings-backfill`) regeneran los embeddings faltantes bajo demanda.
+- Cambiar `OLLAMA_EMBEDDING_MODEL` invalida los embeddings ya guardados (dimensiones/espacio semántico distintos) y requiere reindexar todo el histórico con los comandos de backfill.
+
 ## 4. Decisiones de diseño y motivos (importante para no reintroducir complejidad innecesaria)
 
 Estas decisiones se tomaron explícitamente para evitar sobre-ingeniería en un proyecto personal con un solo usuario:
@@ -90,6 +99,7 @@ Estas decisiones se tomaron explícitamente para evitar sobre-ingeniería en un 
 - **Sí se usan interfaces (puertos) puntuales** donde existe razón real para ello, por experiencia previa de cambiar de proveedor:
   - `TranscriberInterface` (implementaciones: Open WebUI / whisper.cpp)
   - `SummaryGeneratorInterface` (implementación: Ollama)
+  - `EmbeddingGeneratorInterface` (implementación: Ollama, modelo `nomic-embed-text`) — usado para la búsqueda semántica (3.6)
 - **Symfony Messenger solo para lo async real**: la cadena Telegram → transcripción. No se convierte en bus general de la aplicación.
 - **Gestión de usuarios solo por consola, sin web.** Entidad `User` en BD (Symfony Security). Los usuarios se crean y las contraseñas se cambian con comandos (`bin/console app:user:create`, `bin/console app:user:change-password`) — quien tiene acceso al servidor/contenedor puede cambiar una contraseña sin conocer la actual. No hay registro, ni recuperación de contraseña vía web (sin email, sin tokens), ni gestión de usuarios desde la interfaz.
 - Regla general aplicada: **introducir un patrón solo cuando el problema que resuelve ya existe**, no de forma anticipada. Si en el futuro aparece una necesidad real de más desacoplo en un punto concreto, se extrae la interfaz correspondiente entonces.
@@ -163,6 +173,7 @@ src/
 | edited_manually | bool | default false |
 | created_at | datetime | |
 | updated_at | datetime | |
+| embedding | vector(768), nullable | Embedding de `content` (Ollama `nomic-embed-text`), para búsqueda semántica (3.6). Nulo si su generación falló |
 
 No hay flujo de "regenerar": eliminar borra `AudioRecording` + `Transcription` + ficheros en cascada (ver 3.4).
 
@@ -173,6 +184,7 @@ No hay flujo de "regenerar": eliminar borra `AudioRecording` + `Transcription` +
 | date | date | unique |
 | summary_text | text | |
 | generated_at | datetime | |
+| embedding | vector(768), nullable | Embedding de `summary_text` (Ollama `nomic-embed-text`), para búsqueda semántica (3.6). Nulo si su generación falló |
 
 Relación N:M con `topic` a través de tabla pivote `daily_summary_topic`.
 
@@ -201,7 +213,7 @@ Sin registro ni recuperación de contraseña vía web. Gestión exclusivamente p
 docker-compose.yml (previsto)
 ├── app            # PHP-FPM 8.4 + Symfony
 ├── nginx           # o Caddy
-├── postgres:16      # volumen persistente para datos de BD
+├── postgres (pgvector/pgvector:pg16) # volumen persistente para datos de BD; incluye la extensión pgvector (búsqueda semántica, 3.6)
 ├── redis           # transporte de Symfony Messenger
 ├── messenger-worker  # misma imagen que app, comando: messenger:consume
 └── (Ollama / Open WebUI ya están montados aparte, en 192.168.4.200 — solo se consumen por URL vía variables de entorno)

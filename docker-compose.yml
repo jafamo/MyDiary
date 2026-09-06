@@ -10,7 +10,7 @@ x-logging: &default-logging
 
 services:
   diary-postgres:
-    image: postgres:${POSTGRES_VERSION}
+    image: pgvector/pgvector:pg${POSTGRES_VERSION}
     container_name: diary-postgres
     restart: unless-stopped
     environment:

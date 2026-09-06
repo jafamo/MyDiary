@@ -6,6 +6,7 @@ namespace App\Entity;
 
 use App\Repository\TranscriptionRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Pgvector\Vector;
 
 #[ORM\Entity(repositoryClass: TranscriptionRepository::class)]
 class Transcription
@@ -27,6 +28,9 @@ class Transcription
 
     #[ORM\Column]
     private bool $editedManually = false;
+
+    #[ORM\Column(type: 'vector', length: 768, nullable: true)]
+    private ?Vector $embedding = null;
 
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
@@ -83,6 +87,21 @@ class Transcription
     public function setEditedManually(bool $editedManually): static
     {
         $this->editedManually = $editedManually;
+
+        return $this;
+    }
+
+    public function getEmbedding(): ?Vector
+    {
+        return $this->embedding;
+    }
+
+    /**
+     * @param list<float> $embedding
+     */
+    public function setEmbedding(?array $embedding): static
+    {
+        $this->embedding = null === $embedding ? null : new Vector($embedding);
 
         return $this;
     }

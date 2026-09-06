@@ -13,12 +13,13 @@ Web application that receives voice notes via Telegram, automatically transcribe
 | 🌿 | Views | Twig |
 | 🗃️ | ORM | Doctrine |
 | 📝 | Logging | Monolog |
-| 🐬 | Database | PostgreSQL 16 |
+| 🐬 | Database | PostgreSQL 16 + pgvector |
 | 📬 | Queue / async | Symfony Messenger (Doctrine or Redis) |
 | ⏰ | Scheduler | Symfony Scheduler |
 | 🐳 | Containers | Docker + Docker Compose |
 | 🗣️ | Transcription (STT) | Open WebUI (local Whisper) |
 | 🧠 | Summary / topics (LLM) | Ollama via OpenAI-compatible API |
+| 🔎 | Semantic search | Ollama embeddings (`nomic-embed-text`) + pgvector cosine distance |
 | 🤖 | Bot | Telegram Bot API |
 | 🖥️ | Target infrastructure | Mini PC with 32GB RAM |
 
@@ -86,6 +87,10 @@ flowchart TD
 ## 🌳 Version control
 
 Git Flow (`main` for releases only, `develop` as the integration branch). See [`CLAUDE.md`](./CLAUDE.md) for branch details and commands.
+
+## 🚀 Deploying
+
+Before deploying (or updating `OLLAMA_EMBEDDING_MODEL`), make sure the embeddings model is pulled on the Ollama server (e.g. `ollama pull nomic-embed-text`) — semantic search generates embeddings on demand and fails silently (logged, non-blocking) if the model isn't available.
 
 ## 🚧 Status
 
