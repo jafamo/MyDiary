@@ -43,6 +43,7 @@
                     <a class="navlink" href="{{ path('app_diario') }}" {% if app.request.attributes.get('_route') == 'app_diario' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-mic"></use></svg> Diario</a>
                     <a class="navlink" href="{{ path('app_historial') }}" {% if app.request.attributes.get('_route') == 'app_historial' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-calendar"></use></svg> Historial</a>
                     <a class="navlink" href="{{ path('app_resumenes') }}" {% if app.request.attributes.get('_route') == 'app_resumenes' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-tag"></use></svg> Resúmenes</a>
+                    <a class="navlink" href="{{ path('app_busqueda') }}" {% if app.request.attributes.get('_route') == 'app_busqueda' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-search"></use></svg> Búsqueda</a>
                     <a class="navlink" href="{{ path('app_recordatorios') }}" {% if app.request.attributes.get('_route') starts with 'app_recordatorios' %}aria-current="page"{% endif %}>
                         <svg class="icon"><use href="#i-bell"></use></svg> Recordatorios
                         {% if upcoming_reminders_data.count > 0 %}<span class="nav-badge nav-badge--{{ upcoming_reminders_data.level }}">{{ upcoming_reminders_data.count }}</span>{% endif %}
@@ -68,6 +69,7 @@
                 <a class="bottom-nav__item" href="{{ path('app_diario') }}" {% if app.request.attributes.get('_route') == 'app_diario' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-mic"></use></svg> Diario</a>
                 <a class="bottom-nav__item" href="{{ path('app_historial') }}" {% if app.request.attributes.get('_route') == 'app_historial' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-calendar"></use></svg> Historial</a>
                 <a class="bottom-nav__item" href="{{ path('app_resumenes') }}" {% if app.request.attributes.get('_route') == 'app_resumenes' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-tag"></use></svg> Resúmenes</a>
+                <a class="bottom-nav__item" href="{{ path('app_busqueda') }}" {% if app.request.attributes.get('_route') == 'app_busqueda' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-search"></use></svg> Búsqueda</a>
                 <a class="bottom-nav__item" href="{{ path('app_recordatorios') }}" {% if app.request.attributes.get('_route') starts with 'app_recordatorios' %}aria-current="page"{% endif %}>
                     <svg class="icon"><use href="#i-bell"></use></svg> Recordatorios
                     {% if upcoming_reminders_data.count > 0 %}<span class="nav-badge nav-badge--{{ upcoming_reminders_data.level }}">{{ upcoming_reminders_data.count }}</span>{% endif %}

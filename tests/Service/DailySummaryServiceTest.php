@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Service;
 
+use App\Contract\EmbeddingGenerationException;
+use App\Contract\EmbeddingGeneratorInterface;
 use App\Contract\SummaryGenerationException;
 use App\Contract\SummaryGeneratorInterface;
 use App\Entity\AudioRecording;
@@ -78,6 +80,66 @@ class DailySummaryServiceTest extends KernelTestCase
         self::assertNotNull($dailySummary);
         self::assertSame('Un resumen', $dailySummary->getSummaryText());
         self::assertCount(2, $dailySummary->getTopics());
+    }
+
+    public function testGeneratesAndSavesEmbeddingForNewSummary(): void
+    {
+        $this->createTranscribedAudioRecording('summary-msg-8', 'summary-file-8', 'transcripción del día');
+
+        $service = $this->createService(
+            $this->fakeGenerator(['summary' => 'Un resumen', 'topics' => []]),
+            embeddingGenerator: $this->fakeEmbeddingGenerator($this->unitVector(0)),
+        );
+        $service->generateForDate($this->testDate);
+
+        $dailySummary = $this->dailySummaryRepository->findOneByDate($this->testDate);
+
+        self::assertNotNull($dailySummary);
+        self::assertSame($this->unitVector(0), array_map('floatval', $dailySummary->getEmbedding()->toArray()));
+    }
+
+    public function testRegeneratesEmbeddingWhenSummaryIsRegenerated(): void
+    {
+        $this->createTranscribedAudioRecording('summary-msg-9', 'summary-file-9', 'transcripción');
+
+        $service = $this->createService(
+            $this->fakeGenerator(['summary' => 'Primera versión', 'topics' => []]),
+            embeddingGenerator: $this->fakeEmbeddingGenerator($this->unitVector(0)),
+        );
+        $service->generateForDate($this->testDate);
+
+        $service2 = $this->createService(
+            $this->fakeGenerator(['summary' => 'Segunda versión', 'topics' => []]),
+            embeddingGenerator: $this->fakeEmbeddingGenerator($this->unitVector(1)),
+        );
+        $service2->generateForDate($this->testDate);
+
+        $dailySummary = $this->dailySummaryRepository->findOneByDate($this->testDate);
+        self::assertSame($this->unitVector(1), array_map('floatval', $dailySummary->getEmbedding()->toArray()));
+    }
+
+    public function testEmbeddingGenerationFailureDoesNotPreventSummaryFromBeingSaved(): void
+    {
+        $this->createTranscribedAudioRecording('summary-msg-10', 'summary-file-10', 'transcripción');
+
+        $failingEmbeddingGenerator = new class () implements EmbeddingGeneratorInterface {
+            public function generate(string $text): array
+            {
+                throw new EmbeddingGenerationException('TIMEOUT', 'fallo simulado');
+            }
+        };
+
+        $service = $this->createService(
+            $this->fakeGenerator(['summary' => 'Resumen pese al fallo de embedding', 'topics' => []]),
+            embeddingGenerator: $failingEmbeddingGenerator,
+        );
+        $service->generateForDate($this->testDate);
+
+        $dailySummary = $this->dailySummaryRepository->findOneByDate($this->testDate);
+
+        self::assertNotNull($dailySummary);
+        self::assertSame('Resumen pese al fallo de embedding', $dailySummary->getSummaryText());
+        self::assertNull($dailySummary->getEmbedding());
     }
 
     public function testReExecutionUpdatesInsteadOfDuplicating(): void
@@ -212,12 +274,14 @@ class DailySummaryServiceTest extends KernelTestCase
         int $generationRetryDelaySeconds = 0,
         int $pendingWaitIntervalSeconds = 0,
         int $pendingWaitMaxAttempts = 1,
+        ?EmbeddingGeneratorInterface $embeddingGenerator = null,
     ): DailySummaryService {
         return new DailySummaryService(
             $this->audioRecordingRepository,
             $this->dailySummaryRepository,
             $this->topicRepository,
             $generator,
+            $embeddingGenerator ?? $this->fakeEmbeddingGenerator($this->unitVector(0)),
             $this->entityManager,
             self::getContainer()->get(TelegramClient::class),
             self::getContainer()->get('logger'),
@@ -239,6 +303,34 @@ class DailySummaryServiceTest extends KernelTestCase
             public function generate(array $transcriptions): array
             {
                 return $this->result;
+            }
+        };
+    }
+
+    /**
+     * @return list<float> vector de 768 dimensiones (una embedding de nomic-embed-text) con un único 1.0 en $activeIndex
+     */
+    private function unitVector(int $activeIndex): array
+    {
+        $vector = array_fill(0, 768, 0.0);
+        $vector[$activeIndex] = 1.0;
+
+        return $vector;
+    }
+
+    /**
+     * @param list<float> $embedding
+     */
+    private function fakeEmbeddingGenerator(array $embedding): EmbeddingGeneratorInterface
+    {
+        return new class ($embedding) implements EmbeddingGeneratorInterface {
+            public function __construct(private readonly array $embedding)
+            {
+            }
+
+            public function generate(string $text): array
+            {
+                return $this->embedding;
             }
         };
     }
@@ -293,7 +385,7 @@ class DailySummaryServiceTest extends KernelTestCase
             $this->entityManager->remove($dailySummary);
         }
 
-        foreach (['summary-msg-1', 'summary-msg-2', 'summary-msg-3', 'summary-msg-4', 'summary-msg-4b', 'summary-msg-5', 'summary-msg-6', 'summary-msg-7'] as $telegramMessageId) {
+        foreach (['summary-msg-1', 'summary-msg-2', 'summary-msg-3', 'summary-msg-4', 'summary-msg-4b', 'summary-msg-5', 'summary-msg-6', 'summary-msg-7', 'summary-msg-8', 'summary-msg-9', 'summary-msg-10'] as $telegramMessageId) {
             $audioRecording = $this->audioRecordingRepository->findOneByTelegramMessageId($telegramMessageId);
             if (null !== $audioRecording) {
                 $this->entityManager->remove($audioRecording);

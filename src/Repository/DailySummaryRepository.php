@@ -7,6 +7,7 @@ namespace App\Repository;
 use App\Entity\DailySummary;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Pgvector\Vector;
 
 /**
  * @extends ServiceEntityRepository<DailySummary>
@@ -86,5 +87,41 @@ class DailySummaryRepository extends ServiceEntityRepository
             ->getQuery()
             ->getSingleScalarResult()
         ;
+    }
+
+    /**
+     * @return list<DailySummary>
+     */
+    public function findAllWithoutEmbedding(): array
+    {
+        return $this->createQueryBuilder('d')
+            ->andWhere('d.embedding IS NULL')
+            ->getQuery()
+            ->getResult()
+        ;
+    }
+
+    /**
+     * @param list<float> $queryEmbedding
+     *
+     * @return list<array{dailySummary: DailySummary, distance: float}>
+     */
+    public function searchBySimilarity(array $queryEmbedding, int $limit): array
+    {
+        $rows = $this->createQueryBuilder('d')
+            ->select('d')
+            ->addSelect('cosine_distance(d.embedding, :queryEmbedding) AS distance')
+            ->andWhere('d.embedding IS NOT NULL')
+            ->orderBy('distance', 'ASC')
+            ->setParameter('queryEmbedding', new Vector($queryEmbedding))
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult()
+        ;
+
+        return array_map(static fn (array $row) => [
+            'dailySummary' => $row[0],
+            'distance' => (float) $row['distance'],
+        ], $rows);
     }
 }

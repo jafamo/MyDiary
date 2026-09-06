@@ -1,0 +1,47 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Búsqueda{% endblock %}
+
+{% block body %}
+    <main class="content content--wide">
+        <div class="page-header"><h1>Búsqueda</h1></div>
+
+        <div class="filter-row">
+            <form class="filter-custom" method="get" action="{{ path('app_busqueda') }}">
+                <input type="search" name="q" value="{{ query }}" placeholder="¿Cuándo hablé de...?" autofocus>
+                <button class="btn-apply" type="submit"><svg class="icon icon--sm"><use href="#i-search"></use></svg> Buscar</button>
+            </form>
+        </div>
+
+        {% if not searched %}
+            <p class="entry-empty">Escribe una consulta en lenguaje natural para buscar en tus transcripciones y resúmenes diarios.</p>
+        {% elseif results is empty %}
+            <p class="entry-empty">Sin resultados para «{{ query }}».</p>
+        {% else %}
+            <div class="summary-list">
+                {% for result in results %}
+                    <article class="summary-card">
+                        <div class="summary-card__header">
+                            <div class="summary-panel__eyebrow">
+                                <svg class="icon"><use href="#i-dot"></use></svg> {{ result.date|es_weekday_date }}
+                                {% if 'daily_summary' == result.type %}
+                                    <span class="status-pill status-pill--transcribed"><svg class="icon icon--sm"><use href="#i-tag"></use></svg> Resumen del día</span>
+                                {% else %}
+                                    <span class="status-pill status-pill--pending"><svg class="icon icon--sm"><use href="#i-mic"></use></svg> Transcripción</span>
+                                {% endif %}
+                            </div>
+                            <a class="btn-action" href="{{ path('app_historial', {date: result.date.format('Y-m-d'), year: result.date.format('Y'), month: result.date.format('n')}) }}">
+                                Ver día <svg class="icon icon--sm"><use href="#i-chevron-right"></use></svg>
+                            </a>
+                        </div>
+                        {% if 'daily_summary' == result.type %}
+                            <p>{{ result.dailySummary.summaryText }}</p>
+                        {% else %}
+                            <p>{{ result.transcription.content }}</p>
+                        {% endif %}
+                    </article>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </main>
+{% endblock %}

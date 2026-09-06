@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\MessageHandler;
 
+use App\Contract\EmbeddingGenerationException;
+use App\Contract\EmbeddingGeneratorInterface;
 use App\Contract\TranscriberInterface;
 use App\Contract\TranscriptionException;
 use App\Entity\AudioRecordingStatus;
@@ -21,6 +23,7 @@ class TranscribeAudioMessageHandler
     public function __construct(
         private readonly AudioRecordingRepository $audioRecordingRepository,
         private readonly TranscriberInterface $transcriber,
+        private readonly EmbeddingGeneratorInterface $embeddingGenerator,
         private readonly TelegramClient $telegramClient,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
@@ -74,9 +77,30 @@ class TranscribeAudioMessageHandler
         $this->entityManager->persist($transcription);
         $this->entityManager->flush();
 
+        $this->generateEmbedding($transcription);
+
         $this->telegramClient->sendMessage(
             (int) $this->authorizedChatId,
             sprintf("Transcripción lista ✅\n\n%s", $content),
         );
+    }
+
+    private function generateEmbedding(Transcription $transcription): void
+    {
+        try {
+            $embedding = $this->embeddingGenerator->generate($transcription->getContent());
+        } catch (EmbeddingGenerationException $exception) {
+            $this->logger->warning('Fallo al generar el embedding de una transcripción', [
+                'event' => 'transcription.embedding_generation_failed',
+                'transcription_id' => $transcription->getId(),
+                'error_code' => $exception->getErrorCode(),
+                'error_message' => $exception->getErrorMessage(),
+            ]);
+
+            return;
+        }
+
+        $transcription->setEmbedding($embedding);
+        $this->entityManager->flush();
     }
 }

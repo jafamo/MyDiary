@@ -8,6 +8,7 @@ use App\Repository\DailySummaryRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Pgvector\Vector;
 
 #[ORM\Entity(repositoryClass: DailySummaryRepository::class)]
 class DailySummary
@@ -25,6 +26,9 @@ class DailySummary
 
     #[ORM\Column]
     private \DateTimeImmutable $generatedAt;
+
+    #[ORM\Column(type: 'vector', length: 768, nullable: true)]
+    private ?Vector $embedding = null;
 
     /**
      * @var Collection<int, Topic>
@@ -75,6 +79,21 @@ class DailySummary
     public function setGeneratedAt(\DateTimeImmutable $generatedAt): static
     {
         $this->generatedAt = $generatedAt;
+
+        return $this;
+    }
+
+    public function getEmbedding(): ?Vector
+    {
+        return $this->embedding;
+    }
+
+    /**
+     * @param list<float> $embedding
+     */
+    public function setEmbedding(?array $embedding): static
+    {
+        $this->embedding = null === $embedding ? null : new Vector($embedding);
 
         return $this;
     }
