@@ -44,6 +44,17 @@ class DailySummaryService
     ) {
     }
 
+    public function hasNewTranscriptionsSince(\DateTimeImmutable $date): bool
+    {
+        $dailySummary = $this->dailySummaryRepository->findOneByDate($date);
+
+        if (null === $dailySummary) {
+            return $this->audioRecordingRepository->existsTranscribedReceivedOn($date);
+        }
+
+        return $this->audioRecordingRepository->existsTranscribedReceivedAfter($date, $dailySummary->getGeneratedAt());
+    }
+
     public function generateForDate(\DateTimeImmutable $date, bool $waitForPending = true): void
     {
         if ($waitForPending) {
