@@ -227,7 +227,7 @@ class DailySummaryServiceTest extends KernelTestCase
 
         $body = json_decode((string) $sendMessageRequests[0]['body'], true);
         self::assertSame((int) $_ENV['TELEGRAM_AUTHORIZED_CHAT_ID'], $body['chat_id']);
-        self::assertSame('Un resumen para Telegram', $body['text']);
+        self::assertSame("📔 Resumen día: 4 de agosto de 2026\n\nUn resumen para Telegram", $body['text']);
     }
 
     public function testRegenerationNotifiesWithUpdatedText(): void
@@ -244,7 +244,7 @@ class DailySummaryServiceTest extends KernelTestCase
         self::assertCount(2, $sendMessageRequests);
 
         $lastBody = json_decode((string) $sendMessageRequests[1]['body'], true);
-        self::assertSame('Segunda versión', $lastBody['text']);
+        self::assertSame("📔 Resumen día: 4 de agosto de 2026\n\nSegunda versión", $lastBody['text']);
     }
 
     public function testTelegramNotificationFailureDoesNotPreventPersistence(): void
