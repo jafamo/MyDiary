@@ -46,6 +46,38 @@ class AudioRecordingRepository extends ServiceEntityRepository
         return $this->findByStatusReceivedOn(AudioRecordingStatus::TRANSCRIBED, $date);
     }
 
+    public function existsTranscribedReceivedOn(\DateTimeImmutable $date): bool
+    {
+        return $this->existsByStatusReceivedOn(AudioRecordingStatus::TRANSCRIBED, $date, null);
+    }
+
+    public function existsTranscribedReceivedAfter(\DateTimeImmutable $date, \DateTimeImmutable $after): bool
+    {
+        return $this->existsByStatusReceivedOn(AudioRecordingStatus::TRANSCRIBED, $date, $after);
+    }
+
+    private function existsByStatusReceivedOn(AudioRecordingStatus $status, \DateTimeImmutable $date, ?\DateTimeImmutable $after): bool
+    {
+        [$start, $end] = DateRange::dayBoundaries($date);
+
+        $qb = $this->createQueryBuilder('a')
+            ->select('1')
+            ->andWhere('a.status = :status')
+            ->andWhere('a.receivedAt >= :start')
+            ->andWhere('a.receivedAt < :end')
+            ->setParameter('status', $status)
+            ->setParameter('start', $start)
+            ->setParameter('end', $end)
+            ->setMaxResults(1)
+        ;
+
+        if (null !== $after) {
+            $qb->andWhere('a.receivedAt > :after')->setParameter('after', $after);
+        }
+
+        return [] !== $qb->getQuery()->getResult();
+    }
+
     /**
      * @return list<AudioRecording>
      */

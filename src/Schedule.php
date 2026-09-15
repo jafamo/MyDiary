@@ -38,6 +38,20 @@ class Schedule implements ScheduleProviderInterface
                     timezone: 'Europe/Madrid',
                 ),
             )
+            ->add(
+                RecurringMessage::cron(
+                    '*/15 21,22,23 * * *',
+                    new RunCommandMessage('app:recheck-daily-summary'),
+                    timezone: 'Europe/Madrid',
+                ),
+            )
+            ->add(
+                RecurringMessage::cron(
+                    '0,15,30 0 * * *',
+                    new RunCommandMessage('app:recheck-daily-summary'),
+                    timezone: 'Europe/Madrid',
+                ),
+            )
         ;
     }
 }
