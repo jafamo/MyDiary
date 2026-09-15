@@ -55,16 +55,60 @@ El sistema SHALL permitir ejecutar `app:generate-daily-summary` manualmente (no 
 - **THEN** el comando genera (o regenera) el `DailySummary` correspondiente al 1 de agosto de 2026, no al día actual
 
 ### Requirement: Notificación por Telegram del resumen generado
-El sistema SHALL enviar por Telegram al `authorizedChatId` el texto del `DailySummary` inmediatamente después de guardarlo (o actualizarlo) con éxito, tanto en el disparo programado como en la ejecución manual por consola y en la generación bajo demanda desde la web. Un fallo al enviar esta notificación SHALL registrarse en logs estructurados y NO SHALL revertir ni invalidar el `DailySummary` ya guardado.
+El sistema SHALL enviar por Telegram al `authorizedChatId` una cabecera con icono y la fecha del resumen en español, seguida de una línea en blanco y el texto del `DailySummary`, inmediatamente después de guardarlo (o actualizarlo) con éxito, tanto en el disparo programado como en la ejecución manual por consola y en la generación bajo demanda desde la web. La cabecera SHALL tener el formato `📔 Resumen día: <día> de <mes> de <año>` (p. ej. `📔 Resumen día: 22 de septiembre de 2026`), usando el nombre del mes en español y la fecha del `DailySummary` (no la fecha de envío). Un fallo al enviar esta notificación SHALL registrarse en logs estructurados y NO SHALL revertir ni invalidar el `DailySummary` ya guardado.
 
 #### Scenario: Notificación tras generación exitosa
 - **WHEN** el `DailySummary` de una fecha se genera y guarda con éxito
-- **THEN** el sistema envía por Telegram al `authorizedChatId` el texto del resumen
+- **THEN** el sistema envía por Telegram al `authorizedChatId` la cabecera con la fecha correspondiente seguida del texto del resumen
 
 #### Scenario: Notificación tras regeneración
 - **WHEN** el usuario regenera el `DailySummary` de una fecha que ya tenía uno
-- **THEN** el sistema envía por Telegram el texto del resumen actualizado, sustituyendo al anterior
+- **THEN** el sistema envía por Telegram la cabecera con la fecha correspondiente seguida del texto del resumen actualizado, sustituyendo al anterior
 
 #### Scenario: Fallo de envío no afecta al resumen guardado
 - **WHEN** el `DailySummary` se guarda con éxito pero el envío del mensaje a la API de Telegram falla (p. ej. error de red)
 - **THEN** el `DailySummary` permanece guardado sin cambios, y el fallo de envío se registra en logs estructurados sin propagarse como error de generación
+
+### Requirement: Generación del embedding al generar el resumen diario
+El sistema SHALL generar y guardar el embedding vectorial del `summaryText` de un `DailySummary` inmediatamente después de guardarlo (flujo 3.5, `DailySummaryService::saveDailySummary`). Un fallo al generar el embedding SHALL registrarse en logs estructurados y NO SHALL impedir que el `DailySummary` se guarde ni que se notifique por Telegram.
+
+#### Scenario: Embedding generado junto con el resumen diario
+- **WHEN** un resumen diario se genera con éxito
+- **THEN** el sistema guarda también su embedding vectorial correspondiente al `summaryText`
+
+#### Scenario: Fallo al generar el embedding no bloquea el guardado del resumen
+- **WHEN** el resumen diario se genera con éxito pero la generación del embedding falla (p. ej. error de red con Ollama)
+- **THEN** el `DailySummary` queda guardado igualmente, sin embedding, y el fallo se registra en logs estructurados
+
+### Requirement: Regeneración del embedding al regenerar el resumen diario
+El sistema SHALL regenerar el embedding de un `DailySummary` cada vez que su `summaryText` se sobrescribe (p. ej. al volver a generar el resumen del mismo día), para que el embedding no quede desincronizado con el texto vigente.
+
+#### Scenario: Embedding actualizado tras regenerar el resumen
+- **WHEN** el resumen diario de una fecha ya existente se vuelve a generar con un `summaryText` distinto
+- **THEN** el sistema regenera su embedding a partir del nuevo `summaryText`
+
+### Requirement: Recheck tardío entre las 21:00 y las 00:30 Europe/Madrid
+El sistema SHALL ejecutar automáticamente `app:recheck-daily-summary` cada 15 minutos entre las 21:00 y las 00:30 en la zona horaria `Europe/Madrid`, vía Symfony Scheduler. Para cada ejecución, el comando SHALL determinar si existen `AudioRecording` en estado `TRANSCRIBED` recibidas ese día con `receivedAt` posterior al `generatedAt` del `DailySummary` vigente de ese día (o, si no existe `DailySummary` para ese día, si existe cualquier `AudioRecording` `TRANSCRIBED` de ese día). Cuando existan tales transcripciones nuevas, el sistema SHALL regenerar el `DailySummary` del día reutilizando `DailySummaryService::generateForDate` sin esperar por `AudioRecording` `PENDING` (igual que la generación bajo demanda desde la web), y SHALL reenviar la notificación por Telegram con el resumen actualizado. Cuando no existan transcripciones nuevas, el sistema SHALL no regenerar ni reenviar nada.
+
+#### Scenario: Audio nuevo tras el resumen de las 21:00 dispara regeneración
+- **WHEN** el recheck se ejecuta y existe al menos una `AudioRecording` `TRANSCRIBED` del día con `receivedAt` posterior al `generatedAt` del `DailySummary` vigente
+- **THEN** el sistema regenera el `DailySummary` del día con todas las transcripciones disponibles y reenvía por Telegram la cabecera con la fecha seguida del texto del resumen actualizado
+
+#### Scenario: Sin audios nuevos, no se reenvía nada
+- **WHEN** el recheck se ejecuta y no existe ninguna `AudioRecording` `TRANSCRIBED` del día con `receivedAt` posterior al `generatedAt` del `DailySummary` vigente
+- **THEN** el sistema no regenera el `DailySummary` ni envía ningún mensaje por Telegram
+
+#### Scenario: El resumen de las 21:00 falló y llegan audios después
+- **WHEN** el recheck se ejecuta, no existe `DailySummary` para el día en curso, y existe al menos una `AudioRecording` `TRANSCRIBED` de ese día
+- **THEN** el sistema genera el `DailySummary` del día (como si fuera la primera generación) y lo envía por Telegram
+
+#### Scenario: Ejecuciones repetidas sin novedades no duplican envíos
+- **WHEN** el recheck se ejecuta varias veces seguidas dentro de la ventana 21:00–00:30 sin que lleguen audios nuevos entre ejecuciones
+- **THEN** solo la primera ejecución que detectó novedades (si la hubo) regenera y reenvía; las siguientes no vuelven a enviar el mismo resumen
+
+### Requirement: Comando `app:recheck-daily-summary` ejecutable manualmente
+El sistema SHALL permitir ejecutar `app:recheck-daily-summary` manualmente (no solo por el Scheduler), aplicando la misma lógica de detección de novedades y regeneración condicional para el día actual.
+
+#### Scenario: Ejecución manual detecta y regenera
+- **WHEN** se ejecuta `bin/console app:recheck-daily-summary` y hay transcripciones nuevas desde el último `DailySummary` de hoy
+- **THEN** el comando regenera el `DailySummary` de hoy y lo reenvía por Telegram, igual que si lo hubiera disparado el Scheduler

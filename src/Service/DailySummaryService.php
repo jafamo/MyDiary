@@ -21,6 +21,12 @@ class DailySummaryService
 {
     private const MESSAGE_FAILED = 'No se pudo generar el resumen de hoy ⚠️';
 
+    private const MONTHS_ES = [
+        1 => 'enero', 2 => 'febrero', 3 => 'marzo', 4 => 'abril',
+        5 => 'mayo', 6 => 'junio', 7 => 'julio', 8 => 'agosto',
+        9 => 'septiembre', 10 => 'octubre', 11 => 'noviembre', 12 => 'diciembre',
+    ];
+
     public function __construct(
         private readonly AudioRecordingRepository $audioRecordingRepository,
         private readonly DailySummaryRepository $dailySummaryRepository,
@@ -36,6 +42,17 @@ class DailySummaryService
         private readonly int $generationMaxAttempts = 3, // intento inicial + 2 reintentos
         private readonly int $generationRetryDelaySeconds = 5,
     ) {
+    }
+
+    public function hasNewTranscriptionsSince(\DateTimeImmutable $date): bool
+    {
+        $dailySummary = $this->dailySummaryRepository->findOneByDate($date);
+
+        if (null === $dailySummary) {
+            return $this->audioRecordingRepository->existsTranscribedReceivedOn($date);
+        }
+
+        return $this->audioRecordingRepository->existsTranscribedReceivedAfter($date, $dailySummary->getGeneratedAt());
     }
 
     public function generateForDate(\DateTimeImmutable $date, bool $waitForPending = true): void
@@ -177,8 +194,15 @@ class DailySummaryService
 
     private function notifySummaryGenerated(\DateTimeImmutable $date, string $summaryText): void
     {
+        $header = sprintf(
+            '📔 Resumen día: %d de %s de %s',
+            (int) $date->format('j'),
+            self::MONTHS_ES[(int) $date->format('n')],
+            $date->format('Y'),
+        );
+
         try {
-            $this->telegramClient->sendMessage((int) $this->authorizedChatId, $summaryText);
+            $this->telegramClient->sendMessage((int) $this->authorizedChatId, $header."\n\n".$summaryText);
         } catch (\Throwable $exception) {
             $this->logger->error('Fallo al enviar la notificación del resumen diario por Telegram', [
                 'event' => 'daily_summary.telegram_notification_failed',

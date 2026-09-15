@@ -227,7 +227,7 @@ class DailySummaryServiceTest extends KernelTestCase
 
         $body = json_decode((string) $sendMessageRequests[0]['body'], true);
         self::assertSame((int) $_ENV['TELEGRAM_AUTHORIZED_CHAT_ID'], $body['chat_id']);
-        self::assertSame('Un resumen para Telegram', $body['text']);
+        self::assertSame("📔 Resumen día: 4 de agosto de 2026\n\nUn resumen para Telegram", $body['text']);
     }
 
     public function testRegenerationNotifiesWithUpdatedText(): void
@@ -244,7 +244,7 @@ class DailySummaryServiceTest extends KernelTestCase
         self::assertCount(2, $sendMessageRequests);
 
         $lastBody = json_decode((string) $sendMessageRequests[1]['body'], true);
-        self::assertSame('Segunda versión', $lastBody['text']);
+        self::assertSame("📔 Resumen día: 4 de agosto de 2026\n\nSegunda versión", $lastBody['text']);
     }
 
     public function testTelegramNotificationFailureDoesNotPreventPersistence(): void
@@ -259,6 +259,48 @@ class DailySummaryServiceTest extends KernelTestCase
         $dailySummary = $this->dailySummaryRepository->findOneByDate($this->testDate);
         self::assertNotNull($dailySummary);
         self::assertSame('Resumen pese al fallo', $dailySummary->getSummaryText());
+    }
+
+    public function testHasNewTranscriptionsSinceIsTrueWhenAudioIsNewerThanSummary(): void
+    {
+        $this->createTranscribedAudioRecording('summary-msg-11', 'summary-file-11', 'primera transcripción');
+
+        $service = $this->createService($this->fakeGenerator(['summary' => 'Resumen', 'topics' => []]));
+        $service->generateForDate($this->testDate);
+
+        $dailySummary = $this->dailySummaryRepository->findOneByDate($this->testDate);
+        $dailySummary->setGeneratedAt($this->testDate);
+        $this->entityManager->flush();
+
+        $this->createTranscribedAudioRecording('summary-msg-12', 'summary-file-12', 'segunda transcripción', $this->testDate->modify('+2 hours'));
+
+        self::assertTrue($service->hasNewTranscriptionsSince($this->testDate));
+    }
+
+    public function testHasNewTranscriptionsSinceIsFalseWhenSummaryIsAlreadyUpToDate(): void
+    {
+        $this->createTranscribedAudioRecording('summary-msg-13', 'summary-file-13', 'transcripción');
+
+        $service = $this->createService($this->fakeGenerator(['summary' => 'Resumen', 'topics' => []]));
+        $service->generateForDate($this->testDate);
+
+        self::assertFalse($service->hasNewTranscriptionsSince($this->testDate));
+    }
+
+    public function testHasNewTranscriptionsSinceIsTrueWhenNoSummaryExistsButThereIsTranscribedAudio(): void
+    {
+        $this->createTranscribedAudioRecording('summary-msg-14', 'summary-file-14', 'transcripción');
+
+        $service = $this->createService($this->fakeGenerator(['summary' => 'no debería llamarse', 'topics' => []]));
+
+        self::assertTrue($service->hasNewTranscriptionsSince($this->testDate));
+    }
+
+    public function testHasNewTranscriptionsSinceIsFalseWhenNoSummaryAndNoAudio(): void
+    {
+        $service = $this->createService($this->fakeGenerator(['summary' => 'no debería llamarse', 'topics' => []]));
+
+        self::assertFalse($service->hasNewTranscriptionsSince($this->testDate));
     }
 
     /**
@@ -335,14 +377,14 @@ class DailySummaryServiceTest extends KernelTestCase
         };
     }
 
-    private function createTranscribedAudioRecording(string $telegramMessageId, string $telegramFileUniqueId, string $transcriptionContent): void
+    private function createTranscribedAudioRecording(string $telegramMessageId, string $telegramFileUniqueId, string $transcriptionContent, ?\DateTimeImmutable $receivedAt = null): void
     {
         $audioRecording = new AudioRecording();
         $audioRecording
             ->setTelegramMessageId($telegramMessageId)
             ->setTelegramFileUniqueId($telegramFileUniqueId)
             ->setFilePath('/data/audio/'.$telegramFileUniqueId.'.ogg')
-            ->setReceivedAt($this->testDate)
+            ->setReceivedAt($receivedAt ?? $this->testDate)
             ->setDurationSeconds(5)
             ->setStatus(AudioRecordingStatus::TRANSCRIBED)
         ;
@@ -385,7 +427,7 @@ class DailySummaryServiceTest extends KernelTestCase
             $this->entityManager->remove($dailySummary);
         }
 
-        foreach (['summary-msg-1', 'summary-msg-2', 'summary-msg-3', 'summary-msg-4', 'summary-msg-4b', 'summary-msg-5', 'summary-msg-6', 'summary-msg-7', 'summary-msg-8', 'summary-msg-9', 'summary-msg-10'] as $telegramMessageId) {
+        foreach (['summary-msg-1', 'summary-msg-2', 'summary-msg-3', 'summary-msg-4', 'summary-msg-4b', 'summary-msg-5', 'summary-msg-6', 'summary-msg-7', 'summary-msg-8', 'summary-msg-9', 'summary-msg-10', 'summary-msg-11', 'summary-msg-12', 'summary-msg-13', 'summary-msg-14'] as $telegramMessageId) {
             $audioRecording = $this->audioRecordingRepository->findOneByTelegramMessageId($telegramMessageId);
             if (null !== $audioRecording) {
                 $this->entityManager->remove($audioRecording);
