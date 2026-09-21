@@ -58,5 +58,6 @@ cache-clear:
 
 deploy:
 	git pull origin main
+	$(MAKE) test
 	$(MAKE) cache-clear
 	$(COMPOSE) restart diary-php diary-messenger-worker
