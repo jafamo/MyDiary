@@ -49,6 +49,7 @@
                         {% if upcoming_reminders_data.count > 0 %}<span class="nav-badge nav-badge--{{ upcoming_reminders_data.level }}">{{ upcoming_reminders_data.count }}</span>{% endif %}
                     </a>
                     <a class="navlink" href="{{ path('app_estadisticas') }}" {% if app.request.attributes.get('_route') == 'app_estadisticas' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-chart"></use></svg> Estadísticas</a>
+                    <a class="navlink" href="{{ path('app_topics') }}" {% if app.request.attributes.get('_route') starts with 'app_topics' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-tag"></use></svg> Temas</a>
                 </nav>
                 <div class="sidebar__footer">
                     <div class="menu reminder-menu reminder-menu--sidebar">
@@ -75,6 +76,7 @@
                     {% if upcoming_reminders_data.count > 0 %}<span class="nav-badge nav-badge--{{ upcoming_reminders_data.level }}">{{ upcoming_reminders_data.count }}</span>{% endif %}
                 </a>
                 <a class="bottom-nav__item" href="{{ path('app_estadisticas') }}" {% if app.request.attributes.get('_route') == 'app_estadisticas' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-chart"></use></svg> Estadísticas</a>
+                <a class="bottom-nav__item" href="{{ path('app_topics') }}" {% if app.request.attributes.get('_route') starts with 'app_topics' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-tag"></use></svg> Temas</a>
             </nav>
         </div>
 

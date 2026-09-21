@@ -1,0 +1,28 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Confirmar fusión de temas{% endblock %}
+
+{% block body %}
+    <main class="content content--wide">
+        <div class="page-header"><h1>Confirmar fusión</h1></div>
+
+        <p>
+            Se van a fusionar
+            <strong>{{ origins|map(o => o.name)|join(', ') }}</strong>
+            dentro de <strong>{{ destination.name }}</strong>.
+            {{ affected_count }} resumen{{ affected_count == 1 ? '' : 'es' }} diario{{ affected_count == 1 ? '' : 's' }} se verán afectados.
+        </p>
+        <p>Los temas fusionados dejarán de existir. Esta acción no se puede deshacer.</p>
+
+        <form method="post" action="{{ path('app_topics_merge') }}">
+            {% for origin in origins %}
+                <input type="hidden" name="origins[]" value="{{ origin.id }}">
+            {% endfor %}
+            <input type="hidden" name="destination" value="{{ destination.id }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('topic_merge_confirm') }}">
+
+            <a class="btn-action" href="{{ path('app_topics') }}">Cancelar</a>
+            <button class="btn-action btn-action--danger" type="submit">Confirmar fusión</button>
+        </form>
+    </main>
+{% endblock %}

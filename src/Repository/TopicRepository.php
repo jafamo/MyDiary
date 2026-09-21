@@ -23,6 +23,41 @@ class TopicRepository extends ServiceEntityRepository
         return $this->findOneBy(['name' => $name]);
     }
 
+    public function findOneByNameCaseInsensitive(string $name, ?int $excludeId = null): ?Topic
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->andWhere('LOWER(t.name) = LOWER(:name)')
+            ->setParameter('name', $name)
+            ->setMaxResults(1)
+        ;
+
+        if (null !== $excludeId) {
+            $qb->andWhere('t.id != :excludeId')->setParameter('excludeId', $excludeId);
+        }
+
+        return $qb->getQuery()->getOneOrNullResult();
+    }
+
+    /**
+     * Todos los temas con su número de `DailySummary` asociados, incluidos los que no tienen ninguno.
+     *
+     * @return list<array{topic: Topic, count: int}>
+     */
+    public function findAllWithUsageCount(): array
+    {
+        $rows = $this->createQueryBuilder('t')
+            ->select('t AS topic, COUNT(ds.id) AS cnt')
+            ->leftJoin('t.dailySummaries', 'ds')
+            ->groupBy('t.id')
+            ->orderBy('cnt', 'DESC')
+            ->addOrderBy('t.name', 'ASC')
+            ->getQuery()
+            ->getResult()
+        ;
+
+        return array_map(static fn (array $row) => ['topic' => $row['topic'], 'count' => (int) $row['cnt']], $rows);
+    }
+
     /**
      * @return array{name: string, count: int}|null
      */

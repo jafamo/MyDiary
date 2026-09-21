@@ -1,0 +1,58 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Temas{% endblock %}
+
+{% block body %}
+    <main class="content content--wide">
+        <div class="page-header"><h1>Temas</h1></div>
+
+        {% if rename_error is defined %}
+            <div class="entry__error-box">
+                <svg class="icon"><use href="#i-error-outline"></use></svg>
+                <span>{{ rename_error }}</span>
+            </div>
+        {% endif %}
+
+        {% if topics is empty %}
+            <p class="entry-empty">No hay temas todavía.</p>
+        {% else %}
+            <form class="topic-merge-form" method="post" action="{{ path('app_topics_merge_confirm') }}">
+                <div class="entry-log">
+                    {% for row in topics %}
+                        <article class="entry">
+                            <div class="entry__body">
+                                <div class="entry__meta">
+                                    <label>
+                                        <input type="checkbox" name="topic_merge[origins][]" value="{{ row.topic.id }}">
+                                        {{ row.topic.name }}
+                                    </label>
+                                    <span class="status-pill">{{ row.count }} resumen{{ row.count == 1 ? '' : 'es' }}</span>
+                                </div>
+
+                                <details class="entry__edit">
+                                    <summary class="btn-action"><svg class="icon icon--sm"><use href="#i-edit"></use></svg> Renombrar</summary>
+                                    <form class="entry__edit-form" method="post" action="{{ path('app_topics_rename', {topic: row.topic.id}) }}">
+                                        <input type="text" name="topic_rename[name]" value="{{ row.topic.name }}">
+                                        <input type="hidden" name="topic_rename[_token]" value="{{ csrf_token('topic_rename') }}">
+                                        <button class="btn-action btn-action--primary" type="submit">Guardar</button>
+                                    </form>
+                                </details>
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+
+                <div class="entry__actions">
+                    <label for="topic-merge-destination">Fusionar seleccionados en:</label>
+                    <select id="topic-merge-destination" name="topic_merge[destination]">
+                        {% for row in topics %}
+                            <option value="{{ row.topic.id }}">{{ row.topic.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="hidden" name="topic_merge[_token]" value="{{ csrf_token('topic_merge') }}">
+                    <button class="btn-action btn-action--primary" type="submit"><svg class="icon icon--sm"><use href="#i-tag"></use></svg> Fusionar</button>
+                </div>
+            </form>
+        {% endif %}
+    </main>
+{% endblock %}
