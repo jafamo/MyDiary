@@ -47,6 +47,7 @@
                             </a>
                         </div>
                         <p>{{ summary.summaryText }}</p>
+                        {% include '_partials/emoji_legend.html.twig' with {legend: summary.emojiLegend} %}
                         {% if summary.topics|length > 0 %}
                             <div class="topic-chips">
                                 {% for topic in summary.topics %}

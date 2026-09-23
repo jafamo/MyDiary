@@ -9,7 +9,7 @@ interface SummaryGeneratorInterface
     /**
      * @param list<string> $transcriptions
      *
-     * @return array{summary: string, topics: list<string>}
+     * @return array{summary: string, topics: list<string>, legend: list<array{emoji: string, meaning: string}>}
      *
      * @throws SummaryGenerationException si la generación falla
      */

@@ -1,0 +1,7 @@
+{% if legend is not empty %}
+    <p class="emoji-legend">
+        {%- for entry in legend -%}
+            {{ loop.first ? '' : ' · ' }}{{ entry.emoji }} {{ entry.meaning }}
+        {%- endfor -%}
+    </p>
+{% endif %}

@@ -315,6 +315,7 @@ table { border-collapse: collapse; width: 100%; }
 .summary-card__header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.9rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
 .summary-card__audio-count .icon { color: var(--accent-dusk); }
 .summary-card p { max-width: 42rem; margin-bottom: 1.1rem; line-height: 1.6; white-space: pre-line; }
+.summary-panel p.emoji-legend, .summary-card p.emoji-legend { margin-top: -0.4rem; margin-bottom: 1rem; font-size: 0.8rem; color: var(--text-muted); white-space: normal; }
 .pagination { display: flex; align-items: center; justify-content: center; gap: 1.25rem; margin-top: 1.5rem; }
 .pagination__link { display: inline-flex; align-items: center; gap: 0.35rem; color: var(--text); text-decoration: none; font-size: 0.85rem; }
 .pagination__link.is-disabled { color: var(--text-muted); pointer-events: none; }

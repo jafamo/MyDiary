@@ -88,7 +88,7 @@ class DailySummaryService
             return;
         }
 
-        $this->saveDailySummary($date, $result['summary'], $result['topics']);
+        $this->saveDailySummary($date, $result['summary'], $result['topics'], $result['legend']);
     }
 
     private function waitForPendingTranscriptions(\DateTimeImmutable $date): void
@@ -108,7 +108,7 @@ class DailySummaryService
     /**
      * @param list<string> $transcriptions
      *
-     * @return array{summary: string, topics: list<string>}
+     * @return array{summary: string, topics: list<string>, legend: list<array{emoji: string, meaning: string}>}
      */
     private function generateWithRetries(array $transcriptions): array
     {
@@ -130,9 +130,10 @@ class DailySummaryService
     }
 
     /**
-     * @param list<string> $topicNames
+     * @param list<string>                                  $topicNames
+     * @param list<array{emoji: string, meaning: string}> $emojiLegend
      */
-    private function saveDailySummary(\DateTimeImmutable $date, string $summaryText, array $topicNames): void
+    private function saveDailySummary(\DateTimeImmutable $date, string $summaryText, array $topicNames, array $emojiLegend): void
     {
         $dailySummary = $this->dailySummaryRepository->findOneByDate($date);
         $isNew = null === $dailySummary;
@@ -144,6 +145,7 @@ class DailySummaryService
 
         $dailySummary
             ->setSummaryText($summaryText)
+            ->setEmojiLegend($emojiLegend)
             ->setGeneratedAt(new \DateTimeImmutable())
         ;
 
@@ -170,7 +172,7 @@ class DailySummaryService
         $this->entityManager->flush();
 
         $this->generateEmbedding($dailySummary);
-        $this->notifySummaryGenerated($date, $summaryText);
+        $this->notifySummaryGenerated($date, $summaryText, $topicNames, $emojiLegend);
     }
 
     private function generateEmbedding(DailySummary $dailySummary): void
@@ -192,7 +194,11 @@ class DailySummaryService
         $this->entityManager->flush();
     }
 
-    private function notifySummaryGenerated(\DateTimeImmutable $date, string $summaryText): void
+    /**
+     * @param list<string>                                  $topicNames
+     * @param list<array{emoji: string, meaning: string}> $emojiLegend
+     */
+    private function notifySummaryGenerated(\DateTimeImmutable $date, string $summaryText, array $topicNames, array $emojiLegend): void
     {
         $header = sprintf(
             '📔 Resumen día: %d de %s de %s',
@@ -201,8 +207,21 @@ class DailySummaryService
             $date->format('Y'),
         );
 
+        $message = $header."\n\n".$summaryText;
+
+        if ([] !== $topicNames) {
+            $message .= "\n\n🏷️ ".implode(' · ', $topicNames);
+        }
+
+        if ([] !== $emojiLegend) {
+            $message .= "\n\n".implode(' · ', array_map(
+                static fn (array $entry): string => $entry['emoji'].' '.$entry['meaning'],
+                $emojiLegend,
+            ));
+        }
+
         try {
-            $this->telegramClient->sendMessage((int) $this->authorizedChatId, $header."\n\n".$summaryText);
+            $this->telegramClient->sendMessage((int) $this->authorizedChatId, $message);
         } catch (\Throwable $exception) {
             $this->logger->error('Fallo al enviar la notificación del resumen diario por Telegram', [
                 'event' => 'daily_summary.telegram_notification_failed',

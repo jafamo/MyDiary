@@ -27,6 +27,12 @@ class DailySummary
     #[ORM\Column]
     private \DateTimeImmutable $generatedAt;
 
+    /**
+     * @var list<array{emoji: string, meaning: string}>|null
+     */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $emojiLegend = null;
+
     #[ORM\Column(type: 'vector', length: 768, nullable: true)]
     private ?Vector $embedding = null;
 
@@ -79,6 +85,24 @@ class DailySummary
     public function setGeneratedAt(\DateTimeImmutable $generatedAt): static
     {
         $this->generatedAt = $generatedAt;
+
+        return $this;
+    }
+
+    /**
+     * @return list<array{emoji: string, meaning: string}>|null
+     */
+    public function getEmojiLegend(): ?array
+    {
+        return $this->emojiLegend;
+    }
+
+    /**
+     * @param list<array{emoji: string, meaning: string}>|null $emojiLegend
+     */
+    public function setEmojiLegend(?array $emojiLegend): static
+    {
+        $this->emojiLegend = $emojiLegend;
 
         return $this;
     }

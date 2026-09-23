@@ -36,6 +36,7 @@
                         </div>
                         {% if 'daily_summary' == result.type %}
                             <p>{{ result.dailySummary.summaryText }}</p>
+                            {% include '_partials/emoji_legend.html.twig' with {legend: result.dailySummary.emojiLegend} %}
                         {% else %}
                             <p>{{ result.transcription.content }}</p>
                         {% endif %}
