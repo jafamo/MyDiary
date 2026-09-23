@@ -230,6 +230,55 @@ class DailySummaryServiceTest extends KernelTestCase
         self::assertSame("📔 Resumen día: 4 de agosto de 2026\n\nUn resumen para Telegram", $body['text']);
     }
 
+    public function testNotificationEndsWithTopicsAndEmojiLegend(): void
+    {
+        $this->createTranscribedAudioRecording('summary-msg-15', 'summary-file-15', 'transcripción del día');
+
+        $service = $this->createService($this->fakeGenerator([
+            'summary' => "💼 Informe entregado\n\n✅ Llamar al fontanero",
+            'topics' => ['Informe de ventas', 'Fuga del baño'],
+            'legend' => [['emoji' => '💼', 'meaning' => 'Trabajo'], ['emoji' => '✅', 'meaning' => 'Pendientes']],
+        ]));
+        $service->generateForDate($this->testDate);
+
+        $body = json_decode((string) $this->sendMessageRequests()[0]['body'], true);
+        self::assertSame(
+            "📔 Resumen día: 4 de agosto de 2026\n\n💼 Informe entregado\n\n✅ Llamar al fontanero\n\n🏷️ Informe de ventas · Fuga del baño\n\n💼 Trabajo · ✅ Pendientes",
+            $body['text'],
+        );
+    }
+
+    public function testNotificationWithTopicsButWithoutLegend(): void
+    {
+        $this->createTranscribedAudioRecording('summary-msg-16', 'summary-file-16', 'transcripción del día');
+
+        $service = $this->createService($this->fakeGenerator(['summary' => 'Resumen', 'topics' => ['Cine']]));
+        $service->generateForDate($this->testDate);
+
+        $body = json_decode((string) $this->sendMessageRequests()[0]['body'], true);
+        self::assertSame("📔 Resumen día: 4 de agosto de 2026\n\nResumen\n\n🏷️ Cine", $body['text']);
+    }
+
+    public function testEmojiLegendIsPersistedAndReplacedOnRegeneration(): void
+    {
+        $this->createTranscribedAudioRecording('summary-msg-17', 'summary-file-17', 'transcripción');
+
+        $service = $this->createService($this->fakeGenerator([
+            'summary' => '💼 Primera versión',
+            'topics' => [],
+            'legend' => [['emoji' => '💼', 'meaning' => 'Trabajo']],
+        ]));
+        $service->generateForDate($this->testDate);
+
+        self::assertSame([['emoji' => '💼', 'meaning' => 'Trabajo']], $this->dailySummaryRepository->findOneByDate($this->testDate)->getEmojiLegend());
+
+        $service2 = $this->createService($this->fakeGenerator(['summary' => 'Segunda versión sin emojis', 'topics' => []]));
+        $service2->generateForDate($this->testDate);
+
+        $this->entityManager->clear();
+        self::assertSame([], $this->dailySummaryRepository->findOneByDate($this->testDate)->getEmojiLegend());
+    }
+
     public function testRegenerationNotifiesWithUpdatedText(): void
     {
         $this->createTranscribedAudioRecording('summary-msg-6', 'summary-file-6', 'transcripción');
@@ -338,8 +387,11 @@ class DailySummaryServiceTest extends KernelTestCase
     private function fakeGenerator(array $result): SummaryGeneratorInterface
     {
         return new class ($result) implements SummaryGeneratorInterface {
-            public function __construct(private readonly array $result)
+            private readonly array $result;
+
+            public function __construct(array $result)
             {
+                $this->result = $result + ['legend' => []];
             }
 
             public function generate(array $transcriptions): array
@@ -427,7 +479,7 @@ class DailySummaryServiceTest extends KernelTestCase
             $this->entityManager->remove($dailySummary);
         }
 
-        foreach (['summary-msg-1', 'summary-msg-2', 'summary-msg-3', 'summary-msg-4', 'summary-msg-4b', 'summary-msg-5', 'summary-msg-6', 'summary-msg-7', 'summary-msg-8', 'summary-msg-9', 'summary-msg-10', 'summary-msg-11', 'summary-msg-12', 'summary-msg-13', 'summary-msg-14'] as $telegramMessageId) {
+        foreach (['summary-msg-1', 'summary-msg-2', 'summary-msg-3', 'summary-msg-4', 'summary-msg-4b', 'summary-msg-5', 'summary-msg-6', 'summary-msg-7', 'summary-msg-8', 'summary-msg-9', 'summary-msg-10', 'summary-msg-11', 'summary-msg-12', 'summary-msg-13', 'summary-msg-14', 'summary-msg-15', 'summary-msg-16', 'summary-msg-17'] as $telegramMessageId) {
             $audioRecording = $this->audioRecordingRepository->findOneByTelegramMessageId($telegramMessageId);
             if (null !== $audioRecording) {
                 $this->entityManager->remove($audioRecording);
@@ -436,7 +488,7 @@ class DailySummaryServiceTest extends KernelTestCase
 
         $this->entityManager->flush();
 
-        foreach (['Trabajo', 'Ocio'] as $topicName) {
+        foreach (['Trabajo', 'Ocio', 'Informe de ventas', 'Fuga del baño', 'Cine'] as $topicName) {
             $topic = $this->topicRepository->findOneByName($topicName);
             if (null !== $topic) {
                 $this->entityManager->remove($topic);

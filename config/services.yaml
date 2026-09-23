@@ -25,6 +25,7 @@ services:
             string $ollamaBaseUrl: '%env(OLLAMA_BASE_URL)%'
             string $ollamaModel: '%env(OLLAMA_MODEL)%'
             string $ollamaEmbeddingModel: '%env(OLLAMA_EMBEDDING_MODEL)%'
+            string $summaryPromptFile: '%kernel.project_dir%/config/prompts/daily_summary.md'
             string $publicDir: '%kernel.project_dir%/public'
 
     # makes classes in src/ available to be used as services

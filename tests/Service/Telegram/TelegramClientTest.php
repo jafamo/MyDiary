@@ -31,6 +31,56 @@ class TelegramClientTest extends TestCase
         self::assertStringContainsString('Audio recibido', $requestedOptions['body']);
     }
 
+    public function testShortMessageIsSentInOneRequest(): void
+    {
+        $texts = $this->sendAndCollectTexts(str_repeat('a', 4000));
+
+        self::assertCount(1, $texts);
+    }
+
+    public function testLongMessageIsSplitBetweenParagraphsWithoutLosingContent(): void
+    {
+        $paragraphs = [];
+        for ($i = 0; $i < 6; ++$i) {
+            $paragraphs[] = '💼 Párrafo '.$i.' '.str_repeat('palabra ', 120);
+        }
+        $text = implode("\n\n", array_map('trim', $paragraphs));
+
+        $texts = $this->sendAndCollectTexts($text);
+
+        self::assertGreaterThan(1, \count($texts));
+        foreach ($texts as $part) {
+            self::assertLessThanOrEqual(4000, mb_strlen($part));
+            self::assertStringStartsWith('💼 Párrafo', $part);
+        }
+        self::assertSame($text, implode("\n\n", $texts));
+    }
+
+    public function testParagraphLongerThanLimitIsSplitOnSpaces(): void
+    {
+        $text = trim(str_repeat('palabra ', 1200));
+
+        $texts = $this->sendAndCollectTexts($text);
+
+        self::assertGreaterThan(1, \count($texts));
+        foreach ($texts as $part) {
+            self::assertLessThanOrEqual(4000, mb_strlen($part));
+            self::assertStringStartsWith('palabra', $part);
+            self::assertStringEndsWith('palabra', $part);
+        }
+        self::assertSame($text, implode(' ', $texts));
+    }
+
+    public function testTextWithoutSeparatorsIsSplitByLength(): void
+    {
+        $text = str_repeat('x', 9000);
+
+        $texts = $this->sendAndCollectTexts($text);
+
+        self::assertSame([4000, 4000, 1000], array_map('mb_strlen', $texts));
+        self::assertSame($text, implode('', $texts));
+    }
+
     public function testGetFileReturnsResultArray(): void
     {
         $mockClient = new MockHttpClient(
@@ -59,5 +109,23 @@ class TelegramClientTest extends TestCase
 
         unlink($destination);
         rmdir(\dirname($destination));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function sendAndCollectTexts(string $text): array
+    {
+        $texts = [];
+
+        $mockClient = new MockHttpClient(function (string $method, string $url, array $options) use (&$texts) {
+            $texts[] = json_decode($options['body'], true)['text'];
+
+            return new MockResponse('{"ok":true}');
+        });
+
+        (new TelegramClient($mockClient, 'test-token'))->sendMessage(12345, $text);
+
+        return $texts;
     }
 }

@@ -6,9 +6,11 @@ namespace App\Tests\Controller;
 
 use App\Entity\AudioRecording;
 use App\Entity\AudioRecordingStatus;
+use App\Entity\DailySummary;
 use App\Entity\Transcription;
 use App\Entity\User;
 use App\Repository\AudioRecordingRepository;
+use App\Repository\DailySummaryRepository;
 use App\Repository\UserRepository;
 use App\Service\DateRange;
 use Doctrine\ORM\EntityManagerInterface;
@@ -20,6 +22,7 @@ class DiarioControllerTest extends WebTestCase
     private EntityManagerInterface $entityManager;
     private UserRepository $userRepository;
     private AudioRecordingRepository $audioRecordingRepository;
+    private bool $createdSummary = false;
 
     protected function tearDown(): void
     {
@@ -113,6 +116,58 @@ class DiarioControllerTest extends WebTestCase
         self::assertSelectorExists('.entry-empty');
     }
 
+    public function testDiarioShowsSummaryParagraphsEscapedAndEmojiLegend(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+        $this->createTodaysSummary("💼 Entregaste el informe <b>a tiempo</b>\n\n✅ Llamar al fontanero", [
+            ['emoji' => '💼', 'meaning' => 'Trabajo'],
+            ['emoji' => '✅', 'meaning' => 'Pendientes'],
+        ]);
+
+        $client->loginUser($user);
+        $client->request('GET', '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextSame('.summary-panel .emoji-legend', '💼 Trabajo · ✅ Pendientes');
+
+        $content = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString("&lt;b&gt;a tiempo&lt;/b&gt;\n\n✅ Llamar al fontanero", $content);
+    }
+
+    public function testDiarioSummaryWithoutLegendShowsNoLegend(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+        $this->createTodaysSummary('Resumen antiguo sin emojis', null);
+
+        $client->loginUser($user);
+        $client->request('GET', '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.summary-panel', 'Resumen antiguo sin emojis');
+        self::assertSelectorNotExists('.emoji-legend');
+    }
+
+    /**
+     * @param list<array{emoji: string, meaning: string}>|null $legend
+     */
+    private function createTodaysSummary(string $summaryText, ?array $legend): void
+    {
+        $dailySummary = new DailySummary();
+        $dailySummary
+            ->setDate(DateRange::nowInMadrid()->setTime(0, 0, 0))
+            ->setSummaryText($summaryText)
+            ->setEmojiLegend($legend)
+            ->setGeneratedAt(new \DateTimeImmutable())
+        ;
+        $this->entityManager->persist($dailySummary);
+        $this->entityManager->flush();
+        $this->createdSummary = true;
+    }
+
     private function createAudioRecording(string $telegramMessageId, AudioRecordingStatus $status): void
     {
         $audioRecording = new AudioRecording();
@@ -158,6 +213,13 @@ class DiarioControllerTest extends WebTestCase
 
     private function cleanUp(): void
     {
+        if ($this->createdSummary) {
+            $dailySummary = self::getContainer()->get(DailySummaryRepository::class)->findOneByDate(DateRange::nowInMadrid()->setTime(0, 0, 0));
+            if (null !== $dailySummary) {
+                $this->entityManager->remove($dailySummary);
+            }
+        }
+
         foreach (['diario-ctrl-msg-1', 'diario-ctrl-pending', 'diario-ctrl-error'] as $telegramMessageId) {
             $audioRecording = $this->audioRecordingRepository->findOneByTelegramMessageId($telegramMessageId);
             if (null !== $audioRecording) {
