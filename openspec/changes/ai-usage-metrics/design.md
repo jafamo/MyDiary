@@ -34,11 +34,11 @@ Hay una sola métrica por transcripción y por resumen, con relación 1:1, así 
 **4. Formateo compartido entre Twig y Telegram.**
 Un único servicio, `UsageFormatter`, con `duration(int $ms): string` (`14 s` / `1 min 05 s`), `number(int): string` (separador `.`) y `speed(int $audioSeconds, int $ms): string` (`7,3×`). Lo usan el handler, `DailySummaryService` y una extensión Twig con filtros `|ai_duration`, `|ai_speed` y `|ai_number`. Así la web y Telegram muestran exactamente lo mismo, y el formato se prueba una vez.
 
-**5. Agregados de Estadísticas con SQL agrupado por día.**
-En `DailySummaryRepository` y `AudioRecordingRepository` se añaden métodos que devuelven, para el rango, filas por día con `SUM(prompt_tokens)`, `SUM(completion_tokens)`, `SUM(generation_ms)`, `SUM(processing_ms)`, `SUM(duration_seconds)` y `COUNT(*)` de audios transcritos. Los días se agrupan con `Europe/Madrid`, como en el resto de Estadísticas. El controlador rellena los días vacíos y calcula los tiles. Las medias usan solo registros con valor no nulo, porque `SUM`/`AVG` de SQL ya ignoran los `NULL`. La sección no aplica el filtro de estado, ya que solo tienen sentido los audios transcritos.
+**5. Agregados de Estadísticas agrupados por día en PHP.**
+`AudioRecordingRepository::transcriptionUsageByDateInRange()` y `DailySummaryRepository::usageByDateInRange()` leen las filas del rango y las agrupan por día (`Europe/Madrid`) en PHP, igual que el `countByDateInRange()` existente, en vez de agrupar en SQL con conversión de zona horaria. El controlador rellena los días vacíos y calcula los tiles. Las sumas y medias ignoran los `null`. La sección no aplica el filtro de estado, porque solo cuentan los audios transcritos.
 
 **6. Gráfico.**
-Barras apiladas en SVG renderizadas en Twig, igual que el gráfico actual de Estadísticas, sin librerías nuevas. Se colorean con los tokens CSS existentes (`--accent` para la entrada y `--accent-dusk` para la salida) y llevan "Ver como tabla", reutilizando el patrón del gráfico de audios.
+Barras apiladas en SVG renderizadas en el servidor (el controlador calcula la geometría y Twig la pinta), sin JavaScript ni librerías nuevas. Se colorean con los tokens CSS existentes (`--accent` para la entrada y `--accent-dusk` para la salida). La tabla por día va dentro de un `<details>` "Ver como tabla", que hace a la vez de alternativa accesible del gráfico y de tabla por día; así, con rangos de 1 año no ocupa 365 filas por defecto.
 
 ## Risks / Trade-offs
 

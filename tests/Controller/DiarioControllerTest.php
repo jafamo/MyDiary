@@ -151,21 +151,139 @@ class DiarioControllerTest extends WebTestCase
         self::assertSelectorNotExists('.emoji-legend');
     }
 
+    public function testDiarioShowsTranscriptionUsageMetrics(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+        $this->createTranscribedAudioRecording(102, 14000, 'whisper-1');
+
+        $client->loginUser($user);
+        $client->request('GET', '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.entry .metrics', 'Procesado en 14 s');
+        self::assertSelectorTextContains('.entry .metrics', '7,3× tiempo real');
+        self::assertSelectorTextContains('.entry .metrics', 'whisper-1');
+    }
+
+    public function testDiarioShowsDashForTranscriptionWithoutUsageMetrics(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+        $this->createTranscribedAudioRecording(102, null, null);
+
+        $client->loginUser($user);
+        $client->request('GET', '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.entry .metrics', 'Procesado en —');
+        self::assertSelectorTextContains('.entry .metrics', '— tiempo real');
+    }
+
+    public function testDiarioPendingAndErrorEntriesHaveNoUsageMetrics(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+        $this->createAudioRecording('diario-ctrl-pending', AudioRecordingStatus::PENDING);
+        $this->createAudioRecording('diario-ctrl-error', AudioRecordingStatus::ERROR);
+
+        $client->loginUser($user);
+        $client->request('GET', '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorCount(2, '.entry');
+        self::assertSelectorNotExists('.entry .metrics');
+    }
+
+    public function testDiarioSummaryShowsUsageMetrics(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+        $this->createTodaysSummary('Resumen con consumo', null, 2980, 432, 38000, 'qwen2.5:7b');
+
+        $client->loginUser($user);
+        $client->request('GET', '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.summary-panel .metrics', 'Entrada 2.980 tk');
+        self::assertSelectorTextContains('.summary-panel .metrics', 'Salida 432 tk');
+        self::assertSelectorTextContains('.summary-panel .metrics', 'Total 3.412 tk');
+        self::assertSelectorTextContains('.summary-panel .metrics', '38 s');
+        self::assertSelectorTextContains('.summary-panel .metrics', 'qwen2.5:7b');
+    }
+
+    public function testDiarioSummaryWithoutUsageMetricsShowsDash(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+        $this->createTodaysSummary('Resumen antiguo', null);
+
+        $client->loginUser($user);
+        $client->request('GET', '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.summary-panel .metrics', 'Total — tk');
+        self::assertSelectorTextContains('.summary-panel .metrics', 'Modelo —');
+    }
+
     /**
      * @param list<array{emoji: string, meaning: string}>|null $legend
      */
-    private function createTodaysSummary(string $summaryText, ?array $legend): void
-    {
+    private function createTodaysSummary(
+        string $summaryText,
+        ?array $legend,
+        ?int $promptTokens = null,
+        ?int $completionTokens = null,
+        ?int $generationMs = null,
+        ?string $model = null,
+    ): void {
         $dailySummary = new DailySummary();
         $dailySummary
             ->setDate(DateRange::nowInMadrid()->setTime(0, 0, 0))
             ->setSummaryText($summaryText)
             ->setEmojiLegend($legend)
             ->setGeneratedAt(new \DateTimeImmutable())
+            ->setPromptTokens($promptTokens)
+            ->setCompletionTokens($completionTokens)
+            ->setGenerationMs($generationMs)
+            ->setModel($model)
         ;
         $this->entityManager->persist($dailySummary);
         $this->entityManager->flush();
         $this->createdSummary = true;
+    }
+
+    private function createTranscribedAudioRecording(int $durationSeconds, ?int $processingMs, ?string $model): void
+    {
+        $audioRecording = new AudioRecording();
+        $audioRecording
+            ->setTelegramMessageId('diario-ctrl-msg-1')
+            ->setTelegramFileUniqueId('diario-ctrl-file-1')
+            ->setFilePath('/data/audio/diario-ctrl.ogg')
+            ->setReceivedAt(DateRange::nowInMadrid()->setTime(9, 0, 0))
+            ->setDurationSeconds($durationSeconds)
+            ->setStatus(AudioRecordingStatus::TRANSCRIBED)
+        ;
+        $this->entityManager->persist($audioRecording);
+
+        $transcription = new Transcription();
+        $transcription
+            ->setAudioRecording($audioRecording)
+            ->setContent('Contenido con métricas')
+            ->setFilePath('/data/transcriptions/diario-ctrl.txt')
+            ->setProcessingMs($processingMs)
+            ->setModel($model)
+            ->setCreatedAt(new \DateTimeImmutable())
+            ->setUpdatedAt(new \DateTimeImmutable())
+        ;
+        $this->entityManager->persist($transcription);
+        $this->entityManager->flush();
+        $this->entityManager->clear();
     }
 
     private function createAudioRecording(string $telegramMessageId, AudioRecordingStatus $status): void
