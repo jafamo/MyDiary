@@ -4,6 +4,24 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+## [0.11.0] - 2026-09-23
+
+### Ramas integradas en `develop`
+- `feature/summary-prompt-file`
+- Commits directos sobre `develop`: análisis estático con SonarQube en CI.
+
+### Añadido
+- **Resumen diario más descriptivo**: nuevo prompt de estilo (segunda persona, detalles concretos, orden cronológico, sin frases genéricas, temas concretos) en el fichero versionado `config/prompts/daily_summary.md`, leído en cada generación: editarlo cambia el siguiente resumen sin tocar PHP. El formato de salida lo fija el código y se impone con `response_format` `json_schema`. Si el fichero falta o está vacío, la generación falla con `PROMPT_NOT_FOUND`.
+- **Emojis y leyenda**: cada párrafo del resumen empieza con un emoji elegido por el modelo, que devuelve también su leyenda (emoji → categoría). Se guarda en el nuevo campo `daily_summary.emoji_legend` y se muestra al final del mensaje de Telegram y bajo el resumen en Diario, Resúmenes y Búsqueda.
+- El mensaje de Telegram del resumen incluye al final la línea de temas (`🏷️ Tema1 · Tema2`).
+- Log `daily_summary.prompt_tokens` con los tokens de entrada de cada generación, para vigilar la ventana de contexto de Ollama (4096 tokens por defecto en el servidor).
+
+### Cambiado
+- `TelegramClient::sendMessage` divide los mensajes de más de 4000 caracteres en varios, cortando preferentemente entre párrafos.
+
+### Migraciones
+- `Version20260923154314`: añade `daily_summary.emoji_legend` (JSON, nullable). **Requiere `make migrate` tras el despliegue** (`make deploy` no ejecuta migraciones).
+
 ## [0.8.0] - 2026-09-06
 
 ### Ramas integradas en `develop`
