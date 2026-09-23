@@ -1,9 +1,7 @@
 ## Purpose
 
 Entidades Doctrine que forman el modelo de dominio de la aplicación (registros de audio, transcripciones, resúmenes diarios, temas y usuarios) y sus migraciones versionadas.
-
 ## Requirements
-
 ### Requirement: Entidad `AudioRecording`
 El sistema SHALL definir una entidad Doctrine `AudioRecording` con los campos de `Especificaciones.md` sección 6: `telegram_message_id` (unique), `telegram_file_unique_id` (unique), `file_path`, `received_at`, `status` (enum `PENDING`/`TRANSCRIBED`/`ERROR`), `duration_seconds`, `error_code` (nullable), `error_message` (nullable).
 
@@ -19,11 +17,15 @@ El sistema SHALL definir una entidad Doctrine `Transcription` relacionada 1:1 co
 - **THEN** la `Transcription` asociada se elimina automáticamente por la constraint `onDelete: CASCADE`
 
 ### Requirement: Entidad `DailySummary`
-El sistema SHALL definir una entidad Doctrine `DailySummary` con `date` (unique), `summary_text`, `generated_at`, y relación N:M con `Topic` a través de tabla pivote `daily_summary_topic`.
+El sistema SHALL definir una entidad Doctrine `DailySummary` con `date` (unique), `summary_text`, `generated_at`, `emoji_legend` (JSON, nullable: lista de `{emoji, meaning}`), y relación N:M con `Topic` a través de tabla pivote `daily_summary_topic`.
 
 #### Scenario: Un resumen por día
 - **WHEN** se intenta persistir dos `DailySummary` con la misma `date`
 - **THEN** la base de datos rechaza la segunda inserción por la constraint `UNIQUE` sobre `date`
+
+#### Scenario: Resumen sin leyenda
+- **WHEN** existe un `DailySummary` creado antes de introducir la leyenda
+- **THEN** su `emoji_legend` es `null` y el resto de sus datos no cambia
 
 ### Requirement: Entidad `Topic`
 El sistema SHALL definir una entidad Doctrine `Topic` con `name` (unique).
@@ -52,3 +54,4 @@ El sistema SHALL generar migraciones Doctrine versionadas para todas las entidad
 #### Scenario: Esquema aplicado
 - **WHEN** se ejecuta `bin/console doctrine:migrations:status` dentro de `diary-php`
 - **THEN** todas las migraciones generadas figuran como ejecutadas, incluyendo la de `reminder`
+
