@@ -4,6 +4,26 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+## [0.12.0] - 2026-09-23
+
+### Ramas integradas en `develop`
+- `feature/ai-usage-metrics`
+
+### Añadido
+- **Consumo de IA por transcripción**: se guardan el tiempo de proceso de la llamada a Whisper que tuvo éxito (`transcription.processing_ms`) y el modelo (`transcription.model`). El mensaje de Telegram termina con `🎙️ 1:42 de audio · ⏱️ transcrito en 14 s`, y cada entrada del Diario/Historial muestra tiempo de proceso, velocidad (× tiempo real) y modelo. Open WebUI no devuelve tokens de Whisper.
+- **Consumo de IA por resumen diario**: se guardan los tokens de entrada y salida que devuelve Ollama, el tiempo de generación y el modelo (`daily_summary.prompt_tokens`, `completion_tokens`, `generation_ms`, `model`). El mensaje de Telegram termina con `🧮 5 audios · 3.412 tokens (2.980 entrada + 432 salida) · ⏱️ 38 s · 🤖 <modelo>`, y el resumen en Diario y Resúmenes muestra las mismas métricas.
+- **Estadísticas → Consumo IA**: tokens del rango (entrada/salida), media por resumen, audio transcrito, tiempo de proceso Whisper/Ollama, gráfico de barras apiladas de tokens por día y tabla por día ("Ver como tabla"). No le afecta el filtro de estado.
+- Nueva variable `WHISPER_MODEL` (por defecto `whisper-1`): modelo que se envía a Open WebUI y que se registra en cada transcripción.
+
+### Cambiado
+- Los registros anteriores a esta versión no tienen métricas: se muestran como "—" y no cuentan en las medias.
+
+### Migraciones
+- `Version20260923161809`: añade las columnas de métricas (todas nullable) a `transcription` y `daily_summary`. **Requiere `make migrate` tras el despliegue** (`make deploy` no ejecuta migraciones).
+
+### Despliegue
+- Añadir `WHISPER_MODEL=whisper-1` al `.env` del servidor y reiniciar el worker (`docker compose restart diary-messenger-worker`) para que las transcripciones nuevas guarden métricas.
+
 ## [0.11.0] - 2026-09-23
 
 ### Ramas integradas en `develop`
