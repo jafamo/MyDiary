@@ -31,7 +31,7 @@ class WhisperTranscriberTest extends TestCase
     public function testTranscribeReturnsTextOnSuccess(): void
     {
         $mockClient = new MockHttpClient(new MockResponse('{"text":"Hola mundo"}'));
-        $transcriber = new WhisperTranscriber($mockClient, 'http://192.168.4.200:9006', 'api-key');
+        $transcriber = new WhisperTranscriber($mockClient, 'http://192.168.4.200:9006', 'api-key', 'whisper-1');
 
         $result = $transcriber->transcribe($this->audioFilePath);
 
@@ -41,7 +41,7 @@ class WhisperTranscriberTest extends TestCase
     public function testTranscribeThrowsDescriptiveExceptionOnHttpError(): void
     {
         $mockClient = new MockHttpClient(new MockResponse('Service Unavailable', ['http_code' => 503]));
-        $transcriber = new WhisperTranscriber($mockClient, 'http://192.168.4.200:9006', 'api-key');
+        $transcriber = new WhisperTranscriber($mockClient, 'http://192.168.4.200:9006', 'api-key', 'whisper-1');
 
         try {
             $transcriber->transcribe($this->audioFilePath);
@@ -58,7 +58,7 @@ class WhisperTranscriberTest extends TestCase
         $mockClient = new MockHttpClient(function () {
             throw new TransportException('Connection timed out');
         });
-        $transcriber = new WhisperTranscriber($mockClient, 'http://192.168.4.200:9006', 'api-key');
+        $transcriber = new WhisperTranscriber($mockClient, 'http://192.168.4.200:9006', 'api-key', 'whisper-1');
 
         try {
             $transcriber->transcribe($this->audioFilePath);

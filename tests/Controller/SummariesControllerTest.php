@@ -166,6 +166,43 @@ class SummariesControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
     }
 
+    public function testSummaryShowsUsageMetrics(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+
+        $this->createDailySummary('2021-02-01');
+        $dailySummary = self::getContainer()->get(DailySummaryRepository::class)->findOneByDate(new \DateTimeImmutable('2021-02-01'));
+        $dailySummary->setPromptTokens(2980)->setCompletionTokens(432)->setGenerationMs(38000)->setModel('qwen2.5:7b');
+        $this->entityManager->flush();
+
+        $client->loginUser($user);
+        $client->request('GET', '/resumenes');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.summary-card .metrics', 'Entrada 2.980 tk');
+        self::assertSelectorTextContains('.summary-card .metrics', 'Salida 432 tk');
+        self::assertSelectorTextContains('.summary-card .metrics', 'Total 3.412 tk');
+        self::assertSelectorTextContains('.summary-card .metrics', '38 s');
+        self::assertSelectorTextContains('.summary-card .metrics', 'qwen2.5:7b');
+    }
+
+    public function testSummaryWithoutUsageMetricsShowsDash(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+
+        $this->createDailySummary('2021-02-01');
+
+        $client->loginUser($user);
+        $client->request('GET', '/resumenes');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.summary-card .metrics', 'Total — tk');
+    }
+
     private function createDailySummary(string $date, array $topicNames = []): void
     {
         $dailySummary = new DailySummary();

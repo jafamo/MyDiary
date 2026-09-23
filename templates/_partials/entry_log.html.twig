@@ -22,6 +22,11 @@
 
                     {% if entry.status.value == 'TRANSCRIBED' and entry.transcription %}
                         <p class="entry__text">{{ entry.transcription.content }}</p>
+                        <div class="metrics">
+                            <span><svg class="icon icon--sm"><use href="#i-clock"></use></svg> Procesado en <b>{{ entry.transcription.processingMs|ai_duration }}</b></span>
+                            <span><b>{{ entry.transcription.processingMs|ai_speed(entry.durationSeconds) }}</b> tiempo real</span>
+                            <span>Modelo <b>{{ entry.transcription.model ?? '—' }}</b></span>
+                        </div>
                     {% elseif entry.status.value == 'ERROR' %}
                         <div class="entry__error-box">
                             <svg class="icon"><use href="#i-error-outline"></use></svg>

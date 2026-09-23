@@ -20,6 +20,7 @@ services:
             string $publicUrl: '%env(APP_PUBLIC_URL)%'
             string $openWebUiBaseUrl: '%env(OPENWEBUI_STT_BASE_URL)%'
             string $openWebUiApiKey: '%env(OPENWEBUI_API_KEY)%'
+            string $whisperModel: '%env(WHISPER_MODEL)%'
             string $audioStorageDir: '%kernel.project_dir%/var/audio'
             string $transcriptionStorageDir: '%kernel.project_dir%/var/transcriptions'
             string $ollamaBaseUrl: '%env(OLLAMA_BASE_URL)%'

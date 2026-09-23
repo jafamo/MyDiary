@@ -169,6 +169,94 @@
             {% endif %}
         </div>
 
+        {% set usage = ai_usage.tiles %}
+        <section class="ai-usage" aria-labelledby="ai-usage-title">
+            <h2 class="ai-usage__title" id="ai-usage-title"><svg class="icon icon--sm"><use href="#i-chart"></use></svg> Consumo IA</h2>
+
+            <div class="stat-grid">
+                <div class="stat-tile">
+                    <div class="stat-tile__label"><svg class="icon"><use href="#i-chart"></use></svg> Tokens en el rango</div>
+                    <div class="stat-tile__value">{{ usage.totalTokens|ai_number }}</div>
+                    <div class="stat-tile__hint">{{ usage.promptTokens|ai_number }} entrada · {{ usage.completionTokens|ai_number }} salida</div>
+                </div>
+                <div class="stat-tile">
+                    <div class="stat-tile__label"><svg class="icon"><use href="#i-calendar"></use></svg> Media por resumen</div>
+                    <div class="stat-tile__value">{{ usage.avgTokensPerSummary|ai_number }} <small>tk</small></div>
+                    <div class="stat-tile__hint">{{ usage.summariesWithTokens }} {{ usage.summariesWithTokens == 1 ? 'resumen' : 'resúmenes' }} con tokens</div>
+                </div>
+                <div class="stat-tile">
+                    <div class="stat-tile__label"><svg class="icon"><use href="#i-mic"></use></svg> Audio transcrito</div>
+                    <div class="stat-tile__value">{{ (usage.audioSeconds * 1000)|ai_duration }}</div>
+                </div>
+                <div class="stat-tile">
+                    <div class="stat-tile__label"><svg class="icon"><use href="#i-clock"></use></svg> Tiempo de proceso</div>
+                    <div class="stat-tile__value">{{ usage.whisperMs is null and usage.ollamaMs is null ? '—' : ((usage.whisperMs ?? 0) + (usage.ollamaMs ?? 0))|ai_duration }}</div>
+                    <div class="stat-tile__hint">Whisper {{ usage.whisperMs|ai_duration }} · Ollama {{ usage.ollamaMs|ai_duration }}</div>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-card__header">
+                    <div class="section-title"><svg class="icon icon--sm"><use href="#i-chart"></use></svg> Tokens del resumen por día</div>
+                </div>
+                <svg class="bar-chart" viewBox="0 0 640 220" role="img" aria-label="Tokens de entrada y salida del resumen diario por día en el rango seleccionado">
+                    <line class="grid-line" x1="44" y1="16" x2="628" y2="16"></line>
+                    <line class="grid-line" x1="44" y1="104" x2="628" y2="104"></line>
+                    <line class="grid-line" x1="44" y1="192" x2="628" y2="192"></line>
+                    <text class="axis-label" x="38" y="19" text-anchor="end">{{ ai_usage.chart.max|ai_number }}</text>
+                    <text class="axis-label" x="38" y="107" text-anchor="end">{{ (ai_usage.chart.max // 2)|ai_number }}</text>
+                    <text class="axis-label" x="38" y="195" text-anchor="end">0</text>
+                    {% for bar in ai_usage.chart.bars %}
+                        {% if bar.inHeight > 0 or bar.outHeight > 0 %}
+                            <g>
+                                <title>{{ date(bar.date)|es_day_month }}: {{ bar.promptTokens|ai_number }} entrada · {{ bar.completionTokens|ai_number }} salida</title>
+                                <rect class="bar-chart__in" x="{{ bar.x }}" y="{{ bar.inY }}" width="{{ bar.width }}" height="{{ bar.inHeight }}"></rect>
+                                <rect class="bar-chart__out" x="{{ bar.x }}" y="{{ bar.outY }}" width="{{ bar.width }}" height="{{ bar.outHeight }}"></rect>
+                            </g>
+                        {% endif %}
+                    {% endfor %}
+                    {% for label in ai_usage.chart.labels %}
+                        <text class="axis-label" x="{{ label.x }}" y="210" text-anchor="{{ loop.first and not loop.last ? 'start' : (loop.last and not loop.first ? 'end' : 'middle') }}">{{ date(label.date)|es_day_month }}</text>
+                    {% endfor %}
+                </svg>
+                <div class="chart-legend">
+                    <span><svg class="icon" style="color:var(--accent)"><use href="#i-dot"></use></svg> Entrada</span>
+                    <span><svg class="icon" style="color:var(--accent-dusk)"><use href="#i-dot"></use></svg> Salida</span>
+                </div>
+                <details class="usage-table">
+                    <summary class="chart-table-toggle">Ver como tabla</summary>
+                    <div class="usage-table__scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Día</th>
+                                    <th class="num">Audios</th>
+                                    <th class="num">Audio</th>
+                                    <th class="num">Proceso Whisper</th>
+                                    <th class="num">Entrada</th>
+                                    <th class="num">Salida</th>
+                                    <th class="num">Tokens resumen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for day in ai_usage.days|reverse %}
+                                    <tr>
+                                        <td>{{ date(day.date)|es_day_month }}</td>
+                                        <td class="num">{{ day.audios }}</td>
+                                        <td class="num">{{ day.audios > 0 ? (day.audioSeconds // 60) ~ ':' ~ '%02d'|format(day.audioSeconds % 60) : '—' }}</td>
+                                        <td class="num">{{ day.processingMs|ai_duration }}</td>
+                                        <td class="num">{{ day.promptTokens|ai_number }}</td>
+                                        <td class="num">{{ day.completionTokens|ai_number }}</td>
+                                        <td class="num">{{ day.totalTokens|ai_number }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </details>
+            </div>
+        </section>
+
         <script id="chart-data" type="application/json">{{ series_json|raw }}</script>
         <script id="chart-data-reminders" type="application/json">{{ reminders_series_json|raw }}</script>
     </main>

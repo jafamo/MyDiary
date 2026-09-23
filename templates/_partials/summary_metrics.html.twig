@@ -1,0 +1,7 @@
+<div class="metrics">
+    <span>Entrada <b>{{ summary.promptTokens|ai_number }}</b> tk</span>
+    <span>Salida <b>{{ summary.completionTokens|ai_number }}</b> tk</span>
+    <span>Total <b>{{ summary.totalTokens|ai_number }}</b> tk</span>
+    <span><svg class="icon icon--sm"><use href="#i-clock"></use></svg> <b>{{ summary.generationMs|ai_duration }}</b></span>
+    <span>Modelo <b>{{ summary.model ?? '—' }}</b></span>
+</div>

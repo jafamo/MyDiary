@@ -13,6 +13,7 @@ use App\Entity\Transcription;
 use App\Message\TranscribeAudioMessage;
 use App\Repository\AudioRecordingRepository;
 use App\Service\Telegram\TelegramClient;
+use App\Service\UsageFormatter;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -25,6 +26,7 @@ class TranscribeAudioMessageHandler
         private readonly TranscriberInterface $transcriber,
         private readonly EmbeddingGeneratorInterface $embeddingGenerator,
         private readonly TelegramClient $telegramClient,
+        private readonly UsageFormatter $usageFormatter,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
         private readonly string $transcriptionStorageDir,
@@ -41,7 +43,9 @@ class TranscribeAudioMessageHandler
         }
 
         try {
+            $startedAt = hrtime(true);
             $content = $this->transcriber->transcribe($audioRecording->getFilePath());
+            $processingMs = (int) round((hrtime(true) - $startedAt) / 1_000_000);
         } catch (TranscriptionException $exception) {
             $this->logger->warning('Fallo al transcribir un intento de audio', [
                 'event' => 'transcription.attempt_failed',
@@ -68,6 +72,8 @@ class TranscribeAudioMessageHandler
             ->setAudioRecording($audioRecording)
             ->setContent($content)
             ->setFilePath($filePath)
+            ->setProcessingMs($processingMs)
+            ->setModel($this->transcriber->getModel())
             ->setCreatedAt($now)
             ->setUpdatedAt($now)
         ;
@@ -81,7 +87,12 @@ class TranscribeAudioMessageHandler
 
         $this->telegramClient->sendMessage(
             (int) $this->authorizedChatId,
-            sprintf("Transcripción lista ✅\n\n%s", $content),
+            sprintf(
+                "Transcripción lista ✅\n\n%s\n\n🎙️ %s de audio · ⏱️ transcrito en %s",
+                $content,
+                $this->usageFormatter->audioDuration($audioRecording->getDurationSeconds()),
+                $this->usageFormatter->duration($processingMs),
+            ),
         );
     }
 

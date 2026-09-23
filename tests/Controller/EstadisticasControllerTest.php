@@ -6,9 +6,12 @@ namespace App\Tests\Controller;
 
 use App\Entity\AudioRecording;
 use App\Entity\AudioRecordingStatus;
+use App\Entity\DailySummary;
 use App\Entity\Reminder;
+use App\Entity\Transcription;
 use App\Entity\User;
 use App\Repository\AudioRecordingRepository;
+use App\Repository\DailySummaryRepository;
 use App\Repository\UserRepository;
 use App\Service\DateRange;
 use Doctrine\ORM\EntityManagerInterface;
@@ -259,6 +262,114 @@ class EstadisticasControllerTest extends WebTestCase
         self::assertStringContainsString('1', $crawler->filter('.stat-tile')->eq(7)->filter('.stat-tile__value')->text());
     }
 
+    public function testAiUsageTilesSumRangeAndIgnoreMissingMetrics(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+        $this->createAiUsageFixtures();
+
+        $client->loginUser($user);
+        $crawler = $client->request('GET', '/estadisticas?range=custom&from=2021-03-01&to=2021-03-03');
+
+        self::assertResponseIsSuccessful();
+        $tiles = $crawler->filter('.ai-usage .stat-tile');
+        self::assertStringContainsString('7.000', $tiles->eq(0)->text());
+        self::assertStringContainsString('6.100 entrada · 900 salida', $tiles->eq(0)->text());
+        self::assertStringContainsString('3.500', $tiles->eq(1)->text());
+        self::assertStringContainsString('2 resúmenes con tokens', $tiles->eq(1)->text());
+        self::assertStringContainsString('1 min 42 s', $tiles->eq(2)->text());
+        self::assertStringContainsString('Whisper 14 s · Ollama 1 min 10 s', $tiles->eq(3)->text());
+    }
+
+    public function testAiUsageIgnoresStatusFilter(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+        $this->createAiUsageFixtures();
+
+        $client->loginUser($user);
+        $crawler = $client->request('GET', '/estadisticas?range=custom&from=2021-03-01&to=2021-03-03&status=ERROR');
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('7.000', $crawler->filter('.ai-usage .stat-tile')->eq(0)->text());
+        self::assertStringContainsString('1 min 42 s', $crawler->filter('.ai-usage .stat-tile')->eq(2)->text());
+    }
+
+    public function testAiUsageTableListsDaysNewestFirstWithDashWhenNoSummary(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+        $this->createAiUsageFixtures();
+
+        $client->loginUser($user);
+        $crawler = $client->request('GET', '/estadisticas?range=custom&from=2021-03-01&to=2021-03-03');
+
+        self::assertResponseIsSuccessful();
+        $rows = $crawler->filter('.usage-table tbody tr');
+        self::assertCount(3, $rows);
+
+        $newest = $rows->eq(0)->filter('td');
+        self::assertSame('3 mar', $newest->eq(0)->text());
+        self::assertSame('—', $newest->eq(6)->text());
+
+        $oldest = $rows->eq(2)->filter('td');
+        self::assertSame('1 mar', $oldest->eq(0)->text());
+        self::assertSame('1', $oldest->eq(1)->text());
+        self::assertSame('1:42', $oldest->eq(2)->text());
+        self::assertSame('14 s', $oldest->eq(3)->text());
+        self::assertSame('3.000', $oldest->eq(6)->text());
+
+        self::assertCount(4, $crawler->filter('.bar-chart rect'));
+    }
+
+    private function createAiUsageFixtures(): void
+    {
+        $audioRecording = new AudioRecording();
+        $audioRecording
+            ->setTelegramMessageId('estadisticas-ctrl-usage-1')
+            ->setTelegramFileUniqueId('estadisticas-ctrl-usage-file-1')
+            ->setFilePath('/data/audio/estadisticas-ctrl-usage-file-1.ogg')
+            ->setReceivedAt(new \DateTimeImmutable('2021-03-01 11:00:00', new \DateTimeZone('Europe/Madrid')))
+            ->setDurationSeconds(102)
+            ->setStatus(AudioRecordingStatus::TRANSCRIBED)
+        ;
+        $this->entityManager->persist($audioRecording);
+
+        $transcription = new Transcription();
+        $transcription
+            ->setAudioRecording($audioRecording)
+            ->setContent('audio con métricas')
+            ->setFilePath('/data/transcriptions/estadisticas-ctrl-usage-file-1.txt')
+            ->setProcessingMs(14000)
+            ->setModel('whisper-1')
+            ->setCreatedAt(new \DateTimeImmutable())
+            ->setUpdatedAt(new \DateTimeImmutable())
+        ;
+        $this->entityManager->persist($transcription);
+
+        foreach ([
+            ['2021-03-01', 2600, 400, 30000],
+            ['2021-03-02', 3500, 500, 40000],
+            ['2021-03-03', null, null, null],
+        ] as [$date, $promptTokens, $completionTokens, $generationMs]) {
+            $dailySummary = new DailySummary();
+            $dailySummary
+                ->setDate(new \DateTimeImmutable($date))
+                ->setSummaryText('Resumen de '.$date)
+                ->setGeneratedAt(new \DateTimeImmutable())
+                ->setPromptTokens($promptTokens)
+                ->setCompletionTokens($completionTokens)
+                ->setGenerationMs($generationMs)
+            ;
+            $this->entityManager->persist($dailySummary);
+        }
+
+        $this->entityManager->flush();
+    }
+
     private function bootServices(): void
     {
         $this->entityManager = self::getContainer()->get(EntityManagerInterface::class);
@@ -315,7 +426,16 @@ class EstadisticasControllerTest extends WebTestCase
             'estadisticas-ctrl-prev-cur-1', 'estadisticas-ctrl-prev-cur-2', 'estadisticas-ctrl-prev-old-1',
             'estadisticas-ctrl-prev-none-1',
             'estadisticas-ctrl-newtiles-pending', 'estadisticas-ctrl-newtiles-error',
+            'estadisticas-ctrl-usage-1',
         ];
+
+        $dailySummaryRepository = self::getContainer()->get(DailySummaryRepository::class);
+        foreach (['2021-03-01', '2021-03-02', '2021-03-03'] as $date) {
+            $dailySummary = $dailySummaryRepository->findOneByDate(new \DateTimeImmutable($date));
+            if (null !== $dailySummary) {
+                $this->entityManager->remove($dailySummary);
+            }
+        }
 
         foreach ($messageIds as $messageId) {
             $audioRecording = $this->audioRecordingRepository->findOneByTelegramMessageId($messageId);

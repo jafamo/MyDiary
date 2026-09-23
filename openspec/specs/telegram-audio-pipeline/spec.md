@@ -1,9 +1,7 @@
 ## Purpose
 
 Recepción de audios por webhook de Telegram, deduplicación (por mensaje y por fichero), descarga, transcripción asíncrona vía Open WebUI/Whisper, y manejo de errores/reintentos técnicos con logging estructurado.
-
 ## Requirements
-
 ### Requirement: Webhook con token en la URL
 El sistema SHALL exponer el webhook de Telegram en `POST /telegram/webhook/{token}` y SHALL responder 404 sin procesar el body si `{token}` no coincide con el configurado.
 
@@ -44,11 +42,15 @@ El sistema SHALL, para un audio nuevo, guardar `duration_seconds` desde el updat
 - **THEN** se crea un `AudioRecording` en `PENDING` con `telegram_message_id`, `telegram_file_unique_id` y `duration_seconds` correctos, el fichero queda descargado en el filesystem, se responde *"Audio recibido ✅"*, y se despacha un `TranscribeAudioMessage`
 
 ### Requirement: Transcripción asíncrona
-El sistema SHALL, al procesar `TranscribeAudioMessage`, llamar al servicio de transcripción configurado (`TranscriberInterface`), guardar el resultado en `Transcription` (contenido en BD y export a fichero), marcar el `AudioRecording` como `TRANSCRIBED`, y notificar al usuario con un resumen corto por Telegram.
+El sistema SHALL, al procesar `TranscribeAudioMessage`, llamar al servicio de transcripción configurado (`TranscriberInterface`), guardar el resultado en `Transcription` (contenido en BD y export a fichero, junto con sus métricas de consumo), marcar el `AudioRecording` como `TRANSCRIBED`, y notificar al usuario con un resumen corto por Telegram. El mensaje de Telegram SHALL terminar, tras una línea en blanco, con una línea de métricas con el formato `🎙️ <m:ss> de audio · ⏱️ transcrito en <tiempo>`, donde `<tiempo>` se expresa en segundos (`14 s`) si es menor de un minuto y en minutos y segundos (`1 min 05 s`) en caso contrario.
 
 #### Scenario: Transcripción exitosa
 - **WHEN** el handler procesa un `TranscribeAudioMessage` y la llamada al transcriptor tiene éxito
 - **THEN** se crea una `Transcription` asociada al `AudioRecording`, el `AudioRecording` pasa a `TRANSCRIBED`, y se envía un mensaje de Telegram con el resultado
+
+#### Scenario: Mensaje con métricas de la transcripción
+- **WHEN** se transcribe con éxito un audio de 102 segundos y la llamada al transcriptor tarda 14.200 ms
+- **THEN** el mensaje de Telegram termina con la línea `🎙️ 1:42 de audio · ⏱️ transcrito en 14 s`
 
 ### Requirement: Reintentos con backoff y fallo definitivo
 El sistema SHALL reintentar automáticamente `TranscribeAudioMessage` un número limitado de veces con backoff si la transcripción falla. Al agotar los reintentos, SHALL marcar el `AudioRecording` como `ERROR` con `error_code`/`error_message`, y SHALL notificar al usuario *"No se pudo transcribir este audio ❌"*.
@@ -74,3 +76,4 @@ El sistema SHALL proveer un comando `app:telegram:set-webhook` que registra la U
 #### Scenario: Registrar webhook
 - **WHEN** se ejecuta `bin/console app:telegram:set-webhook`
 - **THEN** el comando llama a la API de Telegram (`setWebhook`) con la URL pública configurada y confirma el resultado
+

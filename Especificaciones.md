@@ -45,9 +45,9 @@ Aplicación web que recibe notas de voz por Telegram, las transcribe automática
 ### 3.2 Flujo de transcripción (worker asíncrono)
 1. El `TranscribeAudioMessageHandler` recoge el mensaje.
 2. Llama al servicio de transcripción (Open WebUI / whisper.cpp) pasando el fichero de audio.
-3. Guarda el resultado en la entidad `Transcription` (contenido en BD + export a fichero de texto en filesystem).
+3. Guarda el resultado en la entidad `Transcription` (contenido en BD + export a fichero de texto en filesystem), junto con sus métricas de consumo: tiempo de proceso de la llamada que tuvo éxito (`processing_ms`) y modelo (`model`, de `WHISPER_MODEL`). Open WebUI no devuelve tokens de Whisper, así que la métrica de una transcripción es duración del audio + tiempo de proceso.
 4. Actualiza el estado del `AudioRecording` a `TRANSCRIBED`.
-5. Envía al usuario en Telegram un resumen corto de esa transcripción concreta.
+5. Envía al usuario en Telegram un resumen corto de esa transcripción concreta, terminado en una línea `🎙️ 1:42 de audio · ⏱️ transcrito en 14 s`.
 6. **Manejo de errores**: si la llamada al servicio de transcripción falla, Symfony Messenger reintenta el `TranscribeAudioMessage` un número limitado de veces con backoff (`retry_strategy` nativo). Si se agotan los reintentos, `AudioRecording` pasa a estado `ERROR`, se guardan `error_code` y `error_message` (ver sección 6) con la causa técnica, y se notifica al usuario por Telegram (*"No se pudo transcribir este audio ❌"*). El audio no se pierde: queda visible en la web con el motivo del error y opción de reintentar o eliminarlo (flujo 3.4-bis).
 
 ### 3.3 Flujo de resumen diario (scheduled, 21:00 Europe/Madrid)
@@ -58,8 +58,8 @@ Aplicación web que recibe notas de voz por Telegram, las transcribe automática
    - **Prompt**: el estilo del resumen (tono, detalle, longitud, un emoji al inicio de cada párrafo, criterio de temas) vive en el fichero versionado `config/prompts/daily_summary.md`, que se lee en cada generación: editarlo cambia el siguiente resumen sin tocar PHP. El formato de salida (JSON `{summary, topics, legend}`) lo fija el código (`OllamaSummaryGenerator::OUTPUT_CONTRACT`) y se impone con `response_format` `json_schema`, de modo que editar el fichero no puede romperlo. Si el fichero falta o está vacío, la generación falla con `PROMPT_NOT_FOUND` (se aplica el manejo de errores del punto 7).
    - **Emojis y leyenda**: los emojis los elige libremente el modelo; en `legend` devuelve cada emoji usado con una categoría general y corta ("Trabajo", "Pendientes"...). El código descarta entradas mal formadas, repetidas o cuyo emoji no aparece en el texto; una leyenda inválida no hace fallar la generación.
    - **Ventana de contexto**: prompt y transcripciones del día deben caber en el contexto del modelo en el servidor Ollama (configurable allí con `OLLAMA_CONTEXT_LENGTH`; el endpoint `/v1/chat/completions` no permite fijarlo por petición). Si no caben, Ollama trunca la entrada en silencio. Cada generación registra `usage.prompt_tokens` en el log (`daily_summary.prompt_tokens`) para vigilarlo.
-5. Guarda/actualiza el registro `DailySummary` de esa fecha (incluida la leyenda de emojis).
-6. Tras guardar con éxito, envía el resumen por Telegram al usuario, como texto plano: cabecera `📔 Resumen día: <fecha>`, el texto, una línea `🏷️ Tema1 · Tema2` si hay temas y una línea con la leyenda (`💼 Trabajo · ✅ Pendientes`) si la hay. Los mensajes de más de 4000 caracteres se dividen en varios (`TelegramClient::sendMessage`), cortando preferentemente entre párrafos. Si ese envío falla (p. ej. error de red con la API de Telegram), el `DailySummary` ya guardado no se revierte; el fallo solo se loguea.
+5. Guarda/actualiza el registro `DailySummary` de esa fecha (incluida la leyenda de emojis y las métricas de consumo que devuelve Ollama: tokens de entrada `prompt_tokens`, de salida `completion_tokens`, tiempo de generación `generation_ms` y modelo `model`).
+6. Tras guardar con éxito, envía el resumen por Telegram al usuario, como texto plano: cabecera `📔 Resumen día: <fecha>`, el texto, una línea `🏷️ Tema1 · Tema2` si hay temas una línea con la leyenda (`💼 Trabajo · ✅ Pendientes`) si la hay y, al final, la línea de consumo `🧮 5 audios · 3.412 tokens (2.980 entrada + 432 salida) · ⏱️ 38 s · 🤖 qwen2.5:7b` (sin la parte de tokens si Ollama no los devuelve). Los mensajes de más de 4000 caracteres se dividen en varios (`TelegramClient::sendMessage`), cortando preferentemente entre párrafos. Si ese envío falla (p. ej. error de red con la API de Telegram), el `DailySummary` ya guardado no se revierte; el fallo solo se loguea.
 7. **Manejo de errores**: si la llamada a Ollama falla, se reintenta un par de veces con espera corta; si sigue fallando, se loguea el error (Monolog), no se genera `DailySummary` ese día (la vista Diario simplemente no muestra resumen) y se notifica al usuario por Telegram (*"No se pudo generar el resumen de hoy ⚠️"*). No hay reintento automático al día siguiente.
 8. **Generación bajo demanda desde Diario**: además del disparo programado, la vista Diario tiene un botón "Generar resumen" (o "Regenerar resumen" si ya existe uno) que dispara la misma lógica de forma síncrona dentro de la petición HTTP, para el día actual. A diferencia del disparo programado, **no espera** por `AudioRecording` en `PENDING` — genera de inmediato con las transcripciones ya disponibles en ese momento.
 9. **Recheck tardío (21:00–00:30 Europe/Madrid)**: Symfony Scheduler dispara además `app:recheck-daily-summary` cada 15 minutos entre las 21:00 y las 00:30. El comando comprueba si hay `AudioRecording` `TRANSCRIBED` del día con `receivedAt` posterior al `generatedAt` del `DailySummary` vigente (o cualquier transcripción del día si el disparo de las 21:00 falló y no hay `DailySummary`); si las hay, regenera el resumen (igual que la generación bajo demanda, sin esperar por `PENDING`) y lo reenvía por Telegram. Si no hay novedades, no hace nada — no reenvía el resumen sin cambios.
@@ -80,9 +80,9 @@ Distinto del caso anterior: aquí el audio en sí es válido, pero el servicio d
 
 ### 3.5 Vistas / menús (navegación vertical, tras login)
 - **Login**
-- **Diario** — audios + transcripciones del día actual, con el resumen del día al final (visible cuando ya se generó, a partir de las 21:00). El log de entradas se puede filtrar por estado (Todos/Pendiente/Transcrito/Error).
+- **Diario** — audios + transcripciones del día actual, con el resumen del día al final (visible cuando ya se generó, a partir de las 21:00). El log de entradas se puede filtrar por estado (Todos/Pendiente/Transcrito/Error). Cada transcripción muestra un pie con tiempo de proceso, velocidad (× tiempo real) y modelo; el resumen (aquí y en Resúmenes), tokens de entrada/salida/total, tiempo de generación y modelo. Las métricas ausentes (registros anteriores a su captura) se muestran como "—".
 - **Historial** — vista de calendario (mes) navegable, con acceso a los audios/transcripciones de cada día anterior. El log del día seleccionado admite el mismo filtro por estado que Diario.
-- **Estadísticas** — agregados: nº de audios/día, duración media, temas más frecuentes. Filtrable por rango de fechas y, combinable con este, por estado (recalcula la serie de audios/día, la media diaria y la duración media; el desglose de estados y el ranking de temas siempre muestran el total sin filtrar).
+- **Estadísticas** — agregados: nº de audios/día, duración media, temas más frecuentes. Filtrable por rango de fechas y, combinable con este, por estado (recalcula la serie de audios/día, la media diaria y la duración media; el desglose de estados y el ranking de temas siempre muestran el total sin filtrar). Incluye la sección **Consumo IA** sobre el rango (no le afecta el filtro de estado): tokens totales con desglose entrada/salida, media de tokens por resumen, audio transcrito, tiempo de proceso Whisper/Ollama, gráfico de barras apiladas de tokens por día y tabla por día ("Ver como tabla").
 - **Logout**
 
 ### 3.6 Búsqueda semántica
@@ -178,6 +178,8 @@ src/
 | created_at | datetime | |
 | updated_at | datetime | |
 | embedding | vector(768), nullable | Embedding de `content` (Ollama `nomic-embed-text`), para búsqueda semántica (3.6). Nulo si su generación falló |
+| processing_ms | int, nullable | Tiempo de la llamada de transcripción que tuvo éxito. Nulo en transcripciones anteriores a su captura; no cambia al editar |
+| model | string, nullable | Modelo de transcripción configurado (`WHISPER_MODEL`) |
 
 No hay flujo de "regenerar": eliminar borra `AudioRecording` + `Transcription` + ficheros en cascada (ver 3.4).
 
@@ -190,6 +192,10 @@ No hay flujo de "regenerar": eliminar borra `AudioRecording` + `Transcription` +
 | generated_at | datetime | |
 | emoji_legend | json, nullable | Leyenda de los emojis del resumen: lista de `{emoji, meaning}`. Nula en resúmenes anteriores a su introducción. Se muestra en Telegram y bajo el resumen en las vistas web |
 | embedding | vector(768), nullable | Embedding de `summary_text` (Ollama `nomic-embed-text`), para búsqueda semántica (3.6). Nulo si su generación falló |
+| prompt_tokens | int, nullable | Tokens de entrada (`usage.prompt_tokens` de Ollama). Se sustituyen al regenerar |
+| completion_tokens | int, nullable | Tokens de salida (`usage.completion_tokens`). El total se deriva (entrada + salida) |
+| generation_ms | int, nullable | Tiempo de la llamada de generación que tuvo éxito |
+| model | string, nullable | Modelo que devolvió Ollama (o `OLLAMA_MODEL` si no lo indica) |
 
 Relación N:M con `topic` a través de tabla pivote `daily_summary_topic`.
 
@@ -238,6 +244,7 @@ TELEGRAM_AUTHORIZED_CHAT_ID=
 OLLAMA_BASE_URL=http://192.168.4.200:11434
 OPENWEBUI_STT_BASE_URL=http://192.168.4.200:9006
 OPENWEBUI_API_KEY=
+WHISPER_MODEL=whisper-1
 APP_TIMEZONE=Europe/Madrid
 ```
 

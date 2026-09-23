@@ -90,6 +90,35 @@ class DailySummaryRepository extends ServiceEntityRepository
     }
 
     /**
+     * Consumo de generación de los resúmenes del rango.
+     *
+     * @return array<string, array{promptTokens: int|null, completionTokens: int|null, generationMs: int|null}> indexado por Y-m-d
+     */
+    public function usageByDateInRange(\DateTimeImmutable $from, \DateTimeImmutable $to): array
+    {
+        $rows = $this->createQueryBuilder('d')
+            ->select('d.date, d.promptTokens, d.completionTokens, d.generationMs')
+            ->andWhere('d.date >= :from')
+            ->andWhere('d.date <= :to')
+            ->setParameter('from', $from)
+            ->setParameter('to', $to)
+            ->getQuery()
+            ->getArrayResult()
+        ;
+
+        $usage = [];
+        foreach ($rows as $row) {
+            $usage[$row['date']->format('Y-m-d')] = [
+                'promptTokens' => $row['promptTokens'],
+                'completionTokens' => $row['completionTokens'],
+                'generationMs' => $row['generationMs'],
+            ];
+        }
+
+        return $usage;
+    }
+
+    /**
      * @return list<DailySummary>
      */
     public function findAllWithoutEmbedding(): array

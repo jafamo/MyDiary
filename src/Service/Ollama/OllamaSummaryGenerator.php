@@ -127,6 +127,11 @@ class OllamaSummaryGenerator implements SummaryGeneratorInterface
             'summary' => $summary,
             'topics' => array_values(array_map('strval', $parsed['topics'])),
             'legend' => $this->sanitizeLegend($parsed['legend'] ?? null, $summary),
+            'usage' => [
+                'promptTokens' => isset($data['usage']['prompt_tokens']) ? (int) $data['usage']['prompt_tokens'] : null,
+                'completionTokens' => isset($data['usage']['completion_tokens']) ? (int) $data['usage']['completion_tokens'] : null,
+                'model' => \is_string($data['model'] ?? null) && '' !== $data['model'] ? $data['model'] : $this->ollamaModel,
+            ],
         ];
     }
 

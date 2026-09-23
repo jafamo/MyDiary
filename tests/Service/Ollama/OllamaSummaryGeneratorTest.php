@@ -151,6 +151,29 @@ class OllamaSummaryGeneratorTest extends TestCase
         self::assertSame(2, $logger->records[0]['context']['transcription_count']);
     }
 
+    public function testReturnsUsageAndModelFromResponse(): void
+    {
+        $body = json_encode([
+            'model' => 'qwen2.5:7b',
+            'choices' => [['message' => ['content' => json_encode(['summary' => 'Resumen', 'topics' => [], 'legend' => []])]]],
+            'usage' => ['prompt_tokens' => 2980, 'completion_tokens' => 432, 'total_tokens' => 3412],
+        ]);
+
+        $result = $this->createGenerator(new MockHttpClient(new MockResponse($body)))->generate(['t1']);
+
+        self::assertSame(['promptTokens' => 2980, 'completionTokens' => 432, 'model' => 'qwen2.5:7b'], $result['usage']);
+    }
+
+    public function testUsageWithoutTokensFallsBackToConfiguredModel(): void
+    {
+        $mockClient = new MockHttpClient($this->ollamaResponse(['summary' => 'Resumen', 'topics' => [], 'legend' => []]));
+
+        $result = $this->createGenerator($mockClient)->generate(['t1']);
+
+        self::assertSame('Resumen', $result['summary']);
+        self::assertSame(['promptTokens' => null, 'completionTokens' => null, 'model' => 'qwen2.5:14b'], $result['usage']);
+    }
+
     public function testGenerateThrowsOnInvalidJsonContent(): void
     {
         $response = json_encode(['choices' => [['message' => ['content' => 'esto no es JSON']]]]);

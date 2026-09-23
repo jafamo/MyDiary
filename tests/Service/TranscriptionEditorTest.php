@@ -59,6 +59,27 @@ class TranscriptionEditorTest extends KernelTestCase
         self::assertSame($this->unitVector(0), array_map('floatval', $transcription->getEmbedding()->toArray()));
     }
 
+    public function testApplyManualEditKeepsUsageMetrics(): void
+    {
+        $transcription = $this->createTranscription();
+        $transcription->setProcessingMs(14200)->setModel('whisper-1');
+        $this->entityManager->flush();
+
+        $editor = new TranscriptionEditor(
+            $this->entityManager,
+            $this->fakeEmbeddingGenerator($this->unitVector(0)),
+            self::getContainer()->get('logger'),
+        );
+
+        $transcription->setContent('texto editado a mano');
+        $editor->applyManualEdit($transcription);
+
+        $this->entityManager->refresh($transcription);
+
+        self::assertSame(14200, $transcription->getProcessingMs());
+        self::assertSame('whisper-1', $transcription->getModel());
+    }
+
     public function testApplyManualEditKeepsPreviousEmbeddingWhenGenerationFails(): void
     {
         $transcription = $this->createTranscription();
