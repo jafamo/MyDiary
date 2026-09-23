@@ -230,6 +230,45 @@ class AudioRecordingRepository extends ServiceEntityRepository
     }
 
     /**
+     * Consumo de transcripción por día (Europe/Madrid) de los audios transcritos del rango.
+     * `processingMs` es null si ningún audio del día tiene esa métrica.
+     *
+     * @return array<string, array{audios: int, audioSeconds: int, processingMs: int|null}> indexado por Y-m-d
+     */
+    public function transcriptionUsageByDateInRange(\DateTimeImmutable $from, \DateTimeImmutable $to): array
+    {
+        [$start, $end] = DateRange::boundariesForDates($from, $to);
+
+        $rows = $this->createQueryBuilder('a')
+            ->select('a.receivedAt, a.durationSeconds, t.processingMs')
+            ->innerJoin('a.transcription', 't')
+            ->andWhere('a.status = :status')
+            ->andWhere('a.receivedAt >= :start')
+            ->andWhere('a.receivedAt < :end')
+            ->setParameter('status', AudioRecordingStatus::TRANSCRIBED)
+            ->setParameter('start', $start)
+            ->setParameter('end', $end)
+            ->getQuery()
+            ->getArrayResult()
+        ;
+
+        $tz = new \DateTimeZone('Europe/Madrid');
+        $usage = [];
+        foreach ($rows as $row) {
+            $local = $row['receivedAt']->setTimezone($tz)->format('Y-m-d');
+            $day = $usage[$local] ?? ['audios' => 0, 'audioSeconds' => 0, 'processingMs' => null];
+            ++$day['audios'];
+            $day['audioSeconds'] += $row['durationSeconds'];
+            if (null !== $row['processingMs']) {
+                $day['processingMs'] = ($day['processingMs'] ?? 0) + $row['processingMs'];
+            }
+            $usage[$local] = $day;
+        }
+
+        return $usage;
+    }
+
+    /**
      * Desglose por estado dentro del rango.
      *
      * @return array<string, int> claves: PENDING, TRANSCRIBED, ERROR

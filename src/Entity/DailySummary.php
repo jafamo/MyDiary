@@ -36,6 +36,18 @@ class DailySummary
     #[ORM\Column(type: 'vector', length: 768, nullable: true)]
     private ?Vector $embedding = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?int $promptTokens = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $completionTokens = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $generationMs = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $model = null;
+
     /**
      * @var Collection<int, Topic>
      */
@@ -118,6 +130,63 @@ class DailySummary
     public function setEmbedding(?array $embedding): static
     {
         $this->embedding = null === $embedding ? null : new Vector($embedding);
+
+        return $this;
+    }
+
+    public function getPromptTokens(): ?int
+    {
+        return $this->promptTokens;
+    }
+
+    public function setPromptTokens(?int $promptTokens): static
+    {
+        $this->promptTokens = $promptTokens;
+
+        return $this;
+    }
+
+    public function getCompletionTokens(): ?int
+    {
+        return $this->completionTokens;
+    }
+
+    public function setCompletionTokens(?int $completionTokens): static
+    {
+        $this->completionTokens = $completionTokens;
+
+        return $this;
+    }
+
+    public function getTotalTokens(): ?int
+    {
+        if (null === $this->promptTokens || null === $this->completionTokens) {
+            return null;
+        }
+
+        return $this->promptTokens + $this->completionTokens;
+    }
+
+    public function getGenerationMs(): ?int
+    {
+        return $this->generationMs;
+    }
+
+    public function setGenerationMs(?int $generationMs): static
+    {
+        $this->generationMs = $generationMs;
+
+        return $this;
+    }
+
+    public function getModel(): ?string
+    {
+        return $this->model;
+    }
+
+    public function setModel(?string $model): static
+    {
+        $this->model = $model;
 
         return $this;
     }

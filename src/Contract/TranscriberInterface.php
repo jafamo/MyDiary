@@ -10,4 +10,9 @@ interface TranscriberInterface
      * @throws TranscriptionException si la transcripción falla
      */
     public function transcribe(string $audioFilePath): string;
+
+    /**
+     * Nombre del modelo de transcripción configurado, para registrar el consumo.
+     */
+    public function getModel(): string;
 }

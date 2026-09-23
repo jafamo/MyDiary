@@ -27,6 +27,40 @@ class DailySummaryTest extends TestCase
         self::assertSame($generatedAt, $dailySummary->getGeneratedAt());
     }
 
+    public function testUsageMetricsDefaultToNull(): void
+    {
+        $dailySummary = new DailySummary();
+
+        self::assertNull($dailySummary->getPromptTokens());
+        self::assertNull($dailySummary->getCompletionTokens());
+        self::assertNull($dailySummary->getTotalTokens());
+        self::assertNull($dailySummary->getGenerationMs());
+        self::assertNull($dailySummary->getModel());
+    }
+
+    public function testTotalTokensSumsPromptAndCompletion(): void
+    {
+        $dailySummary = new DailySummary();
+        $dailySummary
+            ->setPromptTokens(2980)
+            ->setCompletionTokens(432)
+            ->setGenerationMs(38000)
+            ->setModel('qwen2.5:7b')
+        ;
+
+        self::assertSame(3412, $dailySummary->getTotalTokens());
+        self::assertSame(38000, $dailySummary->getGenerationMs());
+        self::assertSame('qwen2.5:7b', $dailySummary->getModel());
+    }
+
+    public function testTotalTokensIsNullWhenCompletionIsMissing(): void
+    {
+        $dailySummary = new DailySummary();
+        $dailySummary->setPromptTokens(2980);
+
+        self::assertNull($dailySummary->getTotalTokens());
+    }
+
     public function testAddTopicDoesNotDuplicate(): void
     {
         $dailySummary = new DailySummary();

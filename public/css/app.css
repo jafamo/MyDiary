@@ -181,6 +181,9 @@ table { border-collapse: collapse; width: 100%; }
 .status-pill--error { color: var(--status-error); border-color: var(--status-error); background: color-mix(in srgb, var(--status-error) 12%, transparent); }
 .entry__text { color: var(--text); max-width: 42rem; white-space: pre-line; }
 .entry__text--muted { color: var(--text-muted); font-style: italic; }
+.metrics { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 1rem; margin-top: 0.75rem; padding-top: 0.5rem; border-top: 1px dashed var(--border); font-family: var(--font-display); font-size: 0.75rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.metrics span { display: inline-flex; align-items: center; gap: 0.3rem; }
+.metrics b { color: var(--text); font-weight: 600; }
 .entry__error-box { display: flex; align-items: center; gap: 0.7rem; background: color-mix(in srgb, var(--status-error) 8%, var(--panel)); border: 1px solid color-mix(in srgb, var(--status-error) 35%, transparent); border-radius: 6px; padding: 0.65rem 0.8rem; font-size: 0.85rem; flex-wrap: wrap; }
 .entry__error-box .icon { color: var(--status-error); }
 .entry__error-box span { flex: 1; min-width: 12rem; }
@@ -342,3 +345,19 @@ table { border-collapse: collapse; width: 100%; }
   .entry__time { padding-top: 0.15rem; }
   .filter-row { flex-direction: row; align-items: center; justify-content: space-between; }
 }
+
+/* Estadísticas: Consumo IA */
+.ai-usage { margin-top: 2.5rem; }
+.ai-usage__title { font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
+.bar-chart { display: block; width: 100%; aspect-ratio: 640 / 220; overflow: visible; }
+.bar-chart .grid-line { stroke: var(--border); stroke-width: 1; }
+.bar-chart .axis-label { fill: var(--text-muted); font-family: var(--font-display); font-size: 9px; }
+.bar-chart__in { fill: var(--accent); }
+.bar-chart__out { fill: var(--accent-dusk); }
+.usage-table { margin: 0.5rem 0 1rem; }
+.usage-table summary { cursor: pointer; display: inline-block; }
+.usage-table__scroll { overflow-x: auto; margin-top: 0.75rem; }
+.usage-table table { width: 100%; border-collapse: collapse; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.usage-table th, .usage-table td { text-align: left; padding: 0.35rem 0.6rem 0.35rem 0; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.usage-table th { color: var(--text-muted); font-weight: 500; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.usage-table .num { text-align: right; font-family: var(--font-display); }

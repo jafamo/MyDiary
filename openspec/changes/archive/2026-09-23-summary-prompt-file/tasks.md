@@ -52,4 +52,4 @@
 - [x] 8.2 Ejecutar `make test` y `make cs-check`
 - [x] 8.3 Comprobar que la versión de Ollama del servidor soporta `response_format` `json_schema` y que `config/prompts/` llega al contenedor de producción
 - [x] 8.4 Comprobar la ventana de contexto efectiva de `qwen2.5:14b` en el servidor (`OLLAMA_CONTEXT_LENGTH` / `ollama show`); medir `prompt_tokens` de un día con muchos audios; si no hay margen, subirla en el servidor y documentarlo en `Especificaciones.md`
-- [ ] 8.5 Generar un resumen real con `bin/console app:generate-daily-summary` y revisar texto, emojis, leyenda y temas
+- [x] 8.5 Generar un resumen real con `bin/console app:generate-daily-summary` y revisar texto, emojis, leyenda y temas

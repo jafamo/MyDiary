@@ -13,6 +13,7 @@ use App\Message\TranscribeAudioMessage;
 use App\MessageHandler\TranscribeAudioMessageHandler;
 use App\Repository\AudioRecordingRepository;
 use App\Service\Telegram\TelegramClient;
+use App\Service\UsageFormatter;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -38,7 +39,7 @@ class TranscribeAudioMessageHandlerTest extends KernelTestCase
 
     protected function tearDown(): void
     {
-        foreach (['handler-msg-1', 'handler-msg-2'] as $telegramMessageId) {
+        foreach (['handler-msg-1', 'handler-msg-2', 'handler-msg-3'] as $telegramMessageId) {
             $audioRecording = $this->audioRecordingRepository->findOneByTelegramMessageId($telegramMessageId);
 
             if (null !== $audioRecording) {
@@ -107,7 +108,40 @@ class TranscribeAudioMessageHandlerTest extends KernelTestCase
         unlink($exportPath);
     }
 
-    private function createAudioRecording(string $telegramMessageId, string $telegramFileUniqueId): AudioRecording
+    public function testSuccessfulTranscriptionSavesUsageMetricsAndReportsThemOnTelegram(): void
+    {
+        $sentTexts = [];
+        self::getContainer()->set(HttpClientInterface::class, new MockHttpClient(
+            static function (string $method, string $url, array $options) use (&$sentTexts): MockResponse {
+                $sentTexts[] = json_decode($options['body'], true)['text'];
+
+                return new MockResponse('{"ok":true}');
+            },
+        ));
+
+        $audioRecording = $this->createAudioRecording('handler-msg-3', 'handler-file-3', 102);
+
+        $handler = $this->createHandler(
+            $this->fakeTranscriber('texto transcrito'),
+            $this->fakeEmbeddingGenerator($this->unitVector(0)),
+        );
+
+        $handler(new TranscribeAudioMessage($audioRecording->getId()));
+
+        $this->entityManager->refresh($audioRecording);
+        $transcription = $audioRecording->getTranscription();
+
+        self::assertSame('whisper-test', $transcription->getModel());
+        self::assertGreaterThanOrEqual(20, $transcription->getProcessingMs());
+
+        self::assertCount(1, $sentTexts);
+        self::assertStringStartsWith("Transcripción lista ✅\n\ntexto transcrito\n\n", $sentTexts[0]);
+        self::assertStringEndsWith('🎙️ 1:42 de audio · ⏱️ transcrito en 0 s', $sentTexts[0]);
+
+        unlink($transcription->getFilePath());
+    }
+
+    private function createAudioRecording(string $telegramMessageId, string $telegramFileUniqueId, int $durationSeconds = 5): AudioRecording
     {
         $audioRecording = new AudioRecording();
         $audioRecording
@@ -115,7 +149,7 @@ class TranscribeAudioMessageHandlerTest extends KernelTestCase
             ->setTelegramFileUniqueId($telegramFileUniqueId)
             ->setFilePath($this->audioFilePath)
             ->setReceivedAt(new \DateTimeImmutable())
-            ->setDurationSeconds(5)
+            ->setDurationSeconds($durationSeconds)
         ;
         $this->entityManager->persist($audioRecording);
         $this->entityManager->flush();
@@ -132,7 +166,14 @@ class TranscribeAudioMessageHandlerTest extends KernelTestCase
 
             public function transcribe(string $audioFilePath): string
             {
+                usleep(20_000);
+
                 return $this->content;
+            }
+
+            public function getModel(): string
+            {
+                return 'whisper-test';
             }
         };
     }
@@ -172,6 +213,7 @@ class TranscribeAudioMessageHandlerTest extends KernelTestCase
             $transcriber,
             $embeddingGenerator,
             self::getContainer()->get(TelegramClient::class),
+            new UsageFormatter(),
             $this->entityManager,
             self::getContainer()->get('logger'),
             sys_get_temp_dir(),

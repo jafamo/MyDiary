@@ -32,6 +32,12 @@ class Transcription
     #[ORM\Column(type: 'vector', length: 768, nullable: true)]
     private ?Vector $embedding = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?int $processingMs = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $model = null;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -102,6 +108,30 @@ class Transcription
     public function setEmbedding(?array $embedding): static
     {
         $this->embedding = null === $embedding ? null : new Vector($embedding);
+
+        return $this;
+    }
+
+    public function getProcessingMs(): ?int
+    {
+        return $this->processingMs;
+    }
+
+    public function setProcessingMs(?int $processingMs): static
+    {
+        $this->processingMs = $processingMs;
+
+        return $this;
+    }
+
+    public function getModel(): ?string
+    {
+        return $this->model;
+    }
+
+    public function setModel(?string $model): static
+    {
+        $this->model = $model;
 
         return $this;
     }

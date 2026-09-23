@@ -42,4 +42,17 @@ class TranscriptionTest extends TestCase
 
         self::assertTrue($transcription->isEditedManually());
     }
+
+    public function testUsageMetrics(): void
+    {
+        $transcription = new Transcription();
+
+        self::assertNull($transcription->getProcessingMs());
+        self::assertNull($transcription->getModel());
+
+        $transcription->setProcessingMs(14200)->setModel('whisper-1');
+
+        self::assertSame(14200, $transcription->getProcessingMs());
+        self::assertSame('whisper-1', $transcription->getModel());
+    }
 }

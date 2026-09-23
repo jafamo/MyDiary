@@ -35,6 +35,7 @@ class DailySummaryService
         private readonly EmbeddingGeneratorInterface $embeddingGenerator,
         private readonly EntityManagerInterface $entityManager,
         private readonly TelegramClient $telegramClient,
+        private readonly UsageFormatter $usageFormatter,
         private readonly LoggerInterface $logger,
         private readonly string $authorizedChatId,
         private readonly int $pendingWaitIntervalSeconds = 15,
@@ -88,7 +89,7 @@ class DailySummaryService
             return;
         }
 
-        $this->saveDailySummary($date, $result['summary'], $result['topics'], $result['legend']);
+        $this->saveDailySummary($date, $result, \count($transcriptions));
     }
 
     private function waitForPendingTranscriptions(\DateTimeImmutable $date): void
@@ -108,7 +109,7 @@ class DailySummaryService
     /**
      * @param list<string> $transcriptions
      *
-     * @return array{summary: string, topics: list<string>, legend: list<array{emoji: string, meaning: string}>}
+     * @return array{summary: string, topics: list<string>, legend: list<array{emoji: string, meaning: string}>, usage: array{promptTokens: ?int, completionTokens: ?int, model: string}, generationMs: int}
      */
     private function generateWithRetries(array $transcriptions): array
     {
@@ -116,7 +117,11 @@ class DailySummaryService
 
         for ($attempt = 1; $attempt <= $this->generationMaxAttempts; ++$attempt) {
             try {
-                return $this->summaryGenerator->generate($transcriptions);
+                $startedAt = hrtime(true);
+                $result = $this->summaryGenerator->generate($transcriptions);
+                $result['generationMs'] = (int) round((hrtime(true) - $startedAt) / 1_000_000);
+
+                return $result;
             } catch (SummaryGenerationException $exception) {
                 $lastException = $exception;
 
@@ -130,11 +135,14 @@ class DailySummaryService
     }
 
     /**
-     * @param list<string>                                  $topicNames
-     * @param list<array{emoji: string, meaning: string}> $emojiLegend
+     * @param array{summary: string, topics: list<string>, legend: list<array{emoji: string, meaning: string}>, usage: array{promptTokens: ?int, completionTokens: ?int, model: string}, generationMs: int} $result
      */
-    private function saveDailySummary(\DateTimeImmutable $date, string $summaryText, array $topicNames, array $emojiLegend): void
+    private function saveDailySummary(\DateTimeImmutable $date, array $result, int $transcriptionCount): void
     {
+        $summaryText = $result['summary'];
+        $topicNames = $result['topics'];
+        $emojiLegend = $result['legend'];
+
         $dailySummary = $this->dailySummaryRepository->findOneByDate($date);
         $isNew = null === $dailySummary;
 
@@ -147,6 +155,10 @@ class DailySummaryService
             ->setSummaryText($summaryText)
             ->setEmojiLegend($emojiLegend)
             ->setGeneratedAt(new \DateTimeImmutable())
+            ->setPromptTokens($result['usage']['promptTokens'])
+            ->setCompletionTokens($result['usage']['completionTokens'])
+            ->setGenerationMs($result['generationMs'])
+            ->setModel($result['usage']['model'])
         ;
 
         foreach (iterator_to_array($dailySummary->getTopics()) as $existingTopic) {
@@ -172,7 +184,7 @@ class DailySummaryService
         $this->entityManager->flush();
 
         $this->generateEmbedding($dailySummary);
-        $this->notifySummaryGenerated($date, $summaryText, $topicNames, $emojiLegend);
+        $this->notifySummaryGenerated($date, $summaryText, $topicNames, $emojiLegend, $this->usageLine($dailySummary, $transcriptionCount));
     }
 
     private function generateEmbedding(DailySummary $dailySummary): void
@@ -194,11 +206,36 @@ class DailySummaryService
         $this->entityManager->flush();
     }
 
+    private function usageLine(DailySummary $dailySummary, int $transcriptionCount): string
+    {
+        $parts = [sprintf('🧮 %d %s', $transcriptionCount, 1 === $transcriptionCount ? 'audio' : 'audios')];
+
+        $totalTokens = $dailySummary->getTotalTokens();
+        if (null !== $totalTokens) {
+            $parts[] = sprintf(
+                '%s tokens (%s entrada + %s salida)',
+                $this->usageFormatter->number($totalTokens),
+                $this->usageFormatter->number((int) $dailySummary->getPromptTokens()),
+                $this->usageFormatter->number((int) $dailySummary->getCompletionTokens()),
+            );
+        }
+
+        if (null !== $dailySummary->getGenerationMs()) {
+            $parts[] = '⏱️ '.$this->usageFormatter->duration($dailySummary->getGenerationMs());
+        }
+
+        if (null !== $dailySummary->getModel()) {
+            $parts[] = '🤖 '.$dailySummary->getModel();
+        }
+
+        return implode(' · ', $parts);
+    }
+
     /**
      * @param list<string>                                  $topicNames
      * @param list<array{emoji: string, meaning: string}> $emojiLegend
      */
-    private function notifySummaryGenerated(\DateTimeImmutable $date, string $summaryText, array $topicNames, array $emojiLegend): void
+    private function notifySummaryGenerated(\DateTimeImmutable $date, string $summaryText, array $topicNames, array $emojiLegend, string $usageLine): void
     {
         $header = sprintf(
             '📔 Resumen día: %d de %s de %s',
@@ -219,6 +256,8 @@ class DailySummaryService
                 $emojiLegend,
             ));
         }
+
+        $message .= "\n\n".$usageLine;
 
         try {
             $this->telegramClient->sendMessage((int) $this->authorizedChatId, $message);

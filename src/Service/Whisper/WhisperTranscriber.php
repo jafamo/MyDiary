@@ -20,7 +20,13 @@ class WhisperTranscriber implements TranscriberInterface
         private readonly HttpClientInterface $httpClient,
         private readonly string $openWebUiBaseUrl,
         private readonly string $openWebUiApiKey,
+        private readonly string $whisperModel,
     ) {
+    }
+
+    public function getModel(): string
+    {
+        return $this->whisperModel;
     }
 
     public function transcribe(string $audioFilePath): string
@@ -28,7 +34,7 @@ class WhisperTranscriber implements TranscriberInterface
         try {
             $formData = new FormDataPart([
                 'file' => DataPart::fromPath($audioFilePath),
-                'model' => 'whisper-1',
+                'model' => $this->whisperModel,
             ]);
 
             $response = $this->httpClient->request('POST', rtrim($this->openWebUiBaseUrl, '/').'/api/v1/audio/transcriptions', [
