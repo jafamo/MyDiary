@@ -6,6 +6,7 @@ namespace App\Tests\Controller;
 
 use App\Repository\AudioRecordingRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Monolog\Handler\TestHandler;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -43,6 +44,10 @@ class TelegramWebhookControllerTest extends WebTestCase
         $client->request('POST', '/telegram/webhook/token-incorrecto', [], [], [], json_encode(['message' => []]));
 
         self::assertSame(404, $client->getResponse()->getStatusCode());
+
+        $requests = $this->logRecordsWithEvent('http.request');
+        self::assertCount(1, $requests);
+        self::assertSame(404, $requests[0]->context['status']);
     }
 
     public function testUnauthorizedChatIsIgnored(): void
@@ -106,9 +111,35 @@ class TelegramWebhookControllerTest extends WebTestCase
         self::assertSame('ctrl-file-2', $audioRecording->getTelegramFileUniqueId());
         self::assertSame(7, $audioRecording->getDurationSeconds());
 
+        $received = $this->logRecordsWithEvent('audio_recording.received');
+        self::assertCount(1, $received);
+        self::assertSame('created', $received[0]->context['result']);
+        self::assertSame(200, $received[0]->context['status']);
+        self::assertSame('ctrl-file-2', $received[0]->context['telegram_file_unique_id']);
+
+        $requests = $this->logRecordsWithEvent('http.request');
+        self::assertCount(1, $requests);
+        self::assertSame(200, $requests[0]->context['status']);
+        self::assertSame('telegram_webhook', $requests[0]->context['route']);
+
         if (file_exists($audioRecording->getFilePath())) {
             unlink($audioRecording->getFilePath());
         }
+    }
+
+    /**
+     * @return list<\Monolog\LogRecord>
+     */
+    private function logRecordsWithEvent(string $event): array
+    {
+        /** @var TestHandler $logHandler */
+        // Handler "test" definido solo en when@test (PHPStan analiza el contenedor de dev)
+        $logHandler = self::getContainer()->get('monolog.handler.test'); // @phpstan-ignore symfonyContainer.serviceNotFound
+
+        return array_values(array_filter(
+            $logHandler->getRecords(),
+            static fn ($record) => $event === ($record->context['event'] ?? null),
+        ));
     }
 
     private function bootServices($client): void

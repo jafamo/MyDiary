@@ -1,7 +1,7 @@
 # structured-logging Specification
 
 ## Purpose
-TBD - created by archiving change messenger-log-status. Update Purpose after archive.
+Campos estructurados que la aplicación añade a sus logs JSON (aplanados a primer nivel) para poder filtrarlos y agregarlos en Kibana: estado de los mensajes Messenger, código HTTP de cada petición y eventos de negocio.
 ## Requirements
 ### Requirement: Estado de los mensajes Messenger en los logs
 Los registros de log del canal `messenger` SHALL incluir un campo `messenger_status` de primer nivel en el JSON con el estado del mensaje en su ciclo de vida, deducido del log que emite Symfony Messenger:

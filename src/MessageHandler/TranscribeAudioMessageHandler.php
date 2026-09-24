@@ -83,6 +83,15 @@ class TranscribeAudioMessageHandler
         $this->entityManager->persist($transcription);
         $this->entityManager->flush();
 
+        $this->logger->info('Transcripción creada', [
+            'event' => 'transcription.created',
+            'audio_recording_id' => $audioRecording->getId(),
+            'transcription_id' => $transcription->getId(),
+            'audio_recording_status' => $audioRecording->getStatus()->value,
+            'processing_ms' => $processingMs,
+            'model' => $transcription->getModel(),
+        ]);
+
         $this->generateEmbedding($transcription);
 
         $this->telegramClient->sendMessage(
