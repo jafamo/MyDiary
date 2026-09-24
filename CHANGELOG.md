@@ -6,12 +6,15 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ### Ramas integradas en `develop`
 - `feature/topics-table-view`
+- `feature/agents-md-convenciones`
 
 ### Añadido
 - Columna **Último uso** en la vista Temas (fecha del resumen diario más reciente de cada tema, calculada en la misma consulta de `TopicRepository::findAllWithUsageCount()`).
 
 ### Cambiado
 - La vista **Temas** (`/topics`) pasa de tarjetas apiladas a una tabla con búsqueda instantánea por nombre (sin distinguir mayúsculas ni acentos), ordenación por columna y paginación en cliente (25/50/100 filas) con `public/js/topics.js`. La selección para fusionar se conserva al filtrar y al cambiar de página; la barra de fusión (fija abajo) muestra cuántos temas hay seleccionados y cuántos quedan fuera de la vista, permite quitar la selección y limita el destino a los temas marcados. Sin JavaScript se ve la tabla completa y la fusión funciona como antes.
+
+- `AGENTS.md`: nuevas secciones **Flujo de cambios (OBLIGATORIO)**, **Entorno** (el stack Docker vive en producción, sin tests en el despliegue, tests independientes del `.env` local) y **Convenciones de código** (campos de log con prefijo para Kibana, constantes globales en un sitio compartido). La regla de push tras un `finish` pasa a ser solo `develop`; `main` y tags únicamente en releases y hotfixes.
 
 ### Corregido
 - El botón "Guardar" del renombrado de temas enviaba el formulario de fusión (formulario anidado, HTML inválido); ahora cada renombrado tiene su propio formulario enlazado con el atributo `form=`.

@@ -6,6 +6,19 @@ Instrucciones para trabajar en este repositorio (Telegram Voice Notes — PHP/Sy
 
 `Especificaciones.md` es el documento de referencia del dominio, flujos, modelo de datos e infraestructura. Léelo antes de implementar cualquier funcionalidad nueva y mantenlo actualizado si una decisión cambia durante el desarrollo.
 
+## Flujo de cambios (OBLIGATORIO)
+
+Todo cambio funcional, por pequeño que sea, sigue:
+
+1. Crear y validar una propuesta OpenSpec.
+2. Crear una rama feature/bugfix con Git Flow.
+3. Implementar con tests.
+4. Añadir entrada en el CHANGELOG (`## [Sin publicar]`).
+5. Sincronizar specs y archivar el cambio.
+6. Hacer finish de la rama hacia `develop`.
+
+Nunca implementar directamente sobre `develop`.
+
 ## Restricciones de arquitectura (no reintroducir)
 
 Estas decisiones se tomaron explícitamente para evitar sobre-ingeniería en un proyecto personal de un solo usuario. No proponer ni introducir lo contrario sin que el usuario lo pida:
@@ -24,6 +37,22 @@ Estas decisiones se tomaron explícitamente para evitar sobre-ingeniería en un 
 - Tests: `make test` ejecuta el suite de PHPUnit dentro de `diary-php` contra la base de datos de test (`telegram_notes_test`, separada de `telegram_notes`). Estilo de código: `make cs-check` (verificar) / `make cs-fix` (corregir), PSR-12, aplicado también en el hook `pre-commit` (`.githooks/pre-commit`, activar con `git config core.hooksPath .githooks`). Análisis estático: `make phpstan` (nivel 5, errores previos en `phpstan-baseline.neon`; regenerarlo solo de forma consciente).
 - CI (`.github/workflows/ci.yml`, en cada push a `main`/`develop` y en cada PR): `lint` (php-cs-fixer + PHPStan) → `tests` (PHPUnit con cobertura contra Postgres efímero) → `sonar` (SonarQube con esa cobertura).
 
+## Entorno
+
+- El stack Docker (SonarQube, Ollama, Open WebUI, nginx, app) corre en el **servidor de producción**, no en esta máquina. Dar comandos para ejecutar en el host en lugar de buscar contenedores en local.
+- El servidor de producción no tiene base de datos de test: nunca añadir `make test` ni pasos de tests al despliegue.
+- Los tests no deben depender de valores del `.env` local (p. ej. `TELEGRAM_AUTHORIZED_CHAT_ID`, rutas de almacenamiento de audio). Fijarlos explícitamente en la configuración de test para que pasen en GitHub CI.
+
+## Convenciones de código
+
+### Logging (Kibana)
+
+Los campos de contexto de log deben ser planos y con prefijo (p. ej. `messenger_status`, no `status`) para no chocar con los tipos de campo de nginx que ya existen en Kibana.
+
+### Constantes
+
+Los valores de toda la aplicación (zona horaria, etc.) van en un sitio compartido genérico, nunca reutilizados de constantes específicas de una clase.
+
 ## Control de versiones: Git Flow (regla fija)
 
 Este repositorio usa **Git Flow** (`git flow init` ya ejecutado, prefijos por defecto). Nunca commitear directo a `main` ni a `develop`:
@@ -33,7 +62,7 @@ Este repositorio usa **Git Flow** (`git flow init` ya ejecutado, prefijos por de
 - Corrección de bug sobre `develop` → `git flow bugfix start <nombre>`.
 - Preparar una release → `git flow release start <version>`, `git flow release finish <version>` (mergea a `main` y `develop`, y taggea).
 - Fix urgente sobre producción → `git flow hotfix start <nombre>` (rama desde `main`).
-- Tras cada `finish`, hacer `git push origin main develop --tags` (o las ramas correspondientes) para reflejar el merge en GitHub.
+- **Push:** tras terminar una feature/bugfix, hacer push **solo de `develop`** salvo que el usuario pida expresamente una release. Push de `main` y de tags solo durante una release o un hotfix (`git flow release finish` / `git flow hotfix finish`), según la sección siguiente.
 
 ## Versiones, tags y releases (regla fija)
 
