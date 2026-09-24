@@ -19,6 +19,8 @@ Todo cambio funcional, por pequeño que sea, sigue:
 
 Nunca implementar directamente sobre `develop`.
 
+**Opciones de diseño antes de implementar.** Si el cambio implica decisiones de diseño (dónde vive una constante o un servicio, nombres de campos de log, catálogos de datos, configuración frente a código), antes de tocar código proponer 2-3 alternativas con sus pros y contras, indicando dónde viviría cada pieza y cómo encaja con Kibana y con estas convenciones, y esperar a que el usuario elija. En la parte visual, lo equivalente es un mockup previo.
+
 ## Restricciones de arquitectura (no reintroducir)
 
 Estas decisiones se tomaron explícitamente para evitar sobre-ingeniería en un proyecto personal de un solo usuario. No proponer ni introducir lo contrario sin que el usuario lo pida:
