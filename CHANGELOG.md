@@ -6,6 +6,11 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ### Añadido
 - Campo `messenger_status` en los logs JSON del canal `messenger` (`received`, `sent`, `handled`, `no_handler`, `acknowledged`, `retry`, `failed`, `rejected`), para filtrar en Kibana por el estado de cada mensaje Messenger (`MessengerStatusProcessor`).
+- Log por petición HTTP en el canal `http` con `status` (código HTTP numérico), `method`, `route`, `path` y `duration_ms`; `warning` para 4xx y `error` para 5xx (`HttpRequestLogListener`).
+- Logs `audio_recording.received` (webhook de Telegram, con el resultado y el `status` devuelto) y `transcription.created` (worker).
+
+### Cambiado
+- En `prod`, los logs INFO de los canales `http`, `app` y `messenger` se escriben siempre (handler `structured` sin buffer), en vez de solo cuando hay un error en la misma petición o mensaje.
 
 ## [0.13.0] - 2026-09-24
 

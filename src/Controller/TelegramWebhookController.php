@@ -82,6 +82,14 @@ class TelegramWebhookController
             },
         );
 
+        $this->logger->info('Audio recibido por el webhook de Telegram', [
+            'event' => 'audio_recording.received',
+            'result' => strtolower($result->name),
+            'status' => Response::HTTP_OK,
+            'telegram_message_id' => $telegramMessageId,
+            'telegram_file_unique_id' => $telegramFileUniqueId,
+        ]);
+
         if (AudioRecordingReceiveResult::DUPLICATE_MESSAGE !== $result) {
             try {
                 $this->telegramClient->sendMessage((int) $chatId, match ($result) {
