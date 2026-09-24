@@ -1,4 +1,4 @@
-me sal e.PHONY: up down build restart logs ps sh cs-check cs-fix test test-coverage composer-install migrate migration-diff console cache-clear deploy audio-retry embeddings-backfill sonar
+.PHONY: up down build restart logs ps sh cs-check cs-fix phpstan test test-coverage composer-install migrate migration-diff console cache-clear deploy audio-retry embeddings-backfill sonar
 
 COMPOSE = docker compose --env-file .env
 SONAR_HOST_URL ?= https://sonarqube.jfarinos.keenetic.pro
@@ -28,6 +28,9 @@ cs-check:
 
 cs-fix:
 	$(COMPOSE) exec diary-php vendor/bin/php-cs-fixer fix
+
+phpstan:
+	$(COMPOSE) exec diary-php vendor/bin/phpstan analyse --memory-limit=1G $(ARGS)
 
 test:
 	$(COMPOSE) exec diary-php bin/phpunit $(ARGS)

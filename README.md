@@ -90,13 +90,23 @@ Git Flow (`main` for releases only, `develop` as the integration branch). See [`
 
 ## 🔍 Static analysis
 
-SonarQube runs in CI on every push/PR. To run it locally (Docker only, no scanner install needed):
+CI (`.github/workflows/ci.yml`) runs on every push/PR: PHP-CS-Fixer and PHPStan, then PHPUnit with coverage, then SonarQube with that coverage. Locally:
+
+```bash
+make cs-check   # PSR-12
+make phpstan    # PHPStan (level 5 + baseline)
+make test       # PHPUnit
+```
+
+To run SonarQube locally (Docker only, no scanner install needed; no coverage data):
 
 ```bash
 SONAR_TOKEN=<your-token> make sonar
 ```
 
 `SONAR_HOST_URL` defaults to `https://sonarqube.jfarinos.keenetic.pro` and can be overridden the same way.
+
+Pushing a `X.Y.Z` tag creates the GitHub Release automatically from the matching `CHANGELOG.md` section (`.github/workflows/release.yml`).
 
 ## 🚀 Deploying
 

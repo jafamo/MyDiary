@@ -4,7 +4,16 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+### Añadido
+- **CI de calidad** (`.github/workflows/ci.yml`): en cada push a `main`/`develop` y en cada PR se ejecutan php-cs-fixer y PHPStan, después PHPUnit con cobertura contra un Postgres (pgvector) efímero, y por último SonarQube, que ahora recibe la cobertura (`sonar.php.coverage.reportPaths=coverage.xml`).
+- **PHPStan** (nivel 5, extensiones Symfony y Doctrine, baseline con los errores previos) y target `make phpstan`.
+- **GitHub Release automática** (`.github/workflows/release.yml`): al empujar una tag `X.Y.Z` se crea la release con la sección correspondiente del CHANGELOG; no hace nada si ya existe y falla si falta la sección.
+
+### Cambiado
+- `.github/workflows/sonarqube.yml` sustituido por el job `sonar` de `ci.yml`, que solo se ejecuta si pasan estilo, PHPStan y tests; `sonarqube-scan-action` sube de `v4` a `v8`.
+
 ### Corregido
+- Línea `.PHONY` del `Makefile`, que tenía texto basura al inicio y no declaraba los targets como phony.
 - Política de tags en `AGENTS.md`: el git-flow instalado añade la versión al mensaje de `-m`, así que se usa `-m "Release"` para obtener `Release X.Y.Z`.
 
 ## [0.12.2] - 2026-09-24
