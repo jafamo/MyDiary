@@ -11,6 +11,7 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ### Cambiado
 - `.github/workflows/sonarqube.yml` sustituido por el job `sonar` de `ci.yml`, que solo se ejecuta si pasan estilo, PHPStan y tests; `sonarqube-scan-action` sube de `v4` a `v8`.
+- Zona horaria local centralizada en la constante `App\LocalTimezone::NAME` (`Europe/Madrid`), usada por `DateRange`, `AudioRecordingRepository`, `Schedule` y, vía el global de Twig `local_timezone`, por las plantillas; desaparecen los literales duplicados que marcaba Sonar. `Especificaciones.md` deja de listar `APP_TIMEZONE` como variable de entorno.
 
 ### Corregido
 - Los tests ya no dependen de los valores reales de Telegram del `.env`: `.env.test` define `TELEGRAM_*` ficticios (el test del webhook fallaba con los valores de `.env.example`).

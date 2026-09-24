@@ -28,28 +28,28 @@ class Schedule implements ScheduleProviderInterface
                 RecurringMessage::cron(
                     '0 21 * * *',
                     new RunCommandMessage('app:generate-daily-summary'),
-                    timezone: 'Europe/Madrid',
+                    timezone: LocalTimezone::NAME,
                 ),
             )
             ->add(
                 RecurringMessage::cron(
                     '0 8 * * *',
                     new RunCommandMessage('app:notify-reminders'),
-                    timezone: 'Europe/Madrid',
+                    timezone: LocalTimezone::NAME,
                 ),
             )
             ->add(
                 RecurringMessage::cron(
                     '*/15 21,22,23 * * *',
                     new RunCommandMessage('app:recheck-daily-summary'),
-                    timezone: 'Europe/Madrid',
+                    timezone: LocalTimezone::NAME,
                 ),
             )
             ->add(
                 RecurringMessage::cron(
                     '0,15,30 0 * * *',
                     new RunCommandMessage('app:recheck-daily-summary'),
-                    timezone: 'Europe/Madrid',
+                    timezone: LocalTimezone::NAME,
                 ),
             )
         ;

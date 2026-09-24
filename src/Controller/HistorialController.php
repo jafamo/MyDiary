@@ -30,7 +30,7 @@ class HistorialController
         $month = (int) $request->query->get('month', $now->format('n'));
         $status = AudioRecordingStatus::tryFrom((string) $request->query->get('status'));
 
-        $firstOfMonth = (new \DateTimeImmutable())->setTimezone(new \DateTimeZone('Europe/Madrid'))->setDate($year, $month, 1)->setTime(0, 0, 0);
+        $firstOfMonth = $now->setDate($year, $month, 1)->setTime(0, 0, 0);
         $lastOfMonth = $firstOfMonth->modify('last day of this month');
 
         $leadingDays = ((int) $firstOfMonth->format('N')) - 1;

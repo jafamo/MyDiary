@@ -6,6 +6,7 @@ namespace App\Repository;
 
 use App\Entity\AudioRecording;
 use App\Entity\AudioRecordingStatus;
+use App\LocalTimezone;
 use App\Service\DateRange;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -98,11 +99,6 @@ class AudioRecordingRepository extends ServiceEntityRepository
     }
 
     /**
-     * Entradas recibidas ese día, ordenadas cronológicamente. Sin `$status`, incluye cualquier estado.
-     *
-     * @return list<AudioRecording>
-     */
-    /**
      * @return AudioRecording[]
      */
     public function findStuck(\DateTimeImmutable $pendingOlderThan): array
@@ -118,6 +114,11 @@ class AudioRecordingRepository extends ServiceEntityRepository
         ;
     }
 
+    /**
+     * Entradas recibidas ese día, ordenadas cronológicamente. Sin `$status`, incluye cualquier estado.
+     *
+     * @return list<AudioRecording>
+     */
     public function findAllReceivedOn(\DateTimeImmutable $date, ?AudioRecordingStatus $status = null): array
     {
         [$start, $end] = DateRange::dayBoundaries($date);
@@ -151,10 +152,9 @@ class AudioRecordingRepository extends ServiceEntityRepository
             ->getArrayResult()
         ;
 
-        $tz = new \DateTimeZone('Europe/Madrid');
         $dates = [];
         foreach ($rows as $row) {
-            $local = $row['receivedAt']->setTimezone($tz)->format('Y-m-d');
+            $local = self::localDay($row['receivedAt']);
             $dates[$local] = true;
         }
 
@@ -219,10 +219,9 @@ class AudioRecordingRepository extends ServiceEntityRepository
 
         $rows = $qb->getQuery()->getArrayResult();
 
-        $tz = new \DateTimeZone('Europe/Madrid');
         $counts = [];
         foreach ($rows as $row) {
-            $local = $row['receivedAt']->setTimezone($tz)->format('Y-m-d');
+            $local = self::localDay($row['receivedAt']);
             $counts[$local] = ($counts[$local] ?? 0) + 1;
         }
 
@@ -252,10 +251,9 @@ class AudioRecordingRepository extends ServiceEntityRepository
             ->getArrayResult()
         ;
 
-        $tz = new \DateTimeZone('Europe/Madrid');
         $usage = [];
         foreach ($rows as $row) {
-            $local = $row['receivedAt']->setTimezone($tz)->format('Y-m-d');
+            $local = self::localDay($row['receivedAt']);
             $day = $usage[$local] ?? ['audios' => 0, 'audioSeconds' => 0, 'processingMs' => null];
             ++$day['audios'];
             $day['audioSeconds'] += $row['durationSeconds'];
@@ -295,5 +293,13 @@ class AudioRecordingRepository extends ServiceEntityRepository
         }
 
         return $counts;
+    }
+
+    /**
+     * Día local (Y-m-d, Europe/Madrid) de una fecha leída de la BD.
+     */
+    private static function localDay(\DateTimeImmutable $date): string
+    {
+        return $date->setTimezone(new \DateTimeZone(LocalTimezone::NAME))->format('Y-m-d');
     }
 }
