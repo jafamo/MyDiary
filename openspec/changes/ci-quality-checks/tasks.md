@@ -35,6 +35,6 @@
 ## 6. Verificación en GitHub
 
 - [x] 6.1 `make cs-check`, `make phpstan` y `make test` en verde en local
-- [ ] 6.2 Push de `feature/ci-quality-checks` y abrir un PR a `develop`: los jobs `lint`, `tests` y `sonar` terminan en verde
-- [ ] 6.3 Comprobar en SonarQube que el análisis del PR/rama muestra cobertura distinta de 0 %. Si no la muestra, reescribir el prefijo de rutas del clover (design, Decisión 6)
+- [x] 6.2 Push de `feature/ci-quality-checks` y abrir un PR a `develop`: los jobs `lint`, `tests` y `sonar` terminan en verde
+- [x] 6.3 Comprobar en SonarQube que el análisis del PR/rama muestra cobertura distinta de 0 %. Si no la muestra, reescribir el prefijo de rutas del clover (design, Decisión 6)
 - [ ] 6.4 Tras la próxima release, comprobar que `release.yml` creó la GitHub Release (`gh release view X.Y.Z`) con el cuerpo del CHANGELOG
