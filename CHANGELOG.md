@@ -4,6 +4,13 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+## [0.13.0] - 2026-09-24
+
+### Ramas integradas en `develop`
+- `feature/ci-quality-checks`
+- `bugfix/sonar-timezone-constant`
+- Commits directos sobre `develop`: corrección del mensaje de tag en la política de releases de `AGENTS.md`.
+
 ### Añadido
 - **CI de calidad** (`.github/workflows/ci.yml`): en cada push a `main`/`develop` y en cada PR se ejecutan php-cs-fixer y PHPStan, después PHPUnit con cobertura contra un Postgres (pgvector) efímero, y por último SonarQube, que ahora recibe la cobertura (`sonar.php.coverage.reportPaths=coverage.xml`).
 - **PHPStan** (nivel 5, extensiones Symfony y Doctrine, baseline con los errores previos) y target `make phpstan`.
