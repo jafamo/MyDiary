@@ -4,6 +4,14 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+## [0.12.1] - 2026-09-24
+
+### Ramas integradas en `develop`
+- `feature/make-sonar`
+
+### Añadido
+- **`make sonar`**: análisis de SonarQube en local con la imagen Docker `sonarsource/sonar-scanner-cli`, sin instalar el scanner en el host. `SONAR_HOST_URL` por defecto `https://sonarqube.jfarinos.keenetic.pro` (sobrescribible); `SONAR_TOKEN` obligatorio desde el entorno, con error claro si falta.
+
 ## [0.12.0] - 2026-09-23
 
 ### Ramas integradas en `develop`
