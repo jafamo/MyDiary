@@ -15,6 +15,7 @@ use App\Repository\AudioRecordingRepository;
 use App\Service\Telegram\TelegramClient;
 use App\Service\UsageFormatter;
 use Doctrine\ORM\EntityManagerInterface;
+use Monolog\Handler\TestHandler;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -39,7 +40,7 @@ class TranscribeAudioMessageHandlerTest extends KernelTestCase
 
     protected function tearDown(): void
     {
-        foreach (['handler-msg-1', 'handler-msg-2', 'handler-msg-3'] as $telegramMessageId) {
+        foreach (['handler-msg-1', 'handler-msg-2', 'handler-msg-3', 'handler-msg-log'] as $telegramMessageId) {
             $audioRecording = $this->audioRecordingRepository->findOneByTelegramMessageId($telegramMessageId);
 
             if (null !== $audioRecording) {
@@ -78,6 +79,37 @@ class TranscribeAudioMessageHandlerTest extends KernelTestCase
         $exportPath = $audioRecording->getTranscription()->getFilePath();
         self::assertFileExists($exportPath);
         unlink($exportPath);
+    }
+
+    public function testSuccessfulTranscriptionIsLogged(): void
+    {
+        self::getContainer()->set(HttpClientInterface::class, new MockHttpClient(new MockResponse('{"ok":true}')));
+
+        $audioRecording = $this->createAudioRecording('handler-msg-log', 'handler-file-log');
+
+        $handler = $this->createHandler(
+            $this->fakeTranscriber('texto transcrito'),
+            $this->fakeEmbeddingGenerator($this->unitVector(0)),
+        );
+
+        $handler(new TranscribeAudioMessage($audioRecording->getId()));
+
+        $this->entityManager->refresh($audioRecording);
+
+        /** @var TestHandler $logHandler */
+        // Handler "test" definido solo en when@test (PHPStan analiza el contenedor de dev)
+        $logHandler = self::getContainer()->get('monolog.handler.test'); // @phpstan-ignore symfonyContainer.serviceNotFound
+        $records = array_values(array_filter(
+            $logHandler->getRecords(),
+            static fn ($record) => 'transcription.created' === ($record->context['event'] ?? null),
+        ));
+
+        self::assertCount(1, $records);
+        self::assertSame($audioRecording->getId(), $records[0]->context['audio_recording_id']);
+        self::assertSame($audioRecording->getTranscription()->getId(), $records[0]->context['transcription_id']);
+        self::assertSame('TRANSCRIBED', $records[0]->context['audio_recording_status']);
+
+        unlink($audioRecording->getTranscription()->getFilePath());
     }
 
     public function testEmbeddingGenerationFailureDoesNotBlockTranscription(): void
