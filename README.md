@@ -88,6 +88,16 @@ flowchart TD
 
 Git Flow (`main` for releases only, `develop` as the integration branch). See [`CLAUDE.md`](./CLAUDE.md) for branch details and commands.
 
+## 🔍 Static analysis
+
+SonarQube runs in CI on every push/PR. To run it locally (Docker only, no scanner install needed):
+
+```bash
+SONAR_TOKEN=<your-token> make sonar
+```
+
+`SONAR_HOST_URL` defaults to `https://sonarqube.jfarinos.keenetic.pro` and can be overridden the same way.
+
 ## 🚀 Deploying
 
 Before deploying (or updating `OLLAMA_EMBEDDING_MODEL`), make sure the embeddings model is pulled on the Ollama server (e.g. `ollama pull nomic-embed-text`) — semantic search generates embeddings on demand and fails silently (logged, non-blocking) if the model isn't available.
