@@ -4,6 +4,12 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+## [0.14.0] - 2026-09-24
+
+### Ramas integradas en `develop`
+- `feature/messenger-log-status`
+- `feature/http-request-logging`
+
 ### Añadido
 - Campo `messenger_status` en los logs JSON del canal `messenger` (`received`, `sent`, `handled`, `no_handler`, `acknowledged`, `retry`, `failed`, `rejected`), para filtrar en Kibana por el estado de cada mensaje Messenger (`MessengerStatusProcessor`).
 - Log por petición HTTP en el canal `http` con `status` (código HTTP numérico), `method`, `route`, `path` y `duration_ms`; `warning` para 4xx y `error` para 5xx (`HttpRequestLogListener`).
@@ -11,6 +17,10 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ### Cambiado
 - En `prod`, los logs INFO de los canales `http`, `app` y `messenger` se escriben siempre (handler `structured` sin buffer), en vez de solo cuando hay un error en la misma petición o mensaje.
+
+### Despliegue
+- Recrear `diary-php` y `diary-messenger-worker` para cargar la nueva configuración de Monolog (`docker compose up -d --force-recreate diary-php diary-messenger-worker`).
+- En Kibana, refrescar la lista de campos del Data View `filebeat-*` para que aparezcan `messenger_status`, `route`, `method`, `duration_ms`, `result`...
 
 ## [0.13.0] - 2026-09-24
 
