@@ -1,6 +1,7 @@
-.PHONY: up down build restart logs ps sh cs-check cs-fix test test-coverage composer-install migrate migration-diff console cache-clear deploy audio-retry embeddings-backfill
+me sal e.PHONY: up down build restart logs ps sh cs-check cs-fix test test-coverage composer-install migrate migration-diff console cache-clear deploy audio-retry embeddings-backfill sonar
 
 COMPOSE = docker compose --env-file .env
+SONAR_HOST_URL ?= https://sonarqube.jfarinos.keenetic.pro
 
 up:
 	$(COMPOSE) up -d
@@ -33,6 +34,14 @@ test:
 
 test-coverage:
 	$(COMPOSE) exec diary-php bin/phpunit --coverage-text $(ARGS)
+
+sonar:
+	@test -n "$(SONAR_TOKEN)" || { echo "Error: define SONAR_TOKEN (p. ej. SONAR_TOKEN=xxx make sonar)"; exit 1; }
+	docker run --rm --user $$(id -u):$$(id -g) \
+		-e SONAR_HOST_URL=$(SONAR_HOST_URL) \
+		-e SONAR_TOKEN \
+		-v "$(CURDIR):/usr/src" \
+		sonarsource/sonar-scanner-cli
 
 composer-install:
 	$(COMPOSE) exec diary-php composer install
