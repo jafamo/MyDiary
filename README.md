@@ -34,7 +34,7 @@ Personal single-user project — deliberately avoiding over-engineering:
 - ✅ Targeted interfaces (ports) where there's a real reason: `TranscriberInterface`, `SummaryGeneratorInterface`
 - ✅ Symfony Messenger used only for the Telegram → transcription chain
 
-More detail and rationale in [`CLAUDE.md`](./CLAUDE.md) and section 4 of [`Especificaciones.md`](./Especificaciones.md).
+More detail and rationale in [`AGENTS.md`](./AGENTS.md) and section 4 of [`Especificaciones.md`](./Especificaciones.md).
 
 ## 🔄 General flow
 
@@ -86,7 +86,7 @@ flowchart TD
 
 ## 🌳 Version control
 
-Git Flow (`main` for releases only, `develop` as the integration branch). See [`CLAUDE.md`](./CLAUDE.md) for branch details and commands.
+Git Flow (`main` for releases only, `develop` as the integration branch). See [`AGENTS.md`](./AGENTS.md) for branch details and commands.
 
 ## 🔍 Static analysis
 
