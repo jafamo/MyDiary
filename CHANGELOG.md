@@ -4,6 +4,9 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+### Añadido
+- Campo `messenger_status` en los logs JSON del canal `messenger` (`received`, `sent`, `handled`, `no_handler`, `acknowledged`, `retry`, `failed`, `rejected`), para filtrar en Kibana por el estado de cada mensaje Messenger (`MessengerStatusProcessor`).
+
 ## [0.13.0] - 2026-09-24
 
 ### Ramas integradas en `develop`
