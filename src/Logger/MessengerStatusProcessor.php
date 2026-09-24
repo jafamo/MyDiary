@@ -9,10 +9,13 @@ use Monolog\LogRecord;
 use Monolog\Processor\ProcessorInterface;
 
 /**
- * Añade "status" (en "extra") a los logs del canal "messenger" con el estado
- * del mensaje, deducido del texto que emite Symfony Messenger, para poder
+ * Añade "messenger_status" (en "extra") a los logs del canal "messenger" con el
+ * estado del mensaje, deducido del texto que emite Symfony Messenger, para poder
  * filtrar por él en Kibana. Los fragmentos no contienen placeholders, así que
  * funcionan igual con la plantilla ("{class}") que con el mensaje interpolado.
+ *
+ * No se llama "status" porque en el índice de Filebeat ese campo ya es numérico
+ * (código HTTP del access log de nginx) y Elasticsearch rechazaría el documento.
  */
 #[AsMonologProcessor(channel: 'messenger')]
 class MessengerStatusProcessor implements ProcessorInterface
@@ -39,7 +42,7 @@ class MessengerStatusProcessor implements ProcessorInterface
 
         foreach (self::STATUSES as $fragment => $status) {
             if (str_contains($record->message, $fragment)) {
-                return $record->with(extra: $record->extra + ['status' => $status]);
+                return $record->with(extra: $record->extra + ['messenger_status' => $status]);
             }
         }
 

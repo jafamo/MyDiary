@@ -4,7 +4,7 @@ Los logs del canal `messenger` (worker de Messenger, Scheduler) llegan a Kibana 
 
 ## What Changes
 
-- Nuevo processor de Monolog (`App\Logger\MessengerStatusProcessor`) que, para los registros del canal `messenger`, añade `extra.status` con el estado del mensaje deducido del log que emite Symfony Messenger:
+- Nuevo processor de Monolog (`App\Logger\MessengerStatusProcessor`) que, para los registros del canal `messenger`, añade `extra.messenger_status` con el estado del mensaje deducido del log que emite Symfony Messenger:
   - `received` — "Received message {class}"
   - `sent` — "Sending message {class} with {alias} sender ..."
   - `handled` — "Message {class} handled by {handler}"
@@ -13,13 +13,13 @@ Los logs del canal `messenger` (worker de Messenger, Scheduler) llegan a Kibana 
   - `retry` — "Error thrown while handling message {class}. Sending for retry ..."
   - `failed` — "Error thrown while handling message {class}. Removing from transport ..."
   - `rejected` — "Rejected message {class} will be sent to the failure transport ..."
-- Gracias a `FlattenedContextJsonFormatter`, `status` sale como campo de primer nivel en el JSON y Filebeat lo indexa como `status` en Kibana.
+- Gracias a `FlattenedContextJsonFormatter`, `messenger_status` sale como campo de primer nivel en el JSON y Filebeat lo indexa como `messenger_status` en Kibana.
 - Los registros de otros canales, o del canal `messenger` que no correspondan a ningún estado conocido (p. ej. "Stopping worker."), no se modifican.
 
 ## Capabilities
 
 ### New Capabilities
-- `structured-logging`: campos estructurados que la aplicación añade a sus logs JSON para poder filtrarlos en Kibana; empieza con el `status` de los mensajes Messenger.
+- `structured-logging`: campos estructurados que la aplicación añade a sus logs JSON para poder filtrarlos en Kibana; empieza con el `messenger_status` de los mensajes Messenger.
 
 ### Modified Capabilities
 

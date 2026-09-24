@@ -41,21 +41,21 @@ class MessengerStatusProcessorTest extends TestCase
     {
         $record = (new MessengerStatusProcessor())($this->record('messenger', $message));
 
-        self::assertSame($expectedStatus, $record->extra['status'] ?? null);
+        self::assertSame($expectedStatus, $record->extra['messenger_status'] ?? null);
     }
 
     public function testLeavesUnknownMessengerRecordsUntouched(): void
     {
         $record = (new MessengerStatusProcessor())($this->record('messenger', 'Stopping worker.'));
 
-        self::assertArrayNotHasKey('status', $record->extra);
+        self::assertArrayNotHasKey('messenger_status', $record->extra);
     }
 
     public function testLeavesOtherChannelsUntouched(): void
     {
         $record = (new MessengerStatusProcessor())($this->record('cache', 'Received message {class}'));
 
-        self::assertArrayNotHasKey('status', $record->extra);
+        self::assertArrayNotHasKey('messenger_status', $record->extra);
     }
 
     public function testStatusIsExposedAtRootLevelOfJsonLog(): void
@@ -64,7 +64,7 @@ class MessengerStatusProcessorTest extends TestCase
 
         $decoded = json_decode((new FlattenedContextJsonFormatter())->format($record), true);
 
-        self::assertSame('received', $decoded['status']);
+        self::assertSame('received', $decoded['messenger_status']);
     }
 
     private function record(string $channel, string $message): LogRecord
