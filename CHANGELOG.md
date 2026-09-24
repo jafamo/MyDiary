@@ -1,8 +1,12 @@
 # Changelog
 
-Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado según [SemVer](https://semver.org/lang/es/). Flujo de ramas: [Git Flow](CLAUDE.md).
+Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado según [SemVer](https://semver.org/lang/es/). Flujo de ramas y política de versiones/tags: [AGENTS.md](AGENTS.md).
 
 ## [Sin publicar]
+
+### Cambiado
+- Las instrucciones del repositorio pasan de `CLAUDE.md` a `AGENTS.md`, compartidas con otros agentes; `CLAUDE.md` solo lo referencia.
+- Política de versiones, tags y GitHub Releases documentada en `AGENTS.md`.
 
 ## [0.12.1] - 2026-09-24
 
@@ -49,6 +53,24 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ### Migraciones
 - `Version20260923154314`: añade `daily_summary.emoji_legend` (JSON, nullable). **Requiere `make migrate` tras el despliegue** (`make deploy` no ejecuta migraciones).
+
+## [0.10.0] - 2026-09-21
+
+### Ramas integradas en `develop`
+- Commits directos sobre `develop`: gestión manual de temas (change OpenSpec `gestion-topics`).
+
+### Añadido
+- **Gestión de temas** (`/topics`, enlace en el menú): listado de temas ordenado por frecuencia de uso, **renombrado** con validación de duplicados sin distinguir mayúsculas y **fusión** de un tema en otro con pantalla de confirmación previa (`TopicMerger`). Así se pueden corregir duplicados creados automáticamente ("trabajo" vs "curro") que ensuciaban el ranking de Estadísticas.
+
+## [0.9.0] - 2026-09-15
+
+### Ramas integradas en `develop`
+- `feature/resumen-telegram-cabecera-fecha`
+- `feature/telegram-summary-late-regen`
+
+### Añadido
+- **Cabecera con fecha en el resumen de Telegram**: el mensaje antepone el día al que corresponde el resumen (p. ej. `📔 Resumen día: 22 de septiembre de 2026`).
+- **Regeneración tardía del resumen diario**: nuevo comando `app:recheck-daily-summary`, lanzado por Symfony Scheduler cada 15 minutos entre las 21:00 y las 00:30. Si hay audios transcritos después de la última generación del resumen del día, lo regenera y lo vuelve a enviar por Telegram; si no, no hace nada.
 
 ## [0.8.0] - 2026-09-06
 
