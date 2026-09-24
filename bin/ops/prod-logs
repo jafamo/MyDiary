@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Lee logs de producción (solo lectura).
+#
+# Uso:
+#   bin/ops/prod-logs <servicio> [AAAA-MM-DD] [--grep PATRÓN] [--tail N]
+#   bin/ops/prod-logs --docker <contenedor> [--since 24h] [--grep PATRÓN] [--tail N]
+#
+# Servicios con fichero: messenger-worker, php (JSON por día, fecha UTC; por defecto hoy),
+# nginx (access.log; usa nginx-error para error.log), redis.
+
+source "$(dirname "$0")/_common.sh"
+
+usage() { sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
+
+[ $# -ge 1 ] || usage
+
+service="" date="" pattern="" tail_lines=200 container="" since="24h"
+
+if [ "$1" = "--docker" ]; then
+    [ $# -ge 2 ] || usage
+    container="$2"; shift 2
+else
+    service="$1"; shift
+    if [ $# -ge 1 ] && [[ "$1" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+        date="$1"; shift
+    fi
+fi
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --grep) pattern="$2"; shift 2 ;;
+        --tail) tail_lines="$2"; shift 2 ;;
+        --since) since="$2"; shift 2 ;;
+        *) usage ;;
+    esac
+done
+
+[[ "$tail_lines" =~ ^[0-9]+$ ]] || { echo "--tail debe ser un número" >&2; exit 1; }
+
+filter="cat"
+if [ -n "$pattern" ]; then
+    filter="grep -E -- $(quote "$pattern") || true"
+fi
+
+if [ -n "$container" ]; then
+    [[ "$container" =~ ^diary-[a-z-]+$ ]] || { echo "Solo contenedores diary-*" >&2; exit 1; }
+    prod_run "docker logs --since $(quote "$since") $(quote "$container") 2>&1 | { $filter; } | tail -n $tail_lines"
+    exit
+fi
+
+case "$service" in
+    messenger-worker|php)
+        file="logs/$service/app-prod-${date:-$(date -u +%F)}.log" ;;
+    nginx) file="logs/nginx/access.log" ;;
+    nginx-error) file="logs/nginx/error.log" ;;
+    redis) file="logs/redis/redis.log" ;;
+    *) echo "Servicio desconocido: $service" >&2; usage ;;
+esac
+
+prod_run "cd $(quote "$PROD_DIR") && if [ -f $(quote "$file") ]; then { $filter; } < $(quote "$file") | tail -n $tail_lines; else echo 'No existe $file' >&2; ls $(dirname "$file") >&2; exit 1; fi"

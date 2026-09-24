@@ -9,6 +9,7 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 - `feature/agents-md-convenciones`
 
 ### Añadido
+- Diagnóstico de producción en solo lectura: scripts `bin/ops/` (`prod-status`, `prod-logs`, `prod-es`, `prod-sql`, vía el alias SSH `diary-prod`) y skill de proyecto `/diagnostico` con el procedimiento evidencias → hipótesis → informe de causa raíz → bugfix. `AGENTS.md` documenta el servidor, los contenedores y dónde están los logs.
 - Hook `PreToolUse` de Claude Code en `.claude/settings.json` que bloquea `git commit` cuando la rama actual es `develop` o `main`.
 - Skill de proyecto `/release` (`.claude/skills/release/SKILL.md`) con el procedimiento completo de release de `AGENTS.md` (CHANGELOG, tag anotada, push y verificación de la GitHub Release).
 - Columna **Último uso** en la vista Temas (fecha del resumen diario más reciente de cada tema, calculada en la misma consulta de `TopicRepository::findAllWithUsageCount()`).

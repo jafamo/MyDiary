@@ -42,6 +42,9 @@ Estas decisiones se tomaron explícitamente para evitar sobre-ingeniería en un 
 ## Entorno
 
 - El stack Docker (SonarQube, Ollama, Open WebUI, nginx, app) corre en el **servidor de producción**, no en esta máquina. Dar comandos para ejecutar en el host en lugar de buscar contenedores en local.
+- **Servidor de producción:** `zeus`, alias SSH `diary-prod` (definido en `~/.ssh/config` del usuario; la IP no se versiona). Proyecto en `/projects/dockers/MyDiary`. Contenedores de la app: `diary-php`, `diary-messenger-worker` (async + scheduler), `diary-nginx`, `diary-postgres`, `diary-redis`, `diary-filebeat`. En el mismo host, fuera de este compose: `elasticsearch` (`localhost:9200`, logs en `filebeat-*`), `kibana` (`:5601`), `ollama`, `open-webui`, `sonarqube`.
+- **Logs en el servidor:** `logs/<servicio>/app-prod-AAAA-MM-DD.log` (JSON, fecha UTC) para `messenger-worker` y `php`; `logs/nginx/{access,error}.log`. Los ficheros guardan más historial que Elasticsearch.
+- **Acceso de diagnóstico:** solo lectura, con los scripts de `bin/ops/` (`prod-status`, `prod-logs`, `prod-es`, `prod-sql`) y el skill `/diagnostico`. Requiere la clave en el ssh-agent de systemd (`ssh-add -t 8h ~/.ssh/id_ed25519` en una terminal del usuario). Cualquier cambio en producción se entrega como comandos para que los ejecute el usuario.
 - El servidor de producción no tiene base de datos de test: nunca añadir `make test` ni pasos de tests al despliegue.
 - Los tests no deben depender de valores del `.env` local (p. ej. `TELEGRAM_AUTHORIZED_CHAT_ID`, rutas de almacenamiento de audio). Fijarlos explícitamente en la configuración de test para que pasen en GitHub CI.
 
