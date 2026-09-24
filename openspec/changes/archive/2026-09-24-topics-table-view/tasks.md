@@ -23,4 +23,4 @@
 
 - [x] 4.1 Actualizar `TopicControllerTest`: la vista contiene la tabla con las filas en el orden por defecto, el último uso y los `form=` de renombrado; el renombrado y la fusión siguen funcionando con los mismos nombres de campo.
 - [x] 4.2 `make cs-check`, `make phpstan` y `make test` en verde.
-- [ ] 4.3 Probar en navegador: buscar, ordenar, paginar (incluido cambiar tamaño), marcar temas en páginas distintas y ocultos por el filtro y fusionarlos, renombrar desde la tabla, y comprobar la vista en móvil y sin JS.
+- [x] 4.3 Probar en navegador: buscar, ordenar, paginar (incluido cambiar tamaño), marcar temas en páginas distintas y ocultos por el filtro y fusionarlos, renombrar desde la tabla, y comprobar la vista en móvil y sin JS.
