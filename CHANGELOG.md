@@ -4,6 +4,9 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+### Corregido
+- Política de tags en `AGENTS.md`: el git-flow instalado añade la versión al mensaje de `-m`, así que se usa `-m "Release"` para obtener `Release X.Y.Z`.
+
 ## [0.12.2] - 2026-09-24
 
 ### Ramas integradas en `develop`
