@@ -9,6 +9,7 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 - `feature/agents-md-convenciones`
 
 ### Añadido
+- Skill de proyecto `/release` (`.claude/skills/release/SKILL.md`) con el procedimiento completo de release de `AGENTS.md` (CHANGELOG, tag anotada, push y verificación de la GitHub Release).
 - Columna **Último uso** en la vista Temas (fecha del resumen diario más reciente de cada tema, calculada en la misma consulta de `TopicRepository::findAllWithUsageCount()`).
 
 ### Cambiado
