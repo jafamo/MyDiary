@@ -6,7 +6,7 @@
             <article class="entry">
                 <div class="entry__time">
                     <svg class="icon icon--sm"><use href="#i-clock"></use></svg>
-                    {{ entry.receivedAt|date('H:i', 'Europe/Madrid') }}
+                    {{ entry.receivedAt|date('H:i', local_timezone) }}
                 </div>
                 <div class="entry__body">
                     <div class="entry__meta">

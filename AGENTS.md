@@ -21,7 +21,8 @@ Estas decisiones se tomaron explícitamente para evitar sobre-ingeniería en un 
 ## Flujo de trabajo
 
 - Antes de implementar una funcionalidad, si el proyecto tiene OpenSpec inicializado (carpeta `openspec/`), pasar por un change proposal (`openspec change`) en lugar de tocar código directamente.
-- Tests: `make test` ejecuta el suite de PHPUnit dentro de `diary-php` contra la base de datos de test (`telegram_notes_test`, separada de `telegram_notes`). Estilo de código: `make cs-check` (verificar) / `make cs-fix` (corregir), PSR-12, aplicado también en el hook `pre-commit` (`.githooks/pre-commit`, activar con `git config core.hooksPath .githooks`).
+- Tests: `make test` ejecuta el suite de PHPUnit dentro de `diary-php` contra la base de datos de test (`telegram_notes_test`, separada de `telegram_notes`). Estilo de código: `make cs-check` (verificar) / `make cs-fix` (corregir), PSR-12, aplicado también en el hook `pre-commit` (`.githooks/pre-commit`, activar con `git config core.hooksPath .githooks`). Análisis estático: `make phpstan` (nivel 5, errores previos en `phpstan-baseline.neon`; regenerarlo solo de forma consciente).
+- CI (`.github/workflows/ci.yml`, en cada push a `main`/`develop` y en cada PR): `lint` (php-cs-fixer + PHPStan) → `tests` (PHPUnit con cobertura contra Postgres efímero) → `sonar` (SonarQube con esa cobertura).
 
 ## Control de versiones: Git Flow (regla fija)
 
@@ -41,11 +42,12 @@ Aplicar siempre que se haga una release o un hotfix, sin que el usuario tenga qu
 - **Versionado:** SemVer **sin prefijo `v`** (`0.13.0`, no `v0.13.0`). `release` sube minor (o major); `hotfix` sube patch.
 - **CHANGELOG antes del finish:** dentro de la rama `release/X.Y.Z` o `hotfix/X.Y.Z`, mover el contenido de `## [Sin publicar]` a `## [X.Y.Z] - AAAA-MM-DD` (dejando `## [Sin publicar]` vacío arriba), con las secciones habituales: `Ramas integradas en develop`, `Añadido` / `Cambiado` / `Corregido`, y `Migraciones` / `Despliegue` si aplican. Commit `Prepare release X.Y.Z`.
 - **Tags siempre anotadas, mensaje fijo `Release X.Y.Z`:**
-  - `git flow release finish -m "Release X.Y.Z" X.Y.Z`
-  - `git flow hotfix finish -m "Release X.Y.Z" X.Y.Z`
+  - `GIT_MERGE_AUTOEDIT=no git flow release finish -m "Release" X.Y.Z`
+  - `GIT_MERGE_AUTOEDIT=no git flow hotfix finish -m "Release" X.Y.Z`
+  - Ojo: el git-flow instalado (CJS Edition 2.2.1) **añade la versión al final** del mensaje de `-m`; por eso se pasa solo `"Release"`. Con `-m "Release X.Y.Z"` sale `Release X.Y.Z X.Y.Z`.
   - Nunca tags ligeras (sin `-m` git flow puede abrir editor o dejarla sin mensaje).
-- **Publicar:** `git push origin main develop --tags` y después crear la GitHub Release con el cuerpo de la sección del CHANGELOG:
+- **Publicar:** `git push origin main develop --tags`. Al llegar la tag, `.github/workflows/release.yml` crea la GitHub Release con el cuerpo de la sección `## [X.Y.Z]` del CHANGELOG (no hace nada si ya existe; falla si falta la sección). Si el workflow falla, crearla a mano:
   `gh release create X.Y.Z --title X.Y.Z --notes "$(awk '/^## \[X.Y.Z\]/{f=1;next} /^## \[/{f=0} f' CHANGELOG.md)"`
 - **Verificar:** `git for-each-ref refs/tags/X.Y.Z --format='%(objecttype) %(subject)'` debe dar `tag Release X.Y.Z`, y `gh release view X.Y.Z` debe existir.
 - **No reescribir tags ya publicadas** (sin `git tag -f` ni force-push de tags) salvo que el usuario lo pida expresamente.
-- Histórico conocido: `0.7.1` es una tag ligera y solo existe GitHub Release desde `0.12.1`; se deja así.
+- Histórico conocido: `0.7.1` es una tag ligera, varias tags tienen el mensaje `Release X.Y.Z X.Y.Z` (p. ej. `0.12.1`, `0.12.2`) y solo existe GitHub Release desde `0.12.1`; se deja así.

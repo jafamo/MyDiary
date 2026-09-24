@@ -4,6 +4,27 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+## [0.13.0] - 2026-09-24
+
+### Ramas integradas en `develop`
+- `feature/ci-quality-checks`
+- `bugfix/sonar-timezone-constant`
+- Commits directos sobre `develop`: corrección del mensaje de tag en la política de releases de `AGENTS.md`.
+
+### Añadido
+- **CI de calidad** (`.github/workflows/ci.yml`): en cada push a `main`/`develop` y en cada PR se ejecutan php-cs-fixer y PHPStan, después PHPUnit con cobertura contra un Postgres (pgvector) efímero, y por último SonarQube, que ahora recibe la cobertura (`sonar.php.coverage.reportPaths=coverage.xml`).
+- **PHPStan** (nivel 5, extensiones Symfony y Doctrine, baseline con los errores previos) y target `make phpstan`.
+- **GitHub Release automática** (`.github/workflows/release.yml`): al empujar una tag `X.Y.Z` se crea la release con la sección correspondiente del CHANGELOG; no hace nada si ya existe y falla si falta la sección.
+
+### Cambiado
+- `.github/workflows/sonarqube.yml` sustituido por el job `sonar` de `ci.yml`, que solo se ejecuta si pasan estilo, PHPStan y tests; `sonarqube-scan-action` sube de `v4` a `v8`.
+- Zona horaria local centralizada en la constante `App\LocalTimezone::NAME` (`Europe/Madrid`), usada por `DateRange`, `AudioRecordingRepository`, `Schedule` y, vía el global de Twig `local_timezone`, por las plantillas; desaparecen los literales duplicados que marcaba Sonar. `Especificaciones.md` deja de listar `APP_TIMEZONE` como variable de entorno.
+
+### Corregido
+- Los tests ya no dependen de los valores reales de Telegram del `.env`: `.env.test` define `TELEGRAM_*` ficticios (el test del webhook fallaba con los valores de `.env.example`).
+- Línea `.PHONY` del `Makefile`, que tenía texto basura al inicio y no declaraba los targets como phony.
+- Política de tags en `AGENTS.md`: el git-flow instalado añade la versión al mensaje de `-m`, así que se usa `-m "Release"` para obtener `Release X.Y.Z`.
+
 ## [0.12.2] - 2026-09-24
 
 ### Ramas integradas en `develop`

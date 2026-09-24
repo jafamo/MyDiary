@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\LocalTimezone;
+
 final class DateRange
 {
-    private const TIMEZONE = 'Europe/Madrid';
-
     /**
      * Devuelve [inicio, fin) del día indicado en Europe/Madrid, convertido a UTC.
      *
@@ -21,7 +21,7 @@ final class DateRange
     public static function dayBoundaries(\DateTimeImmutable $date): array
     {
         $utc = new \DateTimeZone('UTC');
-        $localDate = $date->setTimezone(new \DateTimeZone(self::TIMEZONE));
+        $localDate = $date->setTimezone(new \DateTimeZone(LocalTimezone::NAME));
         $start = $localDate->setTime(0, 0, 0)->setTimezone($utc);
         $end = $localDate->setTime(0, 0, 0)->modify('+1 day')->setTimezone($utc);
 
@@ -36,7 +36,7 @@ final class DateRange
     public static function weekBoundaries(\DateTimeImmutable $date): array
     {
         $utc = new \DateTimeZone('UTC');
-        $local = $date->setTimezone(new \DateTimeZone(self::TIMEZONE));
+        $local = $date->setTimezone(new \DateTimeZone(LocalTimezone::NAME));
         $dayOfWeek = (int) $local->format('N');
         $monday = $local->setTime(0, 0, 0)->modify(sprintf('-%d days', $dayOfWeek - 1));
         $nextMonday = $monday->modify('+7 days');
@@ -62,6 +62,6 @@ final class DateRange
      */
     public static function nowInMadrid(): \DateTimeImmutable
     {
-        return new \DateTimeImmutable('now', new \DateTimeZone(self::TIMEZONE));
+        return new \DateTimeImmutable('now', new \DateTimeZone(LocalTimezone::NAME));
     }
 }

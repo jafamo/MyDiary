@@ -63,7 +63,7 @@
 
         {% if daily_summary %}
             <div class="summary-panel">
-                <div class="summary-panel__eyebrow"><svg class="icon"><use href="#i-dot"></use></svg> Resumen del día · generado {{ daily_summary.generatedAt|date('H:i', 'Europe/Madrid') }}</div>
+                <div class="summary-panel__eyebrow"><svg class="icon"><use href="#i-dot"></use></svg> Resumen del día · generado {{ daily_summary.generatedAt|date('H:i', local_timezone) }}</div>
                 <p>{{ daily_summary.summaryText }}</p>
                 {% include '_partials/emoji_legend.html.twig' with {legend: daily_summary.emojiLegend} %}
                 {% if daily_summary.topics|length > 0 %}
