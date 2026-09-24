@@ -1,8 +1,4 @@
-## Purpose
-
-Gestión manual de `Topic`: permite corregir los temas creados automáticamente al generar los `DailySummary`, fusionando duplicados y renombrándolos, para que el ranking de Estadísticas y las etiquetas de Resúmenes no se ensucien con el tiempo.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Vista de gestión de temas
 El sistema SHALL exponer una vista "Temas" (`/topics`) que presenta todos los `Topic` existentes en una tabla con una fila por `Topic` y las columnas: selección para fusionar, `name`, número de `DailySummary` asociados, último uso (fecha del `DailySummary` más reciente asociado, vacía si no tiene ninguno) y acción de renombrar. Por defecto las filas se ordenan por número de `DailySummary` asociados descendente y, a igualdad, por `name` ascendente. La tabla SHALL permitir filtrar por nombre, reordenar por columna y paginar sin recargar la página (25 filas por página por defecto, con opción de 50 y 100), y la selección de temas para fusionar SHALL conservarse aunque el filtro oculte filas seleccionadas o estén en otra página.
@@ -58,29 +54,3 @@ El sistema SHALL exponer una vista "Temas" (`/topics`) que presenta todos los `T
 #### Scenario: Funcionamiento sin JavaScript
 - **WHEN** la página se usa con JavaScript desactivado
 - **THEN** la tabla se muestra completa y sin paginar en el orden por defecto y la fusión y el renombrado siguen funcionando, con el selector de destino listando todos los `Topic`
-
-### Requirement: Renombrar un tema
-El sistema SHALL permitir renombrar un `Topic` existente desde la vista de gestión, validando que el nuevo `name` no coincida (de forma case-insensitive) con el de otro `Topic` ya existente.
-
-#### Scenario: Renombrado válido
-- **WHEN** el usuario renombra el `Topic` "curro" a "trabajo" y no existe ya un `Topic` "trabajo"
-- **THEN** el `Topic` pasa a llamarse "trabajo" y sigue asociado a los mismos `DailySummary` que antes
-
-#### Scenario: Renombrado a un nombre duplicado
-- **WHEN** el usuario intenta renombrar un `Topic` a un `name` que ya usa otro `Topic` (comparando sin distinguir mayúsculas/minúsculas)
-- **THEN** el sistema rechaza el renombrado y muestra un error indicando que ya existe un tema con ese nombre
-
-### Requirement: Fusionar temas duplicados
-El sistema SHALL permitir fusionar dos o más `Topic` en un `Topic` superviviente elegido por el usuario: todos los `DailySummary` asociados a los `Topic` fusionados quedan asociados al superviviente (sin duplicar la asociación si un `DailySummary` ya estaba vinculado a ambos), y los `Topic` fusionados se eliminan.
-
-#### Scenario: Fusión de dos temas sin solapamiento
-- **WHEN** el usuario fusiona el `Topic` "curro" (asociado a los `DailySummary` A y B) dentro del `Topic` "trabajo" (asociado al `DailySummary` C)
-- **THEN** "trabajo" queda asociado a A, B y C; el `Topic` "curro" deja de existir
-
-#### Scenario: Fusión con `DailySummary` compartido
-- **WHEN** el usuario fusiona el `Topic` "curro" dentro del `Topic` "trabajo" y el `DailySummary` D ya estaba asociado a ambos
-- **THEN** tras la fusión, D queda asociado a "trabajo" una sola vez (sin fila duplicada ni error de constraint)
-
-#### Scenario: Confirmación antes de fusionar
-- **WHEN** el usuario inicia una fusión de temas
-- **THEN** el sistema muestra los nombres de los `Topic` origen, el `Topic` destino y el número de `DailySummary` afectados, y solo ejecuta la fusión tras confirmación explícita

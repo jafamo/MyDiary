@@ -48,6 +48,37 @@ class TopicControllerTest extends WebTestCase
         self::assertStringContainsString('topic-ctrl-trabajo', $client->getResponse()->getContent());
     }
 
+    public function testIndexRendersTableInDefaultOrderWithLastUsedAndRenameFormsOutsideMergeForm(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+
+        $trabajo = $this->createTopic('topic-ctrl-trabajo');
+        $curro = $this->createTopic('topic-ctrl-curro');
+        $this->createTopic('topic-ctrl-ocio');
+        $this->createDailySummary('2021-04-01', [$trabajo, $curro]);
+        $this->createDailySummary('2021-04-02', [$trabajo]);
+
+        $client->loginUser($user);
+        $crawler = $client->request('GET', '/topics');
+
+        self::assertResponseIsSuccessful();
+
+        $rows = $crawler->filter('form.topic-merge-form table.topics-table tbody tr')
+            ->reduce(static fn ($tr) => str_starts_with((string) $tr->attr('data-name'), 'topic-ctrl-'));
+        self::assertSame(['topic-ctrl-trabajo', 'topic-ctrl-curro', 'topic-ctrl-ocio'], $rows->each(static fn ($tr) => $tr->attr('data-name')));
+        self::assertSame(['2', '1', '0'], $rows->each(static fn ($tr) => $tr->attr('data-count')));
+        self::assertSame(['2021-04-02', '2021-04-01', ''], $rows->each(static fn ($tr) => $tr->attr('data-last-used')));
+        self::assertSame('02/04/2021', trim($rows->eq(0)->filter('td.col-date')->text()));
+
+        $formId = sprintf('topic-rename-%d', $trabajo->getId());
+        self::assertCount(1, $crawler->filter(sprintf('input[name="topic_rename[name]"][form="%s"]', $formId)));
+        self::assertCount(1, $crawler->filter(sprintf('button[type="submit"][form="%s"]', $formId)));
+        self::assertCount(0, $crawler->filter('form form'));
+        self::assertCount(1, $crawler->filter(sprintf('form#%s input[name="topic_rename[_token]"]', $formId)));
+    }
+
     public function testRenameUpdatesTopicName(): void
     {
         $client = static::createClient();
