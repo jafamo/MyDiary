@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cmd=$(jq -r '.tool_input.command // empty'); if printf '%s' \"$cmd\" | grep -Eq '(^|[;&|[:space:]])git[[:space:]]+commit' && case \"$(git branch --show-current 2>/dev/null)\" in develop|main) true;; *) false;; esac; then echo 'No commitear directamente en develop/main: crea una rama feature/bugfix con git flow (ver AGENTS.md).' >&2; exit 2; fi",
+            "statusMessage": "Comprobando rama antes de commitear"
+          }
+        ]
+      }
+    ]
+  }
+}

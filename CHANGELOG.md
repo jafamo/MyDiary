@@ -6,12 +6,18 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ### Ramas integradas en `develop`
 - `feature/topics-table-view`
+- `feature/agents-md-convenciones`
 
 ### Añadido
+- Diagnóstico de producción en solo lectura: scripts `bin/ops/` (`prod-status`, `prod-logs`, `prod-es`, `prod-sql`, vía el alias SSH `diary-prod`) y skill de proyecto `/diagnostico` con el procedimiento evidencias → hipótesis → informe de causa raíz → bugfix. `AGENTS.md` documenta el servidor, los contenedores y dónde están los logs.
+- Hook `PreToolUse` de Claude Code en `.claude/settings.json` que bloquea `git commit` cuando la rama actual es `develop` o `main`.
+- Skill de proyecto `/release` (`.claude/skills/release/SKILL.md`) con el procedimiento completo de release de `AGENTS.md` (CHANGELOG, tag anotada, push y verificación de la GitHub Release).
 - Columna **Último uso** en la vista Temas (fecha del resumen diario más reciente de cada tema, calculada en la misma consulta de `TopicRepository::findAllWithUsageCount()`).
 
 ### Cambiado
 - La vista **Temas** (`/topics`) pasa de tarjetas apiladas a una tabla con búsqueda instantánea por nombre (sin distinguir mayúsculas ni acentos), ordenación por columna y paginación en cliente (25/50/100 filas) con `public/js/topics.js`. La selección para fusionar se conserva al filtrar y al cambiar de página; la barra de fusión (fija abajo) muestra cuántos temas hay seleccionados y cuántos quedan fuera de la vista, permite quitar la selección y limita el destino a los temas marcados. Sin JavaScript se ve la tabla completa y la fusión funciona como antes.
+
+- `AGENTS.md`: nuevas secciones **Flujo de cambios (OBLIGATORIO)** (incluye proponer 2-3 opciones de diseño y esperar elección antes de implementar), **Entorno** (el stack Docker vive en producción, sin tests en el despliegue, tests independientes del `.env` local) y **Convenciones de código** (campos de log con prefijo para Kibana, constantes globales en un sitio compartido). La regla de push tras un `finish` pasa a ser solo `develop`; `main` y tags únicamente en releases y hotfixes.
 
 ### Corregido
 - El botón "Guardar" del renombrado de temas enviaba el formulario de fusión (formulario anidado, HTML inválido); ahora cada renombrado tiene su propio formulario enlazado con el atributo `form=`.

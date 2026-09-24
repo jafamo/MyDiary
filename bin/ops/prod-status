@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Estado de producción (solo lectura): commit desplegado, contenedores diary-* con fecha de arranque
+# y reinicios, y los últimos errores de hoy del worker y de php.
+#
+# Uso:
+#   bin/ops/prod-status
+
+source "$(dirname "$0")/_common.sh"
+
+prod_run "cd $(quote "$PROD_DIR") && \
+    echo '== Commit desplegado' && git log -1 --format='%h %cd %s' --date=iso && git status --short | head -5 && \
+    echo && echo '== Contenedores' && \
+    for c in \$(docker ps -a --filter name=diary- --format '{{.Names}}' | sort); do \
+        docker inspect \"\$c\" --format '{{.Name}}  {{.State.Status}}  arrancado={{.State.StartedAt}}  reinicios={{.RestartCount}}' | sed 's#^/##'; \
+    done && \
+    echo && echo '== Errores de hoy (worker y php)' && \
+    for s in messenger-worker php; do \
+        f=logs/\$s/app-prod-\$(date -u +%F).log; \
+        [ -f \"\$f\" ] && grep -hE '\"level_name\":\"(ERROR|CRITICAL|ALERT|EMERGENCY)\"' \"\$f\" | cut -c1-300 | tail -5 | sed \"s#^#[\$s] #\"; \
+    done; true"
