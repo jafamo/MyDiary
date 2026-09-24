@@ -13,6 +13,7 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 - `.github/workflows/sonarqube.yml` sustituido por el job `sonar` de `ci.yml`, que solo se ejecuta si pasan estilo, PHPStan y tests; `sonarqube-scan-action` sube de `v4` a `v8`.
 
 ### Corregido
+- Los tests ya no dependen de los valores reales de Telegram del `.env`: `.env.test` define `TELEGRAM_*` ficticios (el test del webhook fallaba con los valores de `.env.example`).
 - Línea `.PHONY` del `Makefile`, que tenía texto basura al inicio y no declaraba los targets como phony.
 - Política de tags en `AGENTS.md`: el git-flow instalado añade la versión al mensaje de `-m`, así que se usa `-m "Release"` para obtener `Release X.Y.Z`.
 
