@@ -4,9 +4,16 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+## [0.12.2] - 2026-09-24
+
+### Ramas integradas en `develop`
+- `feature/tag-policy`
+- Commits directos sobre `develop`: instrucciones compartidas en `AGENTS.md`.
+
 ### Cambiado
 - Las instrucciones del repositorio pasan de `CLAUDE.md` a `AGENTS.md`, compartidas con otros agentes; `CLAUDE.md` solo lo referencia.
 - Política de versiones, tags y GitHub Releases documentada en `AGENTS.md`.
+- Recuperadas en este CHANGELOG las entradas de `0.9.0` y `0.10.0`, que faltaban.
 
 ## [0.12.1] - 2026-09-24
 
