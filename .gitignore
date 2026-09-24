@@ -7,6 +7,7 @@ data/
 
 # SonarQube
 .scannerwork/
+coverage.xml
 
 ###> symfony/framework-bundle ###
 /.env.local
