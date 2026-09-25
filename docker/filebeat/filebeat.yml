@@ -43,6 +43,12 @@ filebeat.inputs:
     json.add_error_key: true
     json.overwrite_keys: true
 
+processors:
+  - add_fields:
+      target: service
+      fields:
+        name: mydiary
+
 output.elasticsearch:
   hosts: ["${ELASTICSEARCH_HOSTS}"]
   username: "${ELASTICSEARCH_USERNAME:-}"
