@@ -4,6 +4,8 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+## [0.15.0] - 2026-09-25
+
 ### Ramas integradas en `develop`
 - `feature/topics-table-view`
 - `feature/agents-md-convenciones`
@@ -17,13 +19,14 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ### Cambiado
 - La vista **Temas** (`/topics`) pasa de tarjetas apiladas a una tabla con búsqueda instantánea por nombre (sin distinguir mayúsculas ni acentos), ordenación por columna y paginación en cliente (25/50/100 filas) con `public/js/topics.js`. La selección para fusionar se conserva al filtrar y al cambiar de página; la barra de fusión (fija abajo) muestra cuántos temas hay seleccionados y cuántos quedan fuera de la vista, permite quitar la selección y limita el destino a los temas marcados. Sin JavaScript se ve la tabla completa y la fusión funciona como antes.
-
 - `AGENTS.md`: nuevas secciones **Flujo de cambios (OBLIGATORIO)** (incluye proponer 2-3 opciones de diseño y esperar elección antes de implementar), **Entorno** (el stack Docker vive en producción, sin tests en el despliegue, tests independientes del `.env` local) y **Convenciones de código** (campos de log con prefijo para Kibana, constantes globales en un sitio compartido). La regla de push tras un `finish` pasa a ser solo `develop`; `main` y tags únicamente en releases y hotfixes.
-
-- Filebeat añade a todos los eventos el campo ECS `service.name: mydiary` (processor global `add_fields` en `docker/filebeat/filebeat.yml`) para filtrar los logs de MyDiary en el Elasticsearch/Kibana compartido; `log_service` se mantiene por componente. **Despliegue:** `docker compose up -d --force-recreate diary-filebeat` (solo afecta a eventos nuevos).
+- Filebeat añade a todos los eventos el campo ECS `service.name: mydiary` (processor global `add_fields` en `docker/filebeat/filebeat.yml`) para filtrar los logs de MyDiary en el Elasticsearch/Kibana compartido; `log_service` se mantiene por componente.
 
 ### Corregido
 - El botón "Guardar" del renombrado de temas enviaba el formulario de fusión (formulario anidado, HTML inválido); ahora cada renombrado tiene su propio formulario enlazado con el atributo `form=`.
+
+### Despliegue
+- Recrear Filebeat para cargar el nuevo `filebeat.yml`: `docker compose up -d --force-recreate diary-filebeat`. Solo los eventos nuevos llevan `service.name: mydiary`; si el campo no aparece en Kibana, refrescar el Data View `filebeat-*`.
 
 ## [0.14.0] - 2026-09-24
 
