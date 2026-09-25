@@ -270,6 +270,7 @@ Elasticsearch y Kibana ya están desplegados aparte en el mismo servidor de prod
 
 - Servicio `diary-filebeat` (`docker-compose.yml`), imagen `docker.elastic.co/beats/filebeat:${FILEBEAT_VERSION}`.
 - Config en `docker/filebeat/filebeat.yml`: inputs de fichero (`nginx` access + error por separado, `postgres`, `redis`, `php`) sobre `${LOGS_PATH}` montado en modo lectura (`/logs:ro`), cada uno etiquetado con los campos `log_service` y (nginx) `log_type` (no `service`: ese nombre choca con el campo objeto `service.*` de ECS y Elasticsearch rechaza el documento con `mapper_parsing_exception`). Los inputs de `nginx access.log` y `php` parsean JSON directamente.
+- Un processor global `add_fields` añade a todos los eventos el campo ECS `service.name: mydiary`, para aislar los logs de MyDiary en el Elasticsearch compartido del host (filtro `service.name : "mydiary"` en Kibana); `log_service` sigue identificando el componente. Por eso ningún log JSON (PHP o nginx) debe usar `service` como clave de primer nivel.
 - Bind mount de un único fichero (`filebeat.yml`, `default.conf`): Docker fija el bind al inodo que exista en el momento de crear el contenedor. Si el fichero se reescribe después (nuevo inodo, p. ej. al editarlo), un `nginx -s reload` o reinicio normal no recoge el cambio — hace falta `docker compose up -d --force-recreate <servicio>`.
 - No lee logs de contenedor Docker ni monta el socket: como la app ya escribe a fichero en todos los entornos, todo es lectura de fichero.
 - El `command` del servicio (`["-e", "--strict.perms=false"]`) sustituye el `CMD` por defecto de la imagen entera, así que hay que mantener `-e` explícito (si no, Filebeat deja de loguear a stderr y `docker compose logs` no muestra nada) además de `--strict.perms=false` (el `filebeat.yml` montado por bind mount conserva el propietario del host, no root, y sin ese flag Filebeat rechaza arrancar).
@@ -290,7 +291,7 @@ Elasticsearch y Kibana ya están desplegados aparte en el mismo servidor de prod
 1. Rellenar las variables de ES/Kibana en el `.env` del servidor con los valores reales.
 2. `docker compose up -d diary-filebeat`
 3. `docker compose exec diary-filebeat filebeat setup -e` (crea el index template e ILM policy en Elasticsearch).
-4. En Kibana: crear el Data View `filebeat-*` para poder explorar/filtrar por `service` en *Discover*.
+4. En Kibana: crear el Data View `filebeat-*` para poder explorar/filtrar por `service.name` y `log_service` en *Discover*.
 
 ## 8. Pendiente de confirmar antes/durante el desarrollo
 

@@ -60,6 +60,25 @@ class TopicRepositoryTest extends KernelTestCase
         self::assertSame(0, $rows[2]['count']);
     }
 
+    public function testFindAllWithUsageCountReturnsMostRecentDailySummaryDateAsLastUsed(): void
+    {
+        $trabajo = $this->createTopic('topic-repo-trabajo');
+        $this->createTopic('topic-repo-ocio');
+
+        $this->attachToDailySummary('2021-02-03', $trabajo);
+        $this->attachToDailySummary('2021-02-01', $trabajo);
+
+        $rows = $this->repository->findAllWithUsageCount();
+        $byName = [];
+        foreach ($rows as $row) {
+            $byName[$row['topic']->getName()] = $row;
+        }
+
+        self::assertNotNull($byName['topic-repo-trabajo']['lastUsed']);
+        self::assertSame('2021-02-03', $byName['topic-repo-trabajo']['lastUsed']->format('Y-m-d'));
+        self::assertNull($byName['topic-repo-ocio']['lastUsed']);
+    }
+
     public function testFindOneByNameCaseInsensitiveMatchesRegardlessOfCase(): void
     {
         $this->createTopic('topic-repo-trabajo');

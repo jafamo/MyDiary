@@ -2,6 +2,10 @@
 
 {% block title %}Temas{% endblock %}
 
+{% block javascripts %}
+    <script src="{{ asset('js/topics.js') }}" defer></script>
+{% endblock %}
+
 {% block body %}
     <main class="content content--wide">
         <div class="page-header"><h1>Temas</h1></div>
@@ -17,42 +21,83 @@
             <p class="entry-empty">No hay temas todavía.</p>
         {% else %}
             <form class="topic-merge-form" method="post" action="{{ path('app_topics_merge_confirm') }}">
-                <div class="entry-log">
-                    {% for row in topics %}
-                        <article class="entry">
-                            <div class="entry__body">
-                                <div class="entry__meta">
-                                    <label>
-                                        <input type="checkbox" name="topic_merge[origins][]" value="{{ row.topic.id }}">
-                                        {{ row.topic.name }}
-                                    </label>
-                                    <span class="status-pill">{{ row.count }} resumen{{ row.count == 1 ? '' : 'es' }}</span>
-                                </div>
-
-                                <details class="entry__edit">
-                                    <summary class="btn-action"><svg class="icon icon--sm"><use href="#i-edit"></use></svg> Renombrar</summary>
-                                    <form class="entry__edit-form" method="post" action="{{ path('app_topics_rename', {topic: row.topic.id}) }}">
-                                        <input type="text" name="topic_rename[name]" value="{{ row.topic.name }}">
-                                        <input type="hidden" name="topic_rename[_token]" value="{{ csrf_token('topic_rename') }}">
-                                        <button class="btn-action btn-action--primary" type="submit">Guardar</button>
-                                    </form>
-                                </details>
-                            </div>
-                        </article>
-                    {% endfor %}
+                {# Buscador, contador y paginación solo tienen sentido con JS: topics.js les quita el `hidden` #}
+                <div class="topics-toolbar" data-topics-js hidden>
+                    <div class="topics-search">
+                        <svg class="icon icon--sm"><use href="#i-search"></use></svg>
+                        <input type="search" id="topics-search" placeholder="Buscar tema…" aria-label="Buscar tema por nombre" autocomplete="off">
+                    </div>
+                    <span class="topics-toolbar__meta" id="topics-meta">{{ topics|length }} temas</span>
                 </div>
 
-                <div class="entry__actions">
-                    <label for="topic-merge-destination">Fusionar seleccionados en:</label>
-                    <select id="topic-merge-destination" name="topic_merge[destination]">
-                        {% for row in topics %}
-                            <option value="{{ row.topic.id }}">{{ row.topic.name }}</option>
-                        {% endfor %}
-                    </select>
-                    <input type="hidden" name="topic_merge[_token]" value="{{ csrf_token('topic_merge') }}">
-                    <button class="btn-action btn-action--primary" type="submit"><svg class="icon icon--sm"><use href="#i-tag"></use></svg> Fusionar</button>
+                <div class="topics-table-wrap">
+                    <table class="topics-table" id="topics-table">
+                        <thead>
+                            <tr>
+                                <th class="col-select" scope="col"><span class="visually-hidden">Seleccionar</span></th>
+                                <th scope="col" data-sort-key="name"><button type="button" class="sort-btn">Nombre <span class="sort-btn__arrow" aria-hidden="true">↕</span></button></th>
+                                <th scope="col" class="col-num" data-sort-key="count" aria-sort="descending"><button type="button" class="sort-btn">Resúmenes <span class="sort-btn__arrow" aria-hidden="true">↓</span></button></th>
+                                <th scope="col" class="col-date" data-sort-key="lastUsed"><button type="button" class="sort-btn">Último uso <span class="sort-btn__arrow" aria-hidden="true">↕</span></button></th>
+                                <th scope="col" class="col-actions"><span class="visually-hidden">Acciones</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in topics %}
+                                <tr data-name="{{ row.topic.name }}" data-count="{{ row.count }}" data-last-used="{{ row.lastUsed ? row.lastUsed|date('Y-m-d') : '' }}">
+                                    <td class="col-select"><input type="checkbox" name="topic_merge[origins][]" value="{{ row.topic.id }}" aria-label="Seleccionar {{ row.topic.name }}"></td>
+                                    <td><span class="topics-table__name"><svg class="icon"><use href="#i-tag"></use></svg>{{ row.topic.name }}</span></td>
+                                    <td class="col-num{{ row.count == 0 ? ' topics-table__zero' : '' }}">{{ row.count }}</td>
+                                    <td class="col-date">{% if row.lastUsed %}<time datetime="{{ row.lastUsed|date('Y-m-d') }}">{{ row.lastUsed|date('d/m/Y') }}</time>{% else %}—{% endif %}</td>
+                                    <td class="col-actions">
+                                        <details class="topic-rename">
+                                            <summary class="btn-action"><svg class="icon icon--sm"><use href="#i-edit"></use></svg> Renombrar</summary>
+                                            <div class="topic-rename__row">
+                                                <input type="text" form="topic-rename-{{ row.topic.id }}" name="topic_rename[name]" value="{{ row.topic.name }}" aria-label="Nuevo nombre de {{ row.topic.name }}">
+                                                <button class="btn-action btn-action--primary" type="submit" form="topic-rename-{{ row.topic.id }}">Guardar</button>
+                                            </div>
+                                        </details>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <p class="topics-empty-filter" id="topics-empty-filter" hidden>Ningún tema coincide con «<span></span>».</p>
+                </div>
+
+                <div class="topics-pager" id="topics-pager" data-topics-js hidden>
+                    <span id="topics-range"></span>
+                    <div class="topics-pager__pages" id="topics-pages"></div>
+                    <label class="topics-pager__size">Filas por página
+                        <select id="topics-page-size">
+                            <option value="25" selected>25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="topic-merge-bar" id="topic-merge-bar">
+                    <span class="topic-merge-bar__count" data-topics-js hidden><b id="topic-merge-count">0</b> seleccionados <span class="topic-merge-bar__hidden" id="topic-merge-hidden"></span></span>
+                    <button type="button" class="topic-merge-bar__clear" id="topic-merge-clear" hidden>Quitar selección</button>
+                    <div class="topic-merge-bar__dest">
+                        <label for="topic-merge-destination">Fusionar seleccionados en:</label>
+                        <select id="topic-merge-destination" name="topic_merge[destination]">
+                            {% for row in topics %}
+                                <option value="{{ row.topic.id }}">{{ row.topic.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <input type="hidden" name="topic_merge[_token]" value="{{ csrf_token('topic_merge') }}">
+                        <button class="btn-action btn-action--primary" type="submit" id="topic-merge-submit"><svg class="icon icon--sm"><use href="#i-tag"></use></svg> Fusionar</button>
+                    </div>
                 </div>
             </form>
+
+            {# Formularios de renombrado fuera del de fusión (no se pueden anidar); sus campos van en la tabla con `form=` #}
+            {% for row in topics %}
+                <form id="topic-rename-{{ row.topic.id }}" method="post" action="{{ path('app_topics_rename', {topic: row.topic.id}) }}">
+                    <input type="hidden" name="topic_rename[_token]" value="{{ csrf_token('topic_rename') }}">
+                </form>
+            {% endfor %}
         {% endif %}
     </main>
 {% endblock %}

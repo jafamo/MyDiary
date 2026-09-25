@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Consulta Elasticsearch de producción (solo lectura), con las credenciales del .env del servidor.
+# Las credenciales nunca salen del servidor.
+#
+# Uso:
+#   bin/ops/prod-es '<ruta>' ['<cuerpo JSON>']
+#
+# Solo se permiten rutas de lectura: _search, _count, _cat/*, _mapping.
+# Ejemplos:
+#   bin/ops/prod-es '_cat/indices?v&s=index'
+#   bin/ops/prod-es 'filebeat-*/_search?size=20&sort=@timestamp:desc' \
+#     '{"query":{"bool":{"filter":[{"range":{"@timestamp":{"gte":"now-7d"}}},{"term":{"level_name":"ERROR"}}]}}}'
+
+source "$(dirname "$0")/_common.sh"
+
+[ $# -ge 1 ] || { sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
+
+path="${1#/}"
+body="${2:-}"
+
+if ! [[ "$path" =~ (^|/)(_search|_count|_mapping)([/?]|$) || "$path" =~ ^_cat/ ]]; then
+    echo "Ruta no permitida (solo lectura): $path" >&2
+    exit 1
+fi
+
+# El cuerpo viaja por stdin para no pelear con el escapado del comando remoto.
+printf '%s' "$body" | prod_run "cd $(quote "$PROD_DIR") && \
+    P=\$(grep -hoP '^ELASTICSEARCH_PASSWORD=\\K.*' .env .env.local 2>/dev/null | tail -1 | tr -d \"\\\"'\"); \
+    U=\$(grep -hoP '^ELASTICSEARCH_USERNAME=\\K.*' .env .env.local 2>/dev/null | tail -1 | tr -d \"\\\"'\"); \
+    B=\$(cat); \
+    if [ -n \"\$B\" ]; then \
+        curl -sS -u \"\${U:-elastic}:\$P\" -H 'Content-Type: application/json' -X GET $(quote "http://localhost:9200/$path") --data-binary \"\$B\"; \
+    else \
+        curl -sS -u \"\${U:-elastic}:\$P\" $(quote "http://localhost:9200/$path"); \
+    fi"
+echo

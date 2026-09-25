@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Ejecuta una consulta SQL de solo lectura contra la base de datos de producción.
+# La sesión se abre con default_transaction_read_only=on: cualquier escritura falla en Postgres.
+#
+# Uso:
+#   bin/ops/prod-sql 'SELECT date, generated_at FROM daily_summary ORDER BY date DESC LIMIT 5'
+
+source "$(dirname "$0")/_common.sh"
+
+[ $# -eq 1 ] || { sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
+
+sql="$1"
+
+if ! [[ "$(printf '%s' "$sql" | tr '[:lower:]' '[:upper:]' | sed 's/^[[:space:]]*//')" =~ ^(SELECT|WITH|EXPLAIN|SHOW)[[:space:]] ]]; then
+    echo "Solo SELECT/WITH/EXPLAIN/SHOW" >&2
+    exit 1
+fi
+
+printf '%s' "$sql" | prod_run "docker exec -i -e PGOPTIONS='-c default_transaction_read_only=on' diary-postgres \
+    sh -c 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -v ON_ERROR_STOP=1 -P pager=off'"

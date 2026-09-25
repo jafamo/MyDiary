@@ -39,14 +39,15 @@ class TopicRepository extends ServiceEntityRepository
     }
 
     /**
-     * Todos los temas con su número de `DailySummary` asociados, incluidos los que no tienen ninguno.
+     * Todos los temas con su número de `DailySummary` asociados y la fecha del más reciente (último uso),
+     * incluidos los que no tienen ninguno (`lastUsed` a null).
      *
-     * @return list<array{topic: Topic, count: int}>
+     * @return list<array{topic: Topic, count: int, lastUsed: ?\DateTimeImmutable}>
      */
     public function findAllWithUsageCount(): array
     {
         $rows = $this->createQueryBuilder('t')
-            ->select('t AS topic, COUNT(ds.id) AS cnt')
+            ->select('t AS topic, COUNT(ds.id) AS cnt, MAX(ds.date) AS lastUsed')
             ->leftJoin('t.dailySummaries', 'ds')
             ->groupBy('t.id')
             ->orderBy('cnt', 'DESC')
@@ -55,7 +56,11 @@ class TopicRepository extends ServiceEntityRepository
             ->getResult()
         ;
 
-        return array_map(static fn (array $row) => ['topic' => $row['topic'], 'count' => (int) $row['cnt']], $rows);
+        return array_map(static fn (array $row) => [
+            'topic' => $row['topic'],
+            'count' => (int) $row['cnt'],
+            'lastUsed' => null !== $row['lastUsed'] ? new \DateTimeImmutable($row['lastUsed']) : null,
+        ], $rows);
     }
 
     /**
