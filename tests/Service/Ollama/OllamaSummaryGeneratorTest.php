@@ -60,6 +60,14 @@ class OllamaSummaryGeneratorTest extends TestCase
         self::assertStringContainsString('"legend"', $systemPrompt);
     }
 
+    public function testOutputContractRequiresSpanish(): void
+    {
+        $payloads = [];
+        $this->createGenerator($this->recordingClient($payloads))->generate(['transcripción 1']);
+
+        self::assertStringContainsString('en castellano', $payloads[0]['messages'][0]['content']);
+    }
+
     public function testEditingPromptFileChangesNextRequest(): void
     {
         $payloads = [];
@@ -172,6 +180,43 @@ class OllamaSummaryGeneratorTest extends TestCase
 
         self::assertSame('Resumen', $result['summary']);
         self::assertSame(['promptTokens' => null, 'completionTokens' => null, 'model' => 'qwen2.5:14b'], $result['usage']);
+    }
+
+    public function testAcceptsSpanishWithAccentsEñeAndEmojis(): void
+    {
+        $mockClient = new MockHttpClient($this->ollamaResponse([
+            'summary' => "🏠 Hoy acompañaste a tu niña al pediatra: ¿mañana más?\n\n✅ Añadiste 3 pendientes.",
+            'topics' => ['Cita pediatra', 'Compra año nuevo'],
+            'legend' => [['emoji' => '🏠', 'meaning' => 'Familia'], ['emoji' => '✅', 'meaning' => 'Pendientes']],
+        ]));
+
+        $result = $this->createGenerator($mockClient)->generate(['transcripción 1']);
+
+        self::assertStringStartsWith('🏠 Hoy acompañaste', $result['summary']);
+    }
+
+    /**
+     * @return iterable<string, array{array<string, mixed>}>
+     */
+    public static function nonLatinResponses(): iterable
+    {
+        yield 'resumen en japonés' => [['summary' => '💼 今日は仕事で会議がありました。', 'topics' => ['Reunión'], 'legend' => []]];
+        yield 'tema en chino' => [['summary' => '💼 Reunión de trabajo', 'topics' => ['工作会议'], 'legend' => []]];
+        yield 'leyenda en cirílico' => [['summary' => '💼 Reunión de trabajo', 'topics' => [], 'legend' => [['emoji' => '💼', 'meaning' => 'Работа']]]];
+    }
+
+    /**
+     * @param array<string, mixed> $content
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('nonLatinResponses')]
+    public function testRejectsResponseWithNonLatinLetters(array $content): void
+    {
+        try {
+            $this->createGenerator(new MockHttpClient($this->ollamaResponse($content)))->generate(['transcripción 1']);
+            self::fail('Expected SummaryGenerationException was not thrown.');
+        } catch (SummaryGenerationException $exception) {
+            self::assertSame('WRONG_LANGUAGE', $exception->getErrorCode());
+        }
     }
 
     public function testGenerateThrowsOnInvalidJsonContent(): void

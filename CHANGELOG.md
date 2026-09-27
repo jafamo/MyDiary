@@ -4,6 +4,12 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+### Ramas integradas en `develop`
+- `bugfix/daily-summary-language`
+
+### Corregido
+- El resumen diario podía guardarse en japonés u otro idioma aunque las transcripciones estuvieran en castellano (`qwen2.5` cambia de idioma de forma esporádica). El contrato de salida del prompt exige ahora castellano, y `OllamaSummaryGenerator` rechaza con `WRONG_LANGUAGE` cualquier respuesta con letras no latinas en el resumen, los temas o la leyenda. Ese fallo reutiliza los reintentos existentes (3 intentos en total); si ninguno llega en castellano no se guarda nada, se registra `daily_summary.generation_failed` y se avisa por Telegram. Cada intento fallido queda en un log `warning` `daily_summary.generation_attempt_failed`.
+
 ## [0.15.0] - 2026-09-25
 
 ### Ramas integradas en `develop`
