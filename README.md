@@ -95,7 +95,7 @@ Git Flow (`main` for releases only, `develop` as the integration branch). See [`
 
 ## 🔍 Static analysis
 
-CI (`.github/workflows/ci.yml`) runs on every push/PR: PHP-CS-Fixer and PHPStan, then PHPUnit with coverage, then SonarQube with that coverage. Locally:
+CI (`.github/workflows/ci.yml`) runs on every push/PR: PHP-CS-Fixer and PHPStan, then PHPUnit with coverage, then SonarQube with that coverage (only on `develop` and PRs: SonarQube Community has no branch support, and `main` only receives code already analysed on `develop`). Locally:
 
 ```bash
 make cs-check   # PSR-12

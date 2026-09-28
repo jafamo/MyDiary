@@ -6,6 +6,10 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ### Ramas integradas en `develop`
 - `feature/readme-update`
+- `bugfix/sonar-skip-main`
+
+### Corregido
+- El CI de `main` fallaba en el job `sonar` al publicar una release (0.16.0): SonarQube Community no distingue ramas y los análisis de `main` y `develop`, lanzados a la vez, chocaban en el servidor (`CE Task finished abnormally`). El job `sonar` ya no se ejecuta en los push a `main`; sigue en `develop` y en los PRs.
 
 ### Cambiado
 - `README.md` y `doc/README_ES.md` al día: vistas Resúmenes, Búsqueda (incluidos los recordatorios), Recordatorios y Temas; aviso diario de recordatorios y reintento de resúmenes que no salen en castellano en el flujo general; `make migrate` en el despliegue. La versión en castellano recupera las secciones de análisis estático y despliegue, y enlaza a `AGENTS.md` en lugar de `CLAUDE.md`.
