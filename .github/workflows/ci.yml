@@ -121,6 +121,9 @@ jobs:
 
   sonar:
     needs: tests
+    # SonarQube Community no distingue ramas: main solo recibe código ya analizado en develop,
+    # y analizar ambas a la vez en una release hace fallar uno de los dos análisis.
+    if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

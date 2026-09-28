@@ -95,7 +95,7 @@ Git Flow (`main` solo releases, `develop` como rama de integración). Ver [`AGEN
 
 ## 🔍 Análisis estático
 
-La CI (`.github/workflows/ci.yml`) se ejecuta en cada push/PR: PHP-CS-Fixer y PHPStan, después PHPUnit con cobertura y por último SonarQube con esa cobertura. En local:
+La CI (`.github/workflows/ci.yml`) se ejecuta en cada push/PR: PHP-CS-Fixer y PHPStan, después PHPUnit con cobertura y por último SonarQube con esa cobertura (solo en `develop` y en PRs: SonarQube Community no distingue ramas y `main` solo recibe código ya analizado en `develop`). En local:
 
 ```bash
 make cs-check   # PSR-12

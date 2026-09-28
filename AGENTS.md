@@ -37,7 +37,7 @@ Estas decisiones se tomaron explícitamente para evitar sobre-ingeniería en un 
 
 - Antes de implementar una funcionalidad, si el proyecto tiene OpenSpec inicializado (carpeta `openspec/`), pasar por un change proposal (`openspec change`) en lugar de tocar código directamente.
 - Tests: `make test` ejecuta el suite de PHPUnit dentro de `diary-php` contra la base de datos de test (`telegram_notes_test`, separada de `telegram_notes`). Estilo de código: `make cs-check` (verificar) / `make cs-fix` (corregir), PSR-12, aplicado también en el hook `pre-commit` (`.githooks/pre-commit`, activar con `git config core.hooksPath .githooks`). Análisis estático: `make phpstan` (nivel 5, errores previos en `phpstan-baseline.neon`; regenerarlo solo de forma consciente).
-- CI (`.github/workflows/ci.yml`, en cada push a `main`/`develop` y en cada PR): `lint` (php-cs-fixer + PHPStan) → `tests` (PHPUnit con cobertura contra Postgres efímero) → `sonar` (SonarQube con esa cobertura).
+- CI (`.github/workflows/ci.yml`, en cada push a `main`/`develop` y en cada PR): `lint` (php-cs-fixer + PHPStan) → `tests` (PHPUnit con cobertura contra Postgres efímero) → `sonar` (SonarQube con esa cobertura; solo en `develop` y en PRs, no en `main`, porque SonarQube Community no distingue ramas).
 
 ## Entorno
 
