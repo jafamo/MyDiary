@@ -23,7 +23,12 @@ class OllamaSummaryGenerator implements SummaryGeneratorInterface
         Cada párrafo de "summary" DEBE empezar con un emoji elegido por ti según su contenido (los del ejemplo son solo ilustrativos); separa los párrafos con una línea en blanco.
         En "legend" incluye exactamente los emojis que has usado en "summary", uno por entrada, en el orden en que aparecen.
         En "meaning" pon una categoría general y corta ("Trabajo", "Familia", "Salud", "Pendientes"...), no el tema concreto del día.
+        Escribe "summary", cada tema de "topics" y cada "meaning" SIEMPRE en castellano, nunca en otro idioma (ni japonés, ni chino, ni inglés).
         PROMPT;
+
+    // Cualquier letra fuera del alfabeto latino (japonés, chino, cirílico...): el modelo ha cambiado de idioma.
+    // Las letras del castellano (á, ñ, ü...) son latinas; emojis, números y signos no son letras.
+    private const NON_LATIN_LETTER_PATTERN = '/(?!\p{Latin})\p{L}/u';
 
     private const RESPONSE_SCHEMA = [
         'type' => 'object',
@@ -122,11 +127,20 @@ class OllamaSummaryGenerator implements SummaryGeneratorInterface
         }
 
         $summary = (string) $parsed['summary'];
+        $topics = array_values(array_map('strval', $parsed['topics']));
+        $legend = $this->sanitizeLegend($parsed['legend'] ?? null, $summary);
+
+        if (!$this->isLatinScript([$summary, ...$topics, ...array_column($legend, 'meaning')])) {
+            throw new SummaryGenerationException(
+                'WRONG_LANGUAGE',
+                'Ollama devolvió el resumen en un idioma que no es castellano (alfabeto no latino).',
+            );
+        }
 
         return [
             'summary' => $summary,
-            'topics' => array_values(array_map('strval', $parsed['topics'])),
-            'legend' => $this->sanitizeLegend($parsed['legend'] ?? null, $summary),
+            'topics' => $topics,
+            'legend' => $legend,
             'usage' => [
                 'promptTokens' => isset($data['usage']['prompt_tokens']) ? (int) $data['usage']['prompt_tokens'] : null,
                 'completionTokens' => isset($data['usage']['completion_tokens']) ? (int) $data['usage']['completion_tokens'] : null,
@@ -147,6 +161,20 @@ class OllamaSummaryGenerator implements SummaryGeneratorInterface
         }
 
         return $prompt;
+    }
+
+    /**
+     * @param list<string> $texts
+     */
+    private function isLatinScript(array $texts): bool
+    {
+        foreach ($texts as $text) {
+            if (1 === preg_match(self::NON_LATIN_LETTER_PATTERN, $text)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

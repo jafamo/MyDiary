@@ -125,6 +125,14 @@ class DailySummaryService
             } catch (SummaryGenerationException $exception) {
                 $lastException = $exception;
 
+                $this->logger->warning('Intento fallido de generar el resumen diario', [
+                    'event' => 'daily_summary.generation_attempt_failed',
+                    'error_code' => $exception->getErrorCode(),
+                    'error_message' => $exception->getErrorMessage(),
+                    'attempt_number' => $attempt,
+                    'max_attempts' => $this->generationMaxAttempts,
+                ]);
+
                 if ($attempt < $this->generationMaxAttempts) {
                     sleep($this->generationRetryDelaySeconds);
                 }

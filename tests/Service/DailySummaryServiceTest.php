@@ -18,6 +18,8 @@ use App\Service\DailySummaryService;
 use App\Service\Telegram\TelegramClient;
 use App\Service\UsageFormatter;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\AbstractLogger;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpClient\Exception\TransportException;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -34,6 +36,9 @@ class DailySummaryServiceTest extends KernelTestCase
 
     /** @var list<array{url: string, body: mixed}> */
     private array $httpRequests = [];
+
+    /** @var list<array{level: string, message: string, context: array<string, mixed>}> */
+    private array $logRecords = [];
     private \Closure $httpResponder;
 
     protected function setUp(): void
@@ -212,6 +217,69 @@ class DailySummaryServiceTest extends KernelTestCase
 
         self::assertNull($this->dailySummaryRepository->findOneByDate($this->testDate));
         self::assertSame(3, $alwaysFailingGenerator->calls);
+    }
+
+    public function testWrongLanguageIsRetriedUntilSpanishAndLogsFailedAttempt(): void
+    {
+        $this->createTranscribedAudioRecording('summary-msg-11', 'summary-file-11', 'transcripción');
+
+        $generator = new class () implements SummaryGeneratorInterface {
+            public int $calls = 0;
+
+            public function generate(array $transcriptions): array
+            {
+                if (1 === ++$this->calls) {
+                    throw new SummaryGenerationException('WRONG_LANGUAGE', 'El resumen no está en castellano.');
+                }
+
+                return ['summary' => 'Resumen en castellano', 'topics' => [], 'legend' => [], 'usage' => ['promptTokens' => null, 'completionTokens' => null, 'model' => 'modelo-falso']];
+            }
+        };
+        $logger = $this->recordingLogger();
+
+        $this->createService($generator, logger: $logger)->generateForDate($this->testDate);
+
+        self::assertSame(2, $generator->calls);
+        self::assertSame('Resumen en castellano', $this->dailySummaryRepository->findOneByDate($this->testDate)?->getSummaryText());
+
+        $attemptLogs = $this->logsWithEvent('daily_summary.generation_attempt_failed');
+        self::assertCount(1, $attemptLogs);
+        self::assertSame('warning', $attemptLogs[0]['level']);
+        self::assertSame('WRONG_LANGUAGE', $attemptLogs[0]['context']['error_code']);
+        self::assertSame(1, $attemptLogs[0]['context']['attempt_number']);
+        self::assertSame(3, $attemptLogs[0]['context']['max_attempts']);
+    }
+
+    public function testWrongLanguageInEveryAttemptFailsWithErrorAndNotifies(): void
+    {
+        $this->createTranscribedAudioRecording('summary-msg-12', 'summary-file-12', 'transcripción');
+
+        $generator = new class () implements SummaryGeneratorInterface {
+            public int $calls = 0;
+
+            public function generate(array $transcriptions): array
+            {
+                ++$this->calls;
+
+                throw new SummaryGenerationException('WRONG_LANGUAGE', 'El resumen no está en castellano.');
+            }
+        };
+        $logger = $this->recordingLogger();
+
+        $this->createService($generator, logger: $logger)->generateForDate($this->testDate);
+
+        self::assertSame(3, $generator->calls);
+        self::assertNull($this->dailySummaryRepository->findOneByDate($this->testDate));
+        self::assertCount(3, $this->logsWithEvent('daily_summary.generation_attempt_failed'));
+
+        $failureLogs = $this->logsWithEvent('daily_summary.generation_failed');
+        self::assertCount(1, $failureLogs);
+        self::assertSame('error', $failureLogs[0]['level']);
+        self::assertSame('WRONG_LANGUAGE', $failureLogs[0]['context']['error_code']);
+
+        $sendMessageRequests = $this->sendMessageRequests();
+        self::assertCount(1, $sendMessageRequests);
+        self::assertStringContainsString('No se pudo generar el resumen', json_decode((string) $sendMessageRequests[0]['body'], true)['text']);
     }
 
     public function testSuccessfulGenerationNotifiesByTelegram(): void
@@ -410,6 +478,7 @@ class DailySummaryServiceTest extends KernelTestCase
         int $pendingWaitIntervalSeconds = 0,
         int $pendingWaitMaxAttempts = 1,
         ?EmbeddingGeneratorInterface $embeddingGenerator = null,
+        ?LoggerInterface $logger = null,
     ): DailySummaryService {
         return new DailySummaryService(
             $this->audioRecordingRepository,
@@ -420,13 +489,39 @@ class DailySummaryServiceTest extends KernelTestCase
             $this->entityManager,
             self::getContainer()->get(TelegramClient::class),
             new UsageFormatter(),
-            self::getContainer()->get('logger'),
+            $logger ?? self::getContainer()->get('logger'),
             $_ENV['TELEGRAM_AUTHORIZED_CHAT_ID'],
             pendingWaitIntervalSeconds: $pendingWaitIntervalSeconds,
             pendingWaitMaxAttempts: $pendingWaitMaxAttempts,
             generationMaxAttempts: 3,
             generationRetryDelaySeconds: $generationRetryDelaySeconds,
         );
+    }
+
+    private function recordingLogger(): LoggerInterface
+    {
+        $this->logRecords = [];
+
+        return new class (function (array $record): void {
+            $this->logRecords[] = $record;
+        }) extends AbstractLogger {
+            public function __construct(private readonly \Closure $sink)
+            {
+            }
+
+            public function log($level, string|\Stringable $message, array $context = []): void
+            {
+                ($this->sink)(['level' => (string) $level, 'message' => (string) $message, 'context' => $context]);
+            }
+        };
+    }
+
+    /**
+     * @return list<array{level: string, message: string, context: array<string, mixed>}>
+     */
+    private function logsWithEvent(string $event): array
+    {
+        return array_values(array_filter($this->logRecords, static fn (array $record): bool => ($record['context']['event'] ?? null) === $event));
     }
 
     private function fakeGenerator(array $result): SummaryGeneratorInterface
