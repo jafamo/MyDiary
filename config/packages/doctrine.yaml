@@ -27,6 +27,8 @@ doctrine:
         dql:
             numeric_functions:
                 cosine_distance: Pgvector\Doctrine\CosineDistance
+            string_functions:
+                unaccent: App\Doctrine\Unaccent
 
 when@test:
     doctrine:

@@ -4,6 +4,12 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+### Añadido
+- La vista **Búsqueda** (`/busqueda`) también busca en los recordatorios por palabras (subcadena, sin distinguir mayúsculas ni tildes, con `%` y `_` literales). Los que coinciden salen en una sección propia **Recordatorios** encima de las notas y resúmenes (fecha, hora si la tiene, texto y enlace a su día en `/recordatorios`; máximo 20, más recientes primero). Esta búsqueda no depende de Ollama: si falla el embedding de la consulta, los recordatorios se siguen mostrando.
+
+### Migraciones
+- `Version20260928100000`: activa la extensión PostgreSQL `unaccent` (función DQL `unaccent` registrada en `config/packages/doctrine.yaml`).
+
 ## [0.15.0] - 2026-09-25
 
 ### Ramas integradas en `develop`

@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Contract\EmbeddingGenerationException;
 use App\Contract\EmbeddingGeneratorInterface;
 use App\Repository\DailySummaryRepository;
+use App\Repository\ReminderRepository;
 use App\Repository\TranscriptionRepository;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -18,10 +19,12 @@ class SearchController
 {
     private const RESULTS_PER_SOURCE = 20;
     private const MAX_RESULTS = 20;
+    private const MAX_REMINDER_RESULTS = 20;
 
     public function __construct(
         private readonly TranscriptionRepository $transcriptionRepository,
         private readonly DailySummaryRepository $dailySummaryRepository,
+        private readonly ReminderRepository $reminderRepository,
         private readonly EmbeddingGeneratorInterface $embeddingGenerator,
         private readonly LoggerInterface $logger,
         private readonly Environment $twig,
@@ -37,6 +40,7 @@ class SearchController
             return new Response($this->twig->render('busqueda/index.html.twig', [
                 'query' => '',
                 'results' => [],
+                'reminders' => [],
                 'searched' => false,
             ]));
         }
@@ -46,6 +50,7 @@ class SearchController
         return new Response($this->twig->render('busqueda/index.html.twig', [
             'query' => $query,
             'results' => $results,
+            'reminders' => $this->reminderRepository->searchByText($query, self::MAX_REMINDER_RESULTS),
             'searched' => true,
         ]));
     }

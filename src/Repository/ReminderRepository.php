@@ -141,4 +141,25 @@ class ReminderRepository extends ServiceEntityRepository
             ->getResult()
         ;
     }
+
+    /**
+     * Recordatorios cuyo texto contiene $query (sin distinguir mayúsculas ni tildes; `%` y `_` literales),
+     * del más reciente al más antiguo.
+     *
+     * @return list<Reminder>
+     */
+    public function searchByText(string $query, int $limit): array
+    {
+        $pattern = '%'.addcslashes($query, '\\%_').'%';
+
+        return $this->createQueryBuilder('r')
+            ->andWhere('LOWER(unaccent(r.text)) LIKE LOWER(unaccent(:pattern))')
+            ->orderBy('r.date', 'DESC')
+            ->addOrderBy('r.createdAt', 'DESC')
+            ->setParameter('pattern', $pattern)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult()
+        ;
+    }
 }

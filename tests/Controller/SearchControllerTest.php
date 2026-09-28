@@ -6,10 +6,12 @@ namespace App\Tests\Controller;
 
 use App\Entity\AudioRecording;
 use App\Entity\DailySummary;
+use App\Entity\Reminder;
 use App\Entity\Transcription;
 use App\Entity\User;
 use App\Repository\AudioRecordingRepository;
 use App\Repository\DailySummaryRepository;
+use App\Repository\ReminderRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -21,10 +23,13 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class SearchControllerTest extends WebTestCase
 {
+    private const REMINDER_DATE = '2020-03-03';
+
     private EntityManagerInterface $entityManager;
     private UserRepository $userRepository;
     private AudioRecordingRepository $audioRecordingRepository;
     private DailySummaryRepository $dailySummaryRepository;
+    private ReminderRepository $reminderRepository;
 
     protected function tearDown(): void
     {
@@ -88,15 +93,75 @@ class SearchControllerTest extends WebTestCase
         self::assertLessThan($positionPaseo, $positionResumen, 'El resultado menos similar (sin relación semántica) debe aparecer último');
     }
 
-    private function bootServices(KernelBrowser $client): void
+    public function testSearchShowsMatchingRemindersInTheirOwnSectionAboveSemanticResults(): void
+    {
+        $client = static::createClient();
+        $this->bootServices($client);
+        $user = $this->createTestUser();
+
+        $this->createReminder('Cita con el Médico', new \DateTimeImmutable('10:30'));
+        $this->createReminder('Pasar la ITV');
+        $this->createTranscription('search-ctrl-1', 'presupuesto del mes', $this->unitVector(0));
+
+        $client->loginUser($user);
+        $crawler = $client->request('GET', '/busqueda', ['q' => 'medico']);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('main', 'Recordatorios');
+        self::assertSelectorTextContains('main', 'Cita con el Médico');
+        self::assertSelectorTextContains('main', '10:30');
+        self::assertSelectorTextNotContains('main', 'Pasar la ITV');
+        self::assertCount(1, $crawler->filter('a[href*="/recordatorios?date=2020-03-03"]'));
+
+        $content = (string) $client->getResponse()->getContent();
+        self::assertLessThan(strpos($content, 'presupuesto del mes'), strpos($content, 'Cita con el Médico'), 'Los recordatorios deben aparecer antes que los resultados semánticos');
+    }
+
+    public function testSearchWithoutMatchingRemindersHidesTheSection(): void
+    {
+        $client = static::createClient();
+        $this->bootServices($client);
+        $user = $this->createTestUser();
+
+        $this->createReminder('Pasar la ITV');
+        $this->createTranscription('search-ctrl-1', 'presupuesto del mes', $this->unitVector(0));
+
+        $client->loginUser($user);
+        $client->request('GET', '/busqueda', ['q' => 'dentista']);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextNotContains('main', 'Recordatorios');
+        self::assertSelectorTextContains('main', 'presupuesto del mes');
+    }
+
+    public function testSearchShowsRemindersWhenEmbeddingGenerationFails(): void
+    {
+        $client = static::createClient();
+        $this->bootServices($client, new MockResponse('Service Unavailable', ['http_code' => 503]));
+        $user = $this->createTestUser();
+
+        $this->createReminder('Cita con el dentista');
+        $this->createTranscription('search-ctrl-1', 'presupuesto del mes', $this->unitVector(0));
+
+        $client->loginUser($user);
+        $client->request('GET', '/busqueda', ['q' => 'dentista']);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('main', 'Cita con el dentista');
+        self::assertSelectorTextNotContains('main', 'Sin resultados');
+        self::assertSelectorTextNotContains('main', 'presupuesto del mes');
+    }
+
+    private function bootServices(KernelBrowser $client, ?MockResponse $embeddingResponse = null): void
     {
         $client->disableReboot();
-        self::getContainer()->set(HttpClientInterface::class, new MockHttpClient(new MockResponse(json_encode(['embedding' => $this->unitVector(0)]))));
+        self::getContainer()->set(HttpClientInterface::class, new MockHttpClient($embeddingResponse ?? new MockResponse(json_encode(['embedding' => $this->unitVector(0)]))));
 
         $this->entityManager = self::getContainer()->get(EntityManagerInterface::class);
         $this->userRepository = self::getContainer()->get(UserRepository::class);
         $this->audioRecordingRepository = self::getContainer()->get(AudioRecordingRepository::class);
         $this->dailySummaryRepository = self::getContainer()->get(DailySummaryRepository::class);
+        $this->reminderRepository = self::getContainer()->get(ReminderRepository::class);
         $this->cleanUp();
     }
 
@@ -175,8 +240,20 @@ class SearchControllerTest extends WebTestCase
         return $dailySummary;
     }
 
+    private function createReminder(string $text, ?\DateTimeImmutable $time = null): void
+    {
+        $reminder = new Reminder();
+        $reminder->setDate(new \DateTimeImmutable(self::REMINDER_DATE))->setTime($time)->setText($text);
+        $this->entityManager->persist($reminder);
+        $this->entityManager->flush();
+    }
+
     private function cleanUp(): void
     {
+        foreach ($this->reminderRepository->findAllOn(new \DateTimeImmutable(self::REMINDER_DATE)) as $reminder) {
+            $this->entityManager->remove($reminder);
+        }
+
         foreach (['search-ctrl-1', 'search-ctrl-2'] as $telegramMessageId) {
             $audioRecording = $this->audioRecordingRepository->findOneByTelegramMessageId($telegramMessageId);
             if (null !== $audioRecording) {
