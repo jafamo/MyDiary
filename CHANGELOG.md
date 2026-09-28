@@ -5,10 +5,17 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 ## [Sin publicar]
 
 ### Ramas integradas en `develop`
+- `feature/search-reminders`
 - `bugfix/daily-summary-language`
+
+### Añadido
+- La vista **Búsqueda** (`/busqueda`) también busca en los recordatorios por palabras (subcadena, sin distinguir mayúsculas ni tildes, con `%` y `_` literales). Los que coinciden salen en una sección propia **Recordatorios** encima de las notas y resúmenes (fecha, hora si la tiene, texto y enlace a su día en `/recordatorios`; máximo 20, más recientes primero). Esta búsqueda no depende de Ollama: si falla el embedding de la consulta, los recordatorios se siguen mostrando.
 
 ### Corregido
 - El resumen diario podía guardarse en japonés u otro idioma aunque las transcripciones estuvieran en castellano (`qwen2.5` cambia de idioma de forma esporádica). El contrato de salida del prompt exige ahora castellano, y `OllamaSummaryGenerator` rechaza con `WRONG_LANGUAGE` cualquier respuesta con letras no latinas en el resumen, los temas o la leyenda. Ese fallo reutiliza los reintentos existentes (3 intentos en total); si ninguno llega en castellano no se guarda nada, se registra `daily_summary.generation_failed` y se avisa por Telegram. Cada intento fallido queda en un log `warning` `daily_summary.generation_attempt_failed`.
+
+### Migraciones
+- `Version20260928100000`: activa la extensión PostgreSQL `unaccent` (función DQL `unaccent` registrada en `config/packages/doctrine.yaml`).
 
 ## [0.15.0] - 2026-09-25
 

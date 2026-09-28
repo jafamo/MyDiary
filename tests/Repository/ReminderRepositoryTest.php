@@ -121,6 +121,49 @@ class ReminderRepositoryTest extends KernelTestCase
         self::assertSame(['2020-01-04', '2020-01-03', '2020-01-02'], array_map(fn (Reminder $r) => $r->getDate()->format('Y-m-d'), $secondPage));
     }
 
+    public function testSearchByTextMatchesSubstringIgnoringCaseAndAccents(): void
+    {
+        $this->createReminder('2020-01-01', 'Cita con el Dentista');
+        $this->createReminder('2020-01-02', 'Llamar al médico');
+        $this->createReminder('2020-01-03', 'Pasar la ITV');
+
+        self::assertSame(['Cita con el Dentista'], $this->texts($this->repository->searchByText('dentista', 20)));
+        self::assertSame(['Llamar al médico'], $this->texts($this->repository->searchByText('MEDICO', 20)));
+        self::assertSame([], $this->texts($this->repository->searchByText('fontanero', 20)));
+    }
+
+    public function testSearchByTextTreatsWildcardsLiterally(): void
+    {
+        $this->createReminder('2020-01-01', 'Descuento del 50% en la tienda');
+        $this->createReminder('2020-01-02', 'Descuento del 505 en la tienda');
+        $this->createReminder('2020-01-03', 'fichero_nuevo');
+        $this->createReminder('2020-01-04', 'ficheroXnuevo');
+
+        self::assertSame(['Descuento del 50% en la tienda'], $this->texts($this->repository->searchByText('50%', 20)));
+        self::assertSame(['fichero_nuevo'], $this->texts($this->repository->searchByText('o_n', 20)));
+    }
+
+    public function testSearchByTextOrdersByDateDescendingUpToLimit(): void
+    {
+        foreach (self::DATES as $date) {
+            $this->createReminder($date, 'Recordatorio '.$date);
+        }
+
+        $results = $this->repository->searchByText('recordatorio', 3);
+
+        self::assertSame(['2020-01-10', '2020-01-06', '2020-01-05'], array_map(fn (Reminder $r) => $r->getDate()->format('Y-m-d'), $results));
+    }
+
+    /**
+     * @param list<Reminder> $reminders
+     *
+     * @return list<string>
+     */
+    private function texts(array $reminders): array
+    {
+        return array_map(fn (Reminder $r) => $r->getText(), $reminders);
+    }
+
     private function createReminder(string $date, string $text): void
     {
         $reminder = new Reminder();
