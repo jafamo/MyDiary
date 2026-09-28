@@ -42,8 +42,9 @@ More detail and rationale in [`AGENTS.md`](./AGENTS.md) and section 4 of [`Espec
 2. 🪝 The Symfony webhook receives it and replies quickly ("Audio recibido ✅")
 3. 📬 Symfony Messenger dispatches the transcription asynchronously
 4. 🗣️➡️📄 Whisper / Open WebUI transcribes the audio; on failure it's retried and, if it keeps failing, marked `ERROR` (retryable from the web)
-5. ⏰ At 21:00 (Europe/Madrid), Symfony Scheduler generates the daily summary with Ollama — or on demand, right away, from a button in Diario
-6. 🌐 The user reviews the day from the web: **Diario**, **Historial**, **Estadísticas** — editing transcriptions, retrying failed ones, or deleting audios in cascade (DB + files)
+5. ⏰ At 21:00 (Europe/Madrid), Symfony Scheduler generates the daily summary with Ollama — or on demand, right away, from a button in Diario. Summaries not written in Spanish are rejected and retried; if it still fails, a Telegram notice is sent
+6. 🔔 At 08:00 (Europe/Madrid), Telegram sends the reminders due today
+7. 🌐 The user reviews everything from the web: **Diario**, **Historial**, **Resúmenes**, **Búsqueda**, **Recordatorios**, **Estadísticas**, **Temas** — editing transcriptions, retrying failed ones, or deleting audios in cascade (DB + files)
 
 ```mermaid
 flowchart TD
@@ -81,7 +82,11 @@ flowchart TD
 - 🔐 Login
 - 📔 Diario (Journal) — today's audios + transcriptions, with the daily summary at the end
 - 🗓️ Historial (History) — browse by date
-- 📊 Estadísticas (Stats) — audios/day, average duration, frequent topics
+- 🏷️ Resúmenes (Summaries) — list of daily summaries with their topics, filterable by date range
+- 🔎 Búsqueda (Search) — natural-language search over transcriptions and daily summaries (embeddings), plus word search over reminders (case- and accent-insensitive), shown in its own section
+- 🔔 Recordatorios (Reminders) — monthly calendar, upcoming and past lists, create/edit/delete
+- 📊 Estadísticas (Stats) — audios/day, average duration, frequent topics, AI usage
+- 🏷️ Temas (Topics) — table to rename and merge duplicated topics
 - 🚪 Logout
 
 ## 🌳 Version control
@@ -109,6 +114,8 @@ SONAR_TOKEN=<your-token> make sonar
 Pushing a `X.Y.Z` tag creates the GitHub Release automatically from the matching `CHANGELOG.md` section (`.github/workflows/release.yml`).
 
 ## 🚀 Deploying
+
+`make deploy` pulls `main`, clears the cache and restarts `diary-php` and `diary-messenger-worker`, but **does not run migrations**: if the release notes in [`CHANGELOG.md`](./CHANGELOG.md) list any, run `make migrate` afterwards.
 
 Before deploying (or updating `OLLAMA_EMBEDDING_MODEL`), make sure the embeddings model is pulled on the Ollama server (e.g. `ollama pull nomic-embed-text`) — semantic search generates embeddings on demand and fails silently (logged, non-blocking) if the model isn't available.
 

@@ -4,6 +4,12 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+### Ramas integradas en `develop`
+- `feature/readme-update`
+
+### Cambiado
+- `README.md` y `doc/README_ES.md` al día: vistas Resúmenes, Búsqueda (incluidos los recordatorios), Recordatorios y Temas; aviso diario de recordatorios y reintento de resúmenes que no salen en castellano en el flujo general; `make migrate` en el despliegue. La versión en castellano recupera las secciones de análisis estático y despliegue, y enlaza a `AGENTS.md` en lugar de `CLAUDE.md`.
+
 ## [0.16.0] - 2026-09-28
 
 ### Ramas integradas en `develop`
