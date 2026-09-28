@@ -14,10 +14,33 @@
         </div>
 
         {% if not searched %}
-            <p class="entry-empty">Escribe una consulta en lenguaje natural para buscar en tus transcripciones y resúmenes diarios.</p>
-        {% elseif results is empty %}
+            <p class="entry-empty">Escribe una consulta en lenguaje natural para buscar en tus transcripciones, resúmenes diarios y recordatorios.</p>
+        {% elseif results is empty and reminders is empty %}
             <p class="entry-empty">Sin resultados para «{{ query }}».</p>
         {% else %}
+            {% if reminders is not empty %}
+                <section class="search-section">
+                    <h2 class="section-title"><svg class="icon icon--sm"><use href="#i-bell"></use></svg> Recordatorios <span>{{ reminders|length }}</span></h2>
+                    <div class="summary-list">
+                        {% for reminder in reminders %}
+                            <article class="summary-card">
+                                <div class="summary-card__header">
+                                    <div class="summary-panel__eyebrow">
+                                        <svg class="icon"><use href="#i-dot"></use></svg> {{ reminder.date|es_weekday_date }}{% if reminder.time %} · {{ reminder.time|date('H:i') }}{% endif %}
+                                    </div>
+                                    <a class="btn-action" href="{{ path('app_recordatorios', {date: reminder.date.format('Y-m-d'), year: reminder.date.format('Y'), month: reminder.date.format('n')}) }}">
+                                        Ver recordatorio <svg class="icon icon--sm"><use href="#i-chevron-right"></use></svg>
+                                    </a>
+                                </div>
+                                <p>{{ reminder.text }}</p>
+                            </article>
+                        {% endfor %}
+                    </div>
+                </section>
+                {% if results is not empty %}
+                    <h2 class="section-title search-section__title"><svg class="icon icon--sm"><use href="#i-mic"></use></svg> Notas y resúmenes</h2>
+                {% endif %}
+            {% endif %}
             <div class="summary-list">
                 {% for result in results %}
                     <article class="summary-card">
