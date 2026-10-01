@@ -7,6 +7,11 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 ### Ramas integradas en `develop`
 - `feature/readme-update`
 - `bugfix/sonar-skip-main`
+- `feature/claude-tooling`
+
+### Añadido
+- Skill de proyecto `/cambio` (`.claude/skills/cambio/SKILL.md`) que encadena el flujo obligatorio de `AGENTS.md`: rama Git Flow, propuesta OpenSpec, implementación con tests, `cs-check` + `phpstan` + `test`, entrada en el CHANGELOG, archivado y finish hacia `develop`.
+- Hook `PostToolUse` de Claude Code (`.claude/hooks/php-cs-fix.sh`) que aplica php-cs-fixer (PSR-12) al fichero PHP recién editado dentro de `diary-php`. Si el stack local no está levantado o el fichero queda fuera del Finder, no hace nada; el `pre-commit` sigue siendo la comprobación final.
 
 ### Corregido
 - El CI de `main` fallaba en el job `sonar` al publicar una release (0.16.0): SonarQube Community no distingue ramas y los análisis de `main` y `develop`, lanzados a la vez, chocaban en el servidor (`CE Task finished abnormally`). El job `sonar` ya no se ejecuta en los push a `main`; sigue en `develop` y en los PRs.
