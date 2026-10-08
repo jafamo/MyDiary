@@ -30,7 +30,7 @@ Estas decisiones se tomaron explícitamente para evitar sobre-ingeniería en un 
 - **Sin CQRS ni bus de comandos/queries general.** Servicios de aplicación normales con métodos claros.
 - **Interfaces (puertos) solo puntuales**, donde ya existe razón real: `TranscriberInterface`, `SummaryGeneratorInterface`. No generalizar a otras partes del código sin justificación equivalente.
 - **Symfony Messenger solo para la cadena Telegram → transcripción**, no como bus general.
-- **Gestión de usuarios solo por consola.** Entidad `User` en BD (Symfony Security), pero sin registro ni recuperación de contraseña vía web: los usuarios se crean y las contraseñas se cambian con comandos `bin/console app:user:*` (acceso al servidor = ya autenticado como admin). Sin flujo de "olvidé mi contraseña" por email/token.
+- **Gestión de usuarios solo por consola.** Entidad `User` en BD (Symfony Security), pero sin registro ni recuperación de contraseña vía web: los usuarios se crean y las contraseñas se cambian con comandos `bin/console app:user:*` (acceso al servidor = ya autenticado como admin). Sin flujo de "olvidé mi contraseña" por email/token. Los tokens de la API se emiten con `POST /api/v1/login` y se listan o revocan con `app:user:token:list` / `app:user:token:revoke`.
 - Regla general: introducir un patrón solo cuando el problema que resuelve ya existe, no de forma anticipada.
 
 ## Flujo de trabajo
@@ -53,6 +53,16 @@ Estas decisiones se tomaron explícitamente para evitar sobre-ingeniería en un 
 ### Logging (Kibana)
 
 Los campos de contexto de log deben ser planos y con prefijo (p. ej. `messenger_status`, no `status`) para no chocar con los tipos de campo de nginx que ya existen en Kibana.
+
+### API (`/api/v1`)
+
+Todo cambio que añada o modifique un endpoint de la API lo documenta en el mismo cambio, no después:
+
+- Atributos OpenAPI (`OpenApi\Attributes`) en la acción: cuerpo, respuestas y errores. Regenerar `doc/openapi.json` con `make openapi`.
+- Una petición en **las dos** colecciones: `doc/MyDiary.postman_collection.json` y `doc/api.http`.
+- `tests/Doc/ApiDocumentationTest.php` falla si falta alguna de las tres cosas.
+
+Controladores planos en `src/Controller/Api/` (sin API Platform). Errores con `ApiException` y el formato único `code` / `message`; fechas con `ApiFormatter`; el usuario siempre sale del token. Convenciones completas en `Especificaciones.md` 3.7.
 
 ### Constantes
 

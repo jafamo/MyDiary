@@ -89,6 +89,16 @@ flowchart TD
 - 🏷️ Temas — tabla para renombrar y fusionar temas duplicados
 - 🚪 Logout
 
+## 📱 API JSON
+
+Segunda entrada bajo `/api/v1`, pensada para la app de iPhone (plan por fases en [ROADMAP.md](../ROADMAP.md)). La web sigue funcionando con su login de sesión.
+
+- 🔑 Tokens opacos por dispositivo: `POST /api/v1/login` devuelve el token, que después se envía como `Authorization: Bearer <token>`. Solo se guarda su hash SHA-256 y caduca tras 90 días sin uso
+- 🚪 `POST /api/v1/logout` revoca el token en uso; `GET /api/v1/me` devuelve el usuario y los datos del token
+- 🧱 Todos los errores son `{"code": "...", "message": "..."}`; el login admite 5 intentos cada 15 minutos
+- 🛠️ Los tokens se listan y revocan por consola: `bin/console app:user:token:list <username>` / `app:user:token:revoke <id>`
+- 📖 Documentación: Swagger UI en `/doc/api` (con sesión web), esquema en [openapi.json](openapi.json) y colecciones de peticiones en [MyDiary.postman_collection.json](MyDiary.postman_collection.json) y [api.http](api.http)
+
 ## 🌳 Control de versiones
 
 Git Flow (`main` solo releases, `develop` como rama de integración). Ver [`AGENTS.md`](../AGENTS.md) para el detalle de ramas y comandos.

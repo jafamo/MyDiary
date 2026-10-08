@@ -24,7 +24,7 @@
 
 Se deciden al proponer la fase correspondiente (regla «Opciones de diseño antes de implementar» de `AGENTS.md`). Se indica la opción recomendada.
 
-### D1 — Autenticación de la API (fase 2)
+### D1 — Autenticación de la API (fase 2) — decidida: opción A
 
 | Opción | Pros | Contras |
 |---|---|---|
@@ -32,7 +32,7 @@ Se deciden al proponer la fase correspondiente (regla «Opciones de diseño ante
 | B. JWT (`lexik/jwt-authentication-bundle`) | Sin estado en BD | Dependencia nueva, claves que custodiar, hace falta refresh token y no se puede revocar sin lista negra |
 | C. Reutilizar la sesión con cookie | Cero código de autenticación | Obliga a gestionar CSRF y cookies desde la app; frágil |
 
-### D2 — Estilo de la API (fase 2)
+### D2 — Estilo de la API (fase 2) — decidida: opción A, con Swagger
 
 | Opción | Pros | Contras |
 |---|---|---|
@@ -85,6 +85,8 @@ Refactor sin cambio funcional: los controladores web quedan en «leer petición 
 - Criterio de hecho: los tests funcionales actuales pasan sin modificarse; se añaden tests unitarios de los servicios extraídos.
 
 ### Fase 2 — Base de la API
+
+> Hecha en el change `api-base` (rama `feature/api-base`). D1: token opaco con caducidad de 90 días por inactividad. D2: controladores planos documentados con Swagger (`nelmio/api-doc-bundle`), más colecciones Postman y `.http` en `doc/`.
 
 - Firewall `api` sin estado para `^/api`, declarado antes de `main`, con la autenticación de D1. Sin CSRF.
 - `POST /api/v1/login`, `POST /api/v1/logout` (revoca el token) y `GET /api/v1/me`. Límite de intentos en el login.

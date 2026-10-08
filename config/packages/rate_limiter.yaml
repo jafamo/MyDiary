@@ -1,0 +1,18 @@
+framework:
+    rate_limiter:
+        # Login de la API: 5 intentos cada 15 minutos por IP y usuario (un login correcto reinicia el contador).
+        api_login:
+            policy: sliding_window
+            limit: 5
+            interval: '15 minutes'
+
+when@test:
+    framework:
+        rate_limiter:
+            api_login:
+                storage_service: app.test.rate_limiter_storage
+    services:
+        # En memoria y por kernel: una ejecución de tests no hereda los intentos de la anterior
+        # (y, a diferencia de un pool de caché, no se vacía entre peticiones del mismo test).
+        app.test.rate_limiter_storage:
+            class: Symfony\Component\RateLimiter\Storage\InMemoryStorage

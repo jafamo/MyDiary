@@ -9,8 +9,14 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 - `bugfix/sonar-skip-main`
 - `feature/claude-tooling`
 - `feature/extract-controller-logic`
+- `feature/api-base`
 
 ### Añadido
+- **Base de la API JSON** para la app de iPhone (fase 2 de `ROADMAP.md`), bajo `/api/v1`. La web no cambia. Autenticación con un token por dispositivo: `POST /api/v1/login` (usuario, contraseña y nombre del dispositivo) devuelve el token, que solo se ve en esa respuesta y se envía después como `Authorization: Bearer <token>`; en la base de datos queda únicamente su hash. `POST /api/v1/logout` revoca el token en uso y `GET /api/v1/me` devuelve el usuario y los datos del token. Un token caduca a los 90 días sin usarse, y cada uso lo renueva.
+- El login de la API admite 5 intentos cada 15 minutos por IP y usuario; después responde `429` con `Retry-After`. Todos los errores de la API tienen el mismo formato JSON (`code` estable y `message`).
+- Comandos `bin/console app:user:token:list <username>` (dispositivos con token, último uso y caducidad) y `bin/console app:user:token:revoke <id>`.
+- Documentación de la API: Swagger UI en `/doc/api` (hay que estar logueado en la web), esquema OpenAPI versionado en `doc/openapi.json` (`make openapi` lo regenera) y colecciones de peticiones en `doc/MyDiary.postman_collection.json` (Postman) y `doc/api.http` (PhpStorm / VS Code); en ambas, el login guarda el token para las demás peticiones. Los tests fallan si un endpoint de `/api/v1` no está en el esquema o en alguna de las dos colecciones.
+- Logs: las peticiones autenticadas con token llevan `api_token_id` en la línea `http.request`, y el login registra `api.login_succeeded`, `api.login_failed` y `api.login_throttled`. El token y la contraseña nunca se escriben en un log.
 - Skill de proyecto `/desarrollo` (`.claude/skills/desarrollo/SKILL.md`) que encadena el flujo obligatorio de `AGENTS.md` en su orden: propuesta OpenSpec, rama Git Flow, implementación con tests (`cs-check` + `phpstan` + `test`), entrada en el CHANGELOG, archivado y finish hacia `develop`.
 - Hook `PostToolUse` de Claude Code (`.claude/hooks/php-cs-fix.sh`) que aplica php-cs-fixer (PSR-12) al fichero PHP recién editado dentro de `diary-php`. Si el stack local no está levantado o el fichero queda fuera del Finder, no hace nada; el `pre-commit` sigue siendo la comprobación final.
 
@@ -22,7 +28,11 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 - El `Makefile` sabe en qué entorno se ejecuta por `APP_ENV` (de `.env` / `.env.local`): con `APP_ENV=prod` se bloquean `test`, `test-coverage`, `cs-check`, `cs-fix`, `phpstan`, `migration-diff` y `sonar` (evita lanzar los tests contra la base de datos de producción o dejar ficheros modificados en el repo del servidor), y `deploy` solo se ejecuta con `APP_ENV=prod` (fuera de producción hacía `git pull origin main` sobre la rama de trabajo). `AGENTS.md` describe los dos entornos Docker, local y producción.
 - `README.md` y `doc/README_ES.md` al día: vistas Resúmenes, Búsqueda (incluidos los recordatorios), Recordatorios y Temas; aviso diario de recordatorios y reintento de resúmenes que no salen en castellano en el flujo general; `make migrate` en el despliegue. La versión en castellano recupera las secciones de análisis estático y despliegue, y enlaza a `AGENTS.md` en lugar de `CLAUDE.md`.
 
+### Migraciones
+- `Version20261008090000`: crea la tabla `api_token`. **Requiere `make migrate` tras el despliegue.**
+
 ### Despliegue
+- Dependencias nuevas (`nelmio/api-doc-bundle`, `symfony/rate-limiter`). `make deploy` no instala dependencias y limpia la caché nada más hacer el `git pull`, así que esta vez fallaría: hay que instalar antes. En el servidor, por este orden: `git pull origin main`, `make composer-install`, `make migrate` y `make deploy`.
 - Comprobar que el `.env` (o `.env.local`) del servidor tiene `APP_ENV=prod` antes de hacer `make deploy`; si no, el comando se bloquea.
 
 ## [0.16.0] - 2026-09-28

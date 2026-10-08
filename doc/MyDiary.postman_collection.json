@@ -1,0 +1,94 @@
+{
+  "info": {
+    "name": "MyDiary API",
+    "description": "API JSON de MyDiary (/api/v1). Ejecuta primero **Login**: guarda el token en la variable `token` de la colección y el resto de peticiones lo envían como `Authorization: Bearer`.\n\nReferencia completa: Swagger UI en `{{base_url}}/doc/api` (con sesión web) y `doc/openapi.json`.\n\nCada endpoint nuevo de /api/v1 se añade aquí y en `doc/api.http`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{token}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:9008" },
+    { "key": "username", "value": "jfarinos" },
+    { "key": "password", "value": "cambia-esto" },
+    { "key": "device_name", "value": "Postman" },
+    { "key": "token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Autenticación",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login correcto', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "    pm.collectionVariables.set('token', pm.response.json().token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "description": "Emite un token para este dispositivo. El token solo se devuelve en esta respuesta. Limitado a 5 intentos fallidos cada 15 minutos por IP y usuario (429 con `Retry-After`).",
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\",\n  \"device_name\": \"{{device_name}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "login"]
+            }
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "description": "Usuario autenticado y datos del token en uso (dispositivo, creación, último uso y caducidad).",
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "me"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "description": "Revoca el token en uso (204). Los tokens de otros dispositivos no se ven afectados.",
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "logout"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

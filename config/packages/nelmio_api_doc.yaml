@@ -1,0 +1,40 @@
+nelmio_api_doc:
+    documentation:
+        info:
+            title: MyDiary API
+            version: '1'
+            description: |
+                API JSON de MyDiary para la app de iPhone.
+
+                **Autenticación.** `POST /api/v1/login` devuelve un token; el resto de peticiones lo envían como `Authorization: Bearer <token>`. Un token caduca tras 90 días sin uso.
+
+                **Convenciones.**
+                - Cuerpos y respuestas en JSON, con claves en `snake_case`.
+                - Instantes en ISO 8601 UTC (`2026-10-08T07:09:33Z`); los días, como `AAAA-MM-DD` en la zona horaria de la aplicación (Europe/Madrid).
+                - Listados paginados: parámetros `page` (desde 1) y `per_page`; la respuesta lleva `items`, `page`, `per_page` y `total`.
+                - Errores: siempre `{"code": "...", "message": "..."}`. `code` es estable (`bad_request`, `unauthorized`, `forbidden`, `not_found`, `method_not_allowed`, `conflict`, `validation_failed`, `too_many_requests`, `internal_error`); `message` es texto para personas.
+        components:
+            securitySchemes:
+                Bearer:
+                    type: http
+                    scheme: bearer
+                    description: Token devuelto por `POST /api/v1/login`.
+            schemas:
+                Error:
+                    type: object
+                    required: [code, message]
+                    properties:
+                        code:
+                            type: string
+                            example: unauthorized
+                        message:
+                            type: string
+                            example: Token ausente, inválido o caducado.
+        security:
+            - Bearer: []
+    html_config:
+        # Recursos de Swagger UI incrustados en la página: sin CDN ni `assets:install`.
+        assets_mode: offline
+    areas:
+        path_patterns:
+            - ^/api/v1

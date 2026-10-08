@@ -65,6 +65,18 @@ class HttpRequestLogListenerTest extends TestCase
         self::assertFalse($this->handler->hasRecords(Level::Debug));
     }
 
+    public function testApiTokenIdOnlyOnTokenAuthenticatedRequests(): void
+    {
+        $withToken = Request::create('/api/v1/me');
+        $withToken->attributes->set('_api_token_id', 7);
+        ($this->listener)($this->terminateEvent($withToken, 200));
+        ($this->listener)($this->terminateEvent(Request::create('/historial'), 200));
+
+        $records = $this->handler->getRecords();
+        self::assertSame(7, $records[0]->context['api_token_id']);
+        self::assertArrayNotHasKey('api_token_id', $records[1]->context);
+    }
+
     private function terminateEvent(Request $request, int $status): TerminateEvent
     {
         return new TerminateEvent($this->createStub(HttpKernelInterface::class), $request, new Response('', $status));
