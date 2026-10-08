@@ -21,6 +21,7 @@ Aplicación web que recibe notas de voz por Telegram, las transcribe automática
 | Contenedores | Docker + Docker Compose |
 | Transcripción | Open WebUI (Whisper local/remoto) o `whisper.cpp` como fallback |
 | Resumen / extracción de temas | Ollama (modelos existentes: qwen2.5:14b, llama3.1:8b, gemma2:27b, deepseek-r1:14b) vía API compatible OpenAI |
+| API JSON (app de iPhone) | Controladores planos bajo `/api/v1`, autenticación por token opaco (`access_token` de Symfony Security), `symfony/rate-limiter` para el login y `nelmio/api-doc-bundle` (OpenAPI + Swagger UI) |
 | Búsqueda semántica | Embeddings de Ollama (`nomic-embed-text`, 768 dimensiones) + similitud coseno vía `pgvector` |
 | Infraestructura destino | Mini PC con 32GB RAM (recursos no son una restricción) |
 
@@ -94,6 +95,19 @@ Distinto del caso anterior: aquí el audio en sí es válido, pero el servicio d
 - Un fallo al generar un embedding (p. ej. Ollama inaccesible) se loguea y no bloquea el flujo principal (transcripción, edición o resumen diario): el registro queda guardado sin embedding y, por tanto, invisible para la búsqueda hasta que se regenere. Los comandos `bin/console app:transcription:backfill-embeddings` y `bin/console app:daily-summary:backfill-embeddings` (o `make embeddings-backfill`) regeneran los embeddings faltantes bajo demanda.
 - La misma vista busca también en los recordatorios (`Reminder.text`), en este caso por palabras y no por similitud: coincidencia de subcadena sin distinguir mayúsculas ni tildes (extensión PostgreSQL `unaccent`). Los recordatorios que coinciden se muestran en una sección propia "Recordatorios" encima de las transcripciones y resúmenes (máximo 20, más recientes primero, con enlace a su día en `/recordatorios`), y esta parte no depende de Ollama: si falla el embedding de la consulta, los recordatorios se siguen mostrando.
 - Cambiar `OLLAMA_EMBEDDING_MODEL` invalida los embeddings ya guardados (dimensiones/espacio semántico distintos) y requiere reindexar todo el histórico con los comandos de backfill.
+
+### 3.7 API JSON (`/api/v1`)
+
+Segunda entrada a la aplicación, pensada para la app de iPhone (plan por fases en `ROADMAP.md`). La web no cambia: vistas Twig, login por formulario y webhook de Telegram siguen igual.
+
+- **Autenticación:** token opaco por dispositivo. `POST /api/v1/login` (JSON con `username`, `password` y `device_name`) devuelve el token, que solo se ve en esa respuesta; el resto de peticiones lo envían como `Authorization: Bearer <token>`. En BD solo se guarda su hash SHA-256 (tabla `api_token`). El firewall `api` (`^/api/`) no tiene estado: ni sesión ni CSRF, y la sesión web no sirve para la API. El usuario se toma siempre del token, nunca de un parámetro.
+- **Caducidad y revocación:** un token caduca tras 90 días sin uso (`ApiTokenManager::INACTIVITY_DAYS`); cada uso lo renueva (`last_used_at` se reescribe como mucho una vez por hora) y el caducado se borra al intentar usarlo. `POST /api/v1/logout` revoca el token en uso; por consola, `bin/console app:user:token:list <username>` y `bin/console app:user:token:revoke <id>`.
+- **Límite de intentos:** el login admite 5 intentos cada 15 minutos por IP y usuario (un login correcto reinicia el contador); después responde `429` con `Retry-After`.
+- **Endpoints actuales:** `POST /api/v1/login`, `POST /api/v1/logout` y `GET /api/v1/me` (usuario y datos del token en uso).
+- **Convenciones:** cuerpos y respuestas en JSON con claves en `snake_case`; instantes en ISO 8601 UTC (`2026-10-08T07:09:33Z`) y días como `AAAA-MM-DD` en `LocalTimezone`; listados paginados con `page` (desde 1) y `per_page`, y respuesta con `items`, `page`, `per_page` y `total`.
+- **Errores:** toda respuesta de error bajo `/api/` es `{"code": "...", "message": "..."}` (`ApiExceptionListener`). `code` es estable: `bad_request` (400), `unauthorized` (401), `forbidden` (403), `not_found` (404), `method_not_allowed` (405), `conflict` (409), `validation_failed` (422), `too_many_requests` (429) e `internal_error` (500, con mensaje genérico). Los errores de negocio se lanzan con `ApiException`.
+- **Documentación:** cada acción lleva sus atributos OpenAPI. Swagger UI en `/doc/api` y esquema en `/doc/api.json` (fuera de `^/api/`, así que piden sesión web); el esquema versionado está en `doc/openapi.json` (`make openapi` lo regenera). Las colecciones de peticiones son `doc/MyDiary.postman_collection.json` y `doc/api.http`. `tests/Doc/ApiDocumentationTest.php` falla si el esquema o alguna colección no recogen una ruta `/api/v1/*`.
+- **Logs:** la línea `http.request` lleva `api_token_id` en las peticiones autenticadas con token; el login registra `api.login_succeeded`, `api.login_failed` y `api.login_throttled`. Nunca se registra el token, su hash ni la contraseña.
 
 ## 4. Decisiones de diseño y motivos (importante para no reintroducir complejidad innecesaria)
 
@@ -219,6 +233,18 @@ Nota: la tabla se llama `app_user`, no `user` — `user` es palabra reservada en
 | roles | json | p. ej. `["ROLE_USER"]` — sin niveles de rol complejos, un único usuario |
 
 Sin registro ni recuperación de contraseña vía web. Gestión exclusivamente por consola: `bin/console app:user:create <username>` (pide/genera la contraseña) y `bin/console app:user:change-password <username>` (fija una contraseña nueva sin pedir la actual — requiere acceso al servidor/contenedor, que ya implica confianza de administrador).
+
+### `api_token`
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | int | PK |
+| user_id | FK a `app_user`, `onDelete: CASCADE` | Dueño del token |
+| token_hash | string(64) | **unique** — SHA-256 del token. El token en claro no se guarda |
+| name | string(100) | Nombre del dispositivo, enviado en el login (`device_name`) |
+| created_at | datetime | |
+| last_used_at | datetime, nullable | Último uso (se reescribe como mucho una vez por hora). La caducidad se calcula: 90 días después de `last_used_at`, o de `created_at` si nunca se usó |
+
+Los tokens se crean solo con `POST /api/v1/login` y se eliminan al revocarlos (logout o `app:user:token:revoke`) o al caducar (3.7).
 
 ## 7. Infraestructura y servicios Docker Compose
 

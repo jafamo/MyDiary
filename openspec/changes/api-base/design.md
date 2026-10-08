@@ -58,7 +58,7 @@ Firewall `api`: `pattern: ^/api/`, `stateless: true`, `access_token` con ese han
 
 Limitador `api_login` de `symfony/rate-limiter`, ventana deslizante de 5 intentos cada 15 minutos, con clave IP + usuario en minúsculas. Solo cuentan los intentos fallidos; un login correcto reinicia el contador. Superado el límite: `429` con cabecera `Retry-After`.
 
-En el entorno de test el limitador usa un pool de caché en memoria, para que una ejecución no herede intentos de la anterior.
+En el entorno de test el limitador usa un almacenamiento en memoria (`InMemoryStorage`), para que una ejecución no herede intentos de la anterior. No sirve un pool de caché `array`: el kernel lo vacía entre peticiones del mismo test.
 
 ### D6 — Formato de error
 
@@ -114,14 +114,17 @@ No hay comando para crear tokens: se crean con el login, que es el único sitio 
 
 - [Superficie nueva expuesta a internet] → login limitado por intentos, tokens de 256 bits guardados como hash, caducidad por inactividad y revocación por consola.
 - [El esquema OpenAPI o las colecciones se quedan atrás] → los dos tests de D8.
-- [Swagger UI necesita sus recursos estáticos] → se configura Nelmio para servirlos sin depender de `assets:install` ni de un CDN, si la versión lo permite; si no, queda como paso de despliegue.
+- [Swagger UI necesita sus recursos estáticos] → Nelmio se configura con `assets_mode: offline`, que los incrusta en la página: sin CDN ni `assets:install`.
 - [Borrar un token caducado dentro de una petición de lectura] → es una única fila y evita un comando de limpieza programado.
 - [Dos dependencias nuevas] → ambas se usan en esta misma fase; `symfony/rate-limiter` servirá también para la fase 0.
 
 ## Migration Plan
 
-1. `make composer-install` en el servidor (dependencias nuevas; `make deploy` no lo hace).
-2. `make migrate` (tabla `api_token`).
-3. `make deploy`.
+`make deploy` hace `git pull` y a continuación `cache:clear`, que fallaría sin las dependencias nuevas (el bundle de Nelmio está en `config/bundles.php`). En el servidor, por este orden:
+
+1. `git pull origin main`.
+2. `make composer-install` (dependencias nuevas).
+3. `make migrate` (tabla `api_token`).
+4. `make deploy` (limpia la caché y reinicia `diary-php` y `diary-messenger-worker`).
 
 Rollback: revertir el merge y ejecutar el `down()` de la migración (borra `api_token`; se pierden los tokens emitidos, que basta con volver a pedir).
