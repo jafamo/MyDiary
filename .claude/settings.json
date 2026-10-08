@@ -11,6 +11,19 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/php-cs-fix.sh\"",
+            "timeout": 30,
+            "statusMessage": "Aplicando PSR-12 al fichero PHP"
+          }
+        ]
+      }
     ]
   }
 }

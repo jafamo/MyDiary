@@ -15,6 +15,15 @@ security:
             # Ensure dev tools and static assets are always allowed
             pattern: ^/(_profiler|_wdt|assets|build)/
             security: false
+        # API JSON para la app: sin estado, autenticada con token Bearer (tabla api_token).
+        api:
+            pattern: ^/api/
+            stateless: true
+            provider: app_user_provider
+            entry_point: App\Security\ApiAuthenticationFailureHandler
+            access_token:
+                token_handler: App\Security\ApiTokenHandler
+                failure_handler: App\Security\ApiAuthenticationFailureHandler
         main:
             lazy: true
             provider: app_user_provider
@@ -32,6 +41,7 @@ security:
     access_control:
         - { path: ^/login, roles: PUBLIC_ACCESS }
         - { path: ^/telegram/webhook, roles: PUBLIC_ACCESS }
+        - { path: ^/api/v1/login$, roles: PUBLIC_ACCESS }
         - { path: ^/, roles: ROLE_USER }
 
 when@test:

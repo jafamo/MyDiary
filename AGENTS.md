@@ -30,18 +30,18 @@ Estas decisiones se tomaron explícitamente para evitar sobre-ingeniería en un 
 - **Sin CQRS ni bus de comandos/queries general.** Servicios de aplicación normales con métodos claros.
 - **Interfaces (puertos) solo puntuales**, donde ya existe razón real: `TranscriberInterface`, `SummaryGeneratorInterface`. No generalizar a otras partes del código sin justificación equivalente.
 - **Symfony Messenger solo para la cadena Telegram → transcripción**, no como bus general.
-- **Gestión de usuarios solo por consola.** Entidad `User` en BD (Symfony Security), pero sin registro ni recuperación de contraseña vía web: los usuarios se crean y las contraseñas se cambian con comandos `bin/console app:user:*` (acceso al servidor = ya autenticado como admin). Sin flujo de "olvidé mi contraseña" por email/token.
+- **Gestión de usuarios solo por consola.** Entidad `User` en BD (Symfony Security), pero sin registro ni recuperación de contraseña vía web: los usuarios se crean y las contraseñas se cambian con comandos `bin/console app:user:*` (acceso al servidor = ya autenticado como admin). Sin flujo de "olvidé mi contraseña" por email/token. Los tokens de la API se emiten con `POST /api/v1/login` y se listan o revocan con `app:user:token:list` / `app:user:token:revoke`.
 - Regla general: introducir un patrón solo cuando el problema que resuelve ya existe, no de forma anticipada.
 
 ## Flujo de trabajo
 
 - Antes de implementar una funcionalidad, si el proyecto tiene OpenSpec inicializado (carpeta `openspec/`), pasar por un change proposal (`openspec change`) en lugar de tocar código directamente.
 - Tests: `make test` ejecuta el suite de PHPUnit dentro de `diary-php` contra la base de datos de test (`telegram_notes_test`, separada de `telegram_notes`). Estilo de código: `make cs-check` (verificar) / `make cs-fix` (corregir), PSR-12, aplicado también en el hook `pre-commit` (`.githooks/pre-commit`, activar con `git config core.hooksPath .githooks`). Análisis estático: `make phpstan` (nivel 5, errores previos en `phpstan-baseline.neon`; regenerarlo solo de forma consciente).
-- CI (`.github/workflows/ci.yml`, en cada push a `main`/`develop` y en cada PR): `lint` (php-cs-fixer + PHPStan) → `tests` (PHPUnit con cobertura contra Postgres efímero) → `sonar` (SonarQube con esa cobertura).
+- CI (`.github/workflows/ci.yml`, en cada push a `main`/`develop` y en cada PR): `lint` (php-cs-fixer + PHPStan) → `tests` (PHPUnit con cobertura contra Postgres efímero) → `sonar` (SonarQube con esa cobertura; solo en `develop` y en PRs, no en `main`, porque SonarQube Community no distingue ramas).
 
 ## Entorno
 
-- El stack Docker (SonarQube, Ollama, Open WebUI, nginx, app) corre en el **servidor de producción**, no en esta máquina. Dar comandos para ejecutar en el host en lugar de buscar contenedores en local.
+- **Dos entornos Docker con el mismo `docker-compose.yml`:** el **local** de desarrollo (en esta máquina, solo la app: `diary-php`, `diary-postgres`, etc.; se levanta con `make up` y es donde corren `make test`, `make cs-check`, `make phpstan` y el hook de PSR-12 de Claude Code) y el de **producción** (servidor `zeus`, con la app y además SonarQube, Ollama, Open WebUI, Elasticsearch y Kibana). Si el stack local no está levantado, decirlo en lugar de dar algo por verificado; para producción, dar comandos para que los ejecute el usuario en el host.
 - **Servidor de producción:** `zeus`, alias SSH `diary-prod` (definido en `~/.ssh/config` del usuario; la IP no se versiona). Proyecto en `/projects/dockers/MyDiary`. Contenedores de la app: `diary-php`, `diary-messenger-worker` (async + scheduler), `diary-nginx`, `diary-postgres`, `diary-redis`, `diary-filebeat`. En el mismo host, fuera de este compose: `elasticsearch` (`localhost:9200`, logs en `filebeat-*`), `kibana` (`:5601`), `ollama`, `open-webui`, `sonarqube`.
 - **Logs en el servidor:** `logs/<servicio>/app-prod-AAAA-MM-DD.log` (JSON, fecha UTC) para `messenger-worker` y `php`; `logs/nginx/{access,error}.log`. Los ficheros guardan más historial que Elasticsearch.
 - **Acceso de diagnóstico:** solo lectura, con los scripts de `bin/ops/` (`prod-status`, `prod-logs`, `prod-es`, `prod-sql`) y el skill `/diagnostico`. Requiere la clave en el ssh-agent de systemd (`ssh-add -t 8h ~/.ssh/id_ed25519` en una terminal del usuario). Cualquier cambio en producción se entrega como comandos para que los ejecute el usuario.
@@ -53,6 +53,16 @@ Estas decisiones se tomaron explícitamente para evitar sobre-ingeniería en un 
 ### Logging (Kibana)
 
 Los campos de contexto de log deben ser planos y con prefijo (p. ej. `messenger_status`, no `status`) para no chocar con los tipos de campo de nginx que ya existen en Kibana.
+
+### API (`/api/v1`)
+
+Todo cambio que añada o modifique un endpoint de la API lo documenta en el mismo cambio, no después:
+
+- Atributos OpenAPI (`OpenApi\Attributes`) en la acción: cuerpo, respuestas y errores. Regenerar `doc/openapi.json` con `make openapi`.
+- Una petición en **las dos** colecciones: `doc/MyDiary.postman_collection.json` y `doc/api.http`.
+- `tests/Doc/ApiDocumentationTest.php` falla si falta alguna de las tres cosas.
+
+Controladores planos en `src/Controller/Api/` (sin API Platform). Errores con `ApiException` y el formato único `code` / `message`; fechas con `ApiFormatter`; el usuario siempre sale del token. Convenciones completas en `Especificaciones.md` 3.7.
 
 ### Constantes
 

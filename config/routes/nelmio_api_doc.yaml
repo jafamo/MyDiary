@@ -1,0 +1,11 @@
+# Documentación de la API. Fuera de ^/api/ a propósito: queda bajo el firewall `main`
+# y solo se ve con sesión web.
+app_api_doc:
+    path: /doc/api
+    methods: GET
+    controller: nelmio_api_doc.controller.swagger_ui
+
+app_api_doc_json:
+    path: /doc/api.json
+    methods: GET
+    controller: nelmio_api_doc.controller.swagger
