@@ -64,4 +64,19 @@ final class DateRange
     {
         return new \DateTimeImmutable('now', new \DateTimeZone(LocalTimezone::NAME));
     }
+
+    /**
+     * Interpreta un día `Y-m-d` recibido como texto (p. ej. de la query) a las 00:00.
+     * Devuelve null si falta o no tiene ese formato.
+     */
+    public static function parseDay(?string $day): ?\DateTimeImmutable
+    {
+        if (null === $day) {
+            return null;
+        }
+
+        $date = \DateTimeImmutable::createFromFormat('Y-m-d', $day);
+
+        return false !== $date ? $date->setTime(0, 0, 0) : null;
+    }
 }

@@ -15,8 +15,16 @@
 - [ ] **Purga/retención de audios antiguos** — comando de limpieza para `audio_storage` en filesystem, que hoy crece indefinidamente (ya existe retención de logs a 60 días pero no de audios).
 - [ ] **Health-check de dependencias externas** — endpoint o vista simple de estado para Ollama, Open WebUI y Redis, para diagnosticar antes de que falle un resumen diario.
 - [ ] **Filtros en búsqueda semántica** — acotar por rango de fechas y/o tipo (solo transcripciones / solo resúmenes).
+- [ ] **Recordatorios sincronizados con Google Calendar** — que los `Reminder` se creen en Google Calendar y que los eventos creados allí se recuperen en la app. Análisis previo (pendiente de decidir):
+  - **Quién manda:** recomendada sincronización bidireccional manteniendo la tabla `reminder` (vistas, búsqueda `unaccent` y aviso de las 8:00 siguen leyendo de BD). App → Google al crear/editar/borrar (guardando `googleEventId`); Google → app con un comando programado cada 5-15 min usando `events.list` + `syncToken` (sin push `events.watch`). Descartado que Google sea la única fuente (rompe búsqueda y avisos).
+  - **Autenticación:** cuenta de servicio con un calendario compartido con ella (sin OAuth ni tokens que caduquen) frente a OAuth 2.0 con la cuenta personal (ojo: en modo "Testing" el refresh token caduca a los 7 días). Hacer antes una prueba manual para comprobar si los eventos creados por la cuenta de servicio avisan en el móvil.
+  - **Calendario:** preferible uno dedicado "MyDiary" en lugar del principal.
+  - **Necesario:** `google/auth` + `symfony/http-client` (evitar `google/apiclient`), `GoogleCalendarClient` concreto sin interfaz, campos `googleEventId`/`googleEtag`/estado de sync en `Reminder`, estado del `syncToken`, reintentos desde el comando programado (no Messenger), secreto JSON fuera del repo, `MockHttpClient` en tests, logs con campos prefijados (`google_*`).
+  - **Abierto:** eventos recurrentes de Google (importar instancias de solo lectura o ignorarlos), duración por defecto de los recordatorios con hora, conflictos de edición (gana el `updated` más reciente), pérdida de descripción/duración de eventos importados.
 
 ## Notas
+
+- La adaptación a API para la app de iPhone tiene su propio plan por fases en `ROADMAP.md`.
 
 - Ninguna de estas es urgente: respetar la regla de "introducir un patrón solo cuando el problema ya existe" (`Especificaciones.md`, sección 4).
 - Cada una que se aborde sigue el flujo estándar del repo: `git flow feature start <nombre>` + `openspec change` antes de tocar código (ver `CLAUDE.md`).

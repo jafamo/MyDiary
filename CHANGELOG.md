@@ -8,6 +8,7 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 - `feature/readme-update`
 - `bugfix/sonar-skip-main`
 - `feature/claude-tooling`
+- `feature/extract-controller-logic`
 
 ### Añadido
 - Skill de proyecto `/desarrollo` (`.claude/skills/desarrollo/SKILL.md`) que encadena el flujo obligatorio de `AGENTS.md` en su orden: propuesta OpenSpec, rama Git Flow, implementación con tests (`cs-check` + `phpstan` + `test`), entrada en el CHANGELOG, archivado y finish hacia `develop`.
@@ -17,6 +18,7 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 - El CI de `main` fallaba en el job `sonar` al publicar una release (0.16.0): SonarQube Community no distingue ramas y los análisis de `main` y `develop`, lanzados a la vez, chocaban en el servidor (`CE Task finished abnormally`). El job `sonar` ya no se ejecuta en los push a `main`; sigue en `develop` y en los PRs.
 
 ### Cambiado
+- Refactor interno sin cambios visibles (fase 1 de `ROADMAP.md`, preparación de la API para la app de iPhone): los cálculos de **Estadísticas**, **Historial**, **Recordatorios** y **Búsqueda** salen de los controladores a servicios reutilizables (`EstadisticasService`, `HistorialService`, `RecordatoriosService`, `SearchService`), para que la futura API no los duplique. La rejilla del calendario, antes copiada en Historial y Recordatorios, pasa a `MonthGrid`, y la geometría del gráfico de tokens a `TokensChartBuilder`. Las vistas devuelven el mismo HTML; se añaden 33 tests unitarios de esos servicios.
 - El `Makefile` sabe en qué entorno se ejecuta por `APP_ENV` (de `.env` / `.env.local`): con `APP_ENV=prod` se bloquean `test`, `test-coverage`, `cs-check`, `cs-fix`, `phpstan`, `migration-diff` y `sonar` (evita lanzar los tests contra la base de datos de producción o dejar ficheros modificados en el repo del servidor), y `deploy` solo se ejecuta con `APP_ENV=prod` (fuera de producción hacía `git pull origin main` sobre la rama de trabajo). `AGENTS.md` describe los dos entornos Docker, local y producción.
 - `README.md` y `doc/README_ES.md` al día: vistas Resúmenes, Búsqueda (incluidos los recordatorios), Recordatorios y Temas; aviso diario de recordatorios y reintento de resúmenes que no salen en castellano en el flujo general; `make migrate` en el despliegue. La versión en castellano recupera las secciones de análisis estático y despliegue, y enlaza a `AGENTS.md` en lugar de `CLAUDE.md`.
 
