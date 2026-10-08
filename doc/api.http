@@ -1,0 +1,40 @@
+# MyDiary API (/api/v1)
+#
+# Ejecutable desde PhpStorm (HTTP Client) o VS Code (extensión REST Client).
+# Referencia completa: Swagger UI en {{base_url}}/doc/api (con sesión web) y doc/openapi.json.
+#
+# Cada endpoint nuevo de /api/v1 se añade aquí y en doc/MyDiary.postman_collection.json
+# (lo comprueba tests/Doc/ApiDocumentationTest.php).
+
+@base_url = http://localhost:9008
+@username = jfarinos
+@password = cambia-esto
+@device_name = Cliente HTTP
+
+### Login: emite un token para este dispositivo (solo se devuelve aquí)
+# @name login
+POST {{base_url}}/api/v1/login
+Content-Type: application/json
+
+{
+  "username": "{{username}}",
+  "password": "{{password}}",
+  "device_name": "{{device_name}}"
+}
+
+> {% client.global.set("token", response.body.token); %}
+
+### Token para las peticiones siguientes.
+# VS Code REST Client lo toma de la respuesta del login; PhpStorm usa la variable global
+# "token" que guarda el script anterior y tiene prioridad sobre esta línea.
+@token = {{login.response.body.token}}
+
+### Usuario y token en uso
+GET {{base_url}}/api/v1/me
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Logout: revoca el token en uso
+POST {{base_url}}/api/v1/logout
+Authorization: Bearer {{token}}
+Accept: application/json

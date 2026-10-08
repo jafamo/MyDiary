@@ -47,6 +47,9 @@
             ".php-cs-fixer.dist.php"
         ]
     },
+    "nelmio/api-doc-bundle": {
+        "version": "v5.13.1"
+    },
     "phpstan/phpstan": {
         "version": "2.2.15"
     },

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\EventListener;
 
+use App\Security\ApiTokenHandler;
 use Monolog\Attribute\WithMonologChannel;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
@@ -37,6 +38,21 @@ class HttpRequestLogListener
         $status = $event->getResponse()->getStatusCode();
         $startedAt = (float) $request->server->get('REQUEST_TIME_FLOAT', microtime(true));
 
+        $context = [
+            'event' => 'http.request',
+            'status' => $status,
+            'method' => $request->getMethod(),
+            'route' => $request->attributes->get('_route'),
+            'path' => $path,
+            'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+        ];
+
+        // Solo en peticiones de la API autenticadas con token; nunca el token en sí.
+        $apiTokenId = $request->attributes->get(ApiTokenHandler::REQUEST_ATTRIBUTE_ID);
+        if (null !== $apiTokenId) {
+            $context['api_token_id'] = $apiTokenId;
+        }
+
         $this->logger->log(
             match (true) {
                 $status >= 500 => LogLevel::ERROR,
@@ -44,14 +60,7 @@ class HttpRequestLogListener
                 default => LogLevel::INFO,
             },
             sprintf('%s %s %d', $request->getMethod(), $path, $status),
-            [
-                'event' => 'http.request',
-                'status' => $status,
-                'method' => $request->getMethod(),
-                'route' => $request->attributes->get('_route'),
-                'path' => $path,
-                'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
-            ],
+            $context,
         );
     }
 }

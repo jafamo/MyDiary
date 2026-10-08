@@ -1,4 +1,4 @@
-.PHONY: up down build restart logs ps sh cs-check cs-fix phpstan test test-coverage composer-install migrate migration-diff console cache-clear deploy audio-retry embeddings-backfill sonar
+.PHONY: up down build restart logs ps sh cs-check cs-fix phpstan test test-coverage composer-install migrate migration-diff console cache-clear deploy audio-retry embeddings-backfill sonar openapi
 
 COMPOSE = docker compose --env-file .env
 SONAR_HOST_URL ?= https://sonarqube.jfarinos.keenetic.pro
@@ -58,6 +58,11 @@ sonar:
 		-e SONAR_TOKEN \
 		-v "$(CURDIR):/usr/src" \
 		sonarsource/sonar-scanner-cli
+
+# Regenera doc/openapi.json a partir de los atributos OpenAPI de los controladores de la API.
+openapi:
+	$(LOCAL_ONLY)
+	$(COMPOSE) exec -T diary-php php bin/console nelmio:apidoc:dump --format=json > doc/openapi.json
 
 composer-install:
 	$(COMPOSE) exec diary-php composer install
