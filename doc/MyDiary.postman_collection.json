@@ -89,6 +89,46 @@
           }
         }
       ]
+    },
+    {
+      "name": "Audios",
+      "item": [
+        {
+          "name": "Subir audio",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Audio aceptado', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "    pm.expect(pm.response.json().result).to.be.oneOf(['created', 'duplicate', 'retrying']);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "description": "Sube un audio (m4a, mp3, ogg o wav, 25 MB como máximo) y lo pone en cola para transcribirlo. Elige el fichero en el campo `file`. `201` con `result` `created` si es nuevo; `200` con `duplicate` si ya existía o `retrying` si su transcripción había fallado y se relanza. `422` si falta el fichero, supera el tamaño o no es un audio admitido.",
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": [], "description": "Fichero de audio" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/audios",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "audios"]
+            }
+          }
+        }
+      ]
     }
   ]
 }

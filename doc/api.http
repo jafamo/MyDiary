@@ -34,6 +34,21 @@ GET {{base_url}}/api/v1/me
 Authorization: Bearer {{token}}
 Accept: application/json
 
+### Subir un audio (m4a, mp3, ogg o wav; 25 MB como máximo)
+# 201 con "result": "created" si es nuevo; 200 con "duplicate" o "retrying" si ya existía.
+# Cambia la ruta por un fichero de audio tuyo (relativa a este fichero).
+POST {{base_url}}/api/v1/audios
+Authorization: Bearer {{token}}
+Accept: application/json
+Content-Type: multipart/form-data; boundary=audio-boundary
+
+--audio-boundary
+Content-Disposition: form-data; name="file"; filename="nota.m4a"
+Content-Type: audio/mp4
+
+< ./nota.m4a
+--audio-boundary--
+
 ### Logout: revoca el token en uso
 POST {{base_url}}/api/v1/logout
 Authorization: Bearer {{token}}
