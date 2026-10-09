@@ -47,6 +47,7 @@
 ## 8. Verificación con Whisper
 
 - [ ] 8.1 Comprobar con un `.m4a` real que Whisper vía Open WebUI lo transcribe; si no, parar y decidirlo con el usuario
+  - Sin verificar: el Open WebUI del `.env` local responde `401`. El usuario decidió integrar en `develop` sin esta comprobación (2026-10-09); se hace tras el despliegue, antes de usar la app.
 
 ## 9. Documentación del proyecto y cierre
 

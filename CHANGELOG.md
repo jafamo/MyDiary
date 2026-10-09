@@ -25,6 +25,7 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 ### Despliegue
 - La imagen PHP cambia (añade `ffmpeg`, por `ffprobe`, y sube los límites de subida a 25 MB por fichero) y hay una dependencia nueva (`symfony/process`). `make deploy` no reconstruye la imagen ni instala dependencias, así que en el servidor, por este orden: `git pull origin main`, `make build`, `make up` (recrea `diary-php` y `diary-messenger-worker` con la imagen nueva), `make composer-install`, `make migrate` y `make deploy`.
 - nginx pasa a admitir peticiones de 30 MB (`client_max_body_size`). El fichero de configuración está montado, pero nginx solo lo lee al arrancar: `docker compose --env-file .env restart diary-nginx`.
+- **Pendiente de verificar tras desplegar:** que Whisper (Open WebUI) transcribe un `.m4a`, el formato que graba el iPhone; no se pudo probar en local. Basta subir un `.m4a` real a `POST /api/v1/audios`: si Whisper lo rechazara, el audio queda en `ERROR`, visible y reintentable.
 - Comprobación: `docker compose --env-file .env exec diary-php ffprobe -version` debe responder, y `docker compose --env-file .env exec diary-php php -r 'echo ini_get("upload_max_filesize");'` debe dar `25M`.
 
 ## [0.17.0] - 2026-10-08
