@@ -31,6 +31,11 @@ class AudioRecordingRepository extends ServiceEntityRepository
         return $this->findOneBy(['telegramFileUniqueId' => $telegramFileUniqueId]);
     }
 
+    public function findOneByContentHash(string $contentHash): ?AudioRecording
+    {
+        return $this->findOneBy(['contentHash' => $contentHash]);
+    }
+
     /**
      * @return list<AudioRecording>
      */
