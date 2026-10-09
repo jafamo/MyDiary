@@ -31,7 +31,7 @@ Proyecto personal de un solo usuario — deliberadamente sin sobre-ingeniería:
 - ❌ Sin hexagonal estricta ni capas Domain/Application/Infrastructure — las entidades Doctrine son el modelo de dominio
 - ❌ Sin CQRS ni bus general de comandos/queries
 - ✅ Entidad `User` única en BD (Symfony Security) — sin registro ni recuperación de contraseña por web; se gestiona con `bin/console app:user:*`
-- ✅ Interfaces puntuales donde hay razón real: `TranscriberInterface`, `SummaryGeneratorInterface`
+- ✅ Interfaces puntuales donde hay razón real: `TranscriberInterface`, `SummaryGeneratorInterface`, `AudioProbeInterface`
 - ✅ Symfony Messenger solo para la cadena Telegram → transcripción
 
 Más detalle y motivos en [`AGENTS.md`](../AGENTS.md) y la sección 4 de [`Especificaciones.md`](../Especificaciones.md).

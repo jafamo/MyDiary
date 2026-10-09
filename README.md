@@ -31,7 +31,7 @@ Personal single-user project — deliberately avoiding over-engineering:
 - ❌ No strict hexagonal architecture or separate Domain/Application/Infrastructure layers — Doctrine entities ARE the domain model
 - ❌ No CQRS or general command/query bus
 - ✅ Single `User` entity in the database (Symfony Security) — no self-registration or web password recovery; users are managed via `bin/console app:user:*`
-- ✅ Targeted interfaces (ports) where there's a real reason: `TranscriberInterface`, `SummaryGeneratorInterface`
+- ✅ Targeted interfaces (ports) where there's a real reason: `TranscriberInterface`, `SummaryGeneratorInterface`, `AudioProbeInterface`
 - ✅ Symfony Messenger used only for the Telegram → transcription chain
 
 More detail and rationale in [`AGENTS.md`](./AGENTS.md) and section 4 of [`Especificaciones.md`](./Especificaciones.md).

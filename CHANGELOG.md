@@ -4,6 +4,29 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+### Ramas integradas en `develop`
+- `feature/api-audio-upload`
+
+### Añadido
+- **Subida de audios por la API** (fase 5 de `ROADMAP.md`): `POST /api/v1/audios` recibe un fichero en el campo `file` (multipart) y lo pone en cola para transcribirse, sin pasar por Telegram. A partir de ahí el audio se comporta como cualquier otro: aparece en Diario e Historial, entra en el resumen del día y avisa por Telegram cuando la transcripción está lista o falla.
+- La respuesta devuelve siempre el audio (`id`, `status`, `source`, `duration_seconds`, `received_at`) y un campo `result`: `created` (`201`) si es nuevo, `duplicate` (`200`) si ese mismo fichero ya se había subido, o `retrying` (`200`) si su transcripción había fallado y se relanza. Reintentar una subida tras un corte de red no duplica el audio ni devuelve un error.
+- Se aceptan audios `m4a`, `mp3`, `ogg` y `wav` de hasta 25 MB. El formato se comprueba por el contenido real del fichero, no por su extensión ni por el `Content-Type`, y la duración la calcula el servidor con `ffprobe`. Lo que no es un audio admitido se rechaza con `422` y no deja rastro.
+- Logs: cada subida aceptada registra `audio.uploaded` con `audio_recording_id`, `audio_source`, `audio_content_hash` y `audio_upload_result`; los logs de transcripción llevan además `audio_source`.
+- El endpoint está en Swagger (`/doc/api`), en `doc/openapi.json` y en las dos colecciones de peticiones (Postman y `doc/api.http`).
+
+### Cambiado
+- `audio_recording` ya no exige los identificadores de Telegram: los audios guardan su origen (`source`: `telegram` o `app`) y los de la app se identifican por el hash de su contenido (`content_hash`). Los audios existentes quedan como `telegram`. El webhook de Telegram no cambia de comportamiento.
+- Los logs de transcripción solo incluyen `telegram_file_unique_id` cuando el audio lo tiene.
+- Los tests guardan los audios subidos en el directorio de caché de test en lugar de `var/audio`.
+
+### Migraciones
+- `Version20261009090000`: en `audio_recording`, añade `source` y `content_hash` (único) y hace opcionales `telegram_message_id` y `telegram_file_unique_id`. **Requiere `make migrate` tras el despliegue.**
+
+### Despliegue
+- La imagen PHP cambia (añade `ffmpeg`, por `ffprobe`, y sube los límites de subida a 25 MB por fichero) y hay una dependencia nueva (`symfony/process`). `make deploy` no reconstruye la imagen ni instala dependencias, así que en el servidor, por este orden: `git pull origin main`, `make build`, `make up` (recrea `diary-php` y `diary-messenger-worker` con la imagen nueva), `make composer-install`, `make migrate` y `make deploy`.
+- nginx pasa a admitir peticiones de 30 MB (`client_max_body_size`). El fichero de configuración está montado, pero nginx solo lo lee al arrancar: `docker compose --env-file .env restart diary-nginx`.
+- Comprobación: `docker compose --env-file .env exec diary-php ffprobe -version` debe responder, y `docker compose --env-file .env exec diary-php php -r 'echo ini_get("upload_max_filesize");'` debe dar `25M`.
+
 ## [0.17.0] - 2026-10-08
 
 ### Ramas integradas en `develop`
