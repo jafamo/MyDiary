@@ -290,6 +290,907 @@
                     }
                 }
             }
+        },
+        "/api/v1/busqueda": {
+            "get": {
+                "tags": [
+                    "B\u00fasqueda"
+                ],
+                "summary": "Buscar en el diario",
+                "description": "B\u00fasqueda sem\u00e1ntica en transcripciones y res\u00famenes (hasta 20 resultados, ordenados del m\u00e1s cercano al m\u00e1s lejano) y b\u00fasqueda por texto en recordatorios. Si el servicio de embeddings falla, `results` va vac\u00edo y los recordatorios se devuelven igual.",
+                "operationId": "get_api_busqueda",
+                "parameters": [
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "Texto a buscar.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "dentista"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Resultados",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "required": [
+                                        "query",
+                                        "results",
+                                        "reminders"
+                                    ],
+                                    "properties": {
+                                        "query": {
+                                            "type": "string",
+                                            "example": "dentista"
+                                        },
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "required": [
+                                                    "type",
+                                                    "distance",
+                                                    "date",
+                                                    "audio",
+                                                    "summary"
+                                                ],
+                                                "properties": {
+                                                    "type": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "transcription",
+                                                            "daily_summary"
+                                                        ]
+                                                    },
+                                                    "distance": {
+                                                        "description": "Distancia coseno a la consulta: cuanto menor, m\u00e1s parecido.",
+                                                        "type": "number",
+                                                        "format": "float",
+                                                        "example": 0.31
+                                                    },
+                                                    "date": {
+                                                        "description": "D\u00eda del audio o del resumen.",
+                                                        "type": "string",
+                                                        "format": "date"
+                                                    },
+                                                    "audio": {
+                                                        "oneOf": [
+                                                            {
+                                                                "$ref": "#/components/schemas/Audio"
+                                                            }
+                                                        ],
+                                                        "nullable": true,
+                                                        "description": "Presente si `type` es `transcription`."
+                                                    },
+                                                    "summary": {
+                                                        "oneOf": [
+                                                            {
+                                                                "$ref": "#/components/schemas/Summary"
+                                                            }
+                                                        ],
+                                                        "nullable": true,
+                                                        "description": "Presente si `type` es `daily_summary`."
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "reminders": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Reminder"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token ausente, inv\u00e1lido o caducado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Falta `q` o est\u00e1 vac\u00edo",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/diario": {
+            "get": {
+                "tags": [
+                    "Diario"
+                ],
+                "summary": "Diario de hoy",
+                "description": "Audios recibidos hoy (zona horaria de la aplicaci\u00f3n) con su transcripci\u00f3n, el resumen del d\u00eda si ya existe y los indicadores de la portada: rachas, total de la semana y tema del mes.",
+                "operationId": "get_api_diario",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Solo los audios en ese estado.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "PENDING",
+                                "TRANSCRIBED",
+                                "ERROR"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Diario de hoy",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "required": [
+                                        "date",
+                                        "entries",
+                                        "summary",
+                                        "streak",
+                                        "week",
+                                        "top_topic"
+                                    ],
+                                    "properties": {
+                                        "date": {
+                                            "type": "string",
+                                            "format": "date"
+                                        },
+                                        "entries": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Audio"
+                                            }
+                                        },
+                                        "summary": {
+                                            "oneOf": [
+                                                {
+                                                    "$ref": "#/components/schemas/Summary"
+                                                }
+                                            ],
+                                            "nullable": true
+                                        },
+                                        "streak": {
+                                            "required": [
+                                                "current",
+                                                "best"
+                                            ],
+                                            "properties": {
+                                                "current": {
+                                                    "description": "D\u00edas seguidos con audio hasta hoy o ayer.",
+                                                    "type": "integer",
+                                                    "example": 4
+                                                },
+                                                "best": {
+                                                    "description": "Mejor racha hist\u00f3rica.",
+                                                    "type": "integer",
+                                                    "example": 12
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "week": {
+                                            "required": [
+                                                "total",
+                                                "delta"
+                                            ],
+                                            "properties": {
+                                                "total": {
+                                                    "description": "Audios de esta semana.",
+                                                    "type": "integer",
+                                                    "example": 9
+                                                },
+                                                "delta": {
+                                                    "description": "Diferencia con la semana anterior.",
+                                                    "type": "integer",
+                                                    "example": -2
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "top_topic": {
+                                            "description": "Tema m\u00e1s frecuente del mes.",
+                                            "required": [
+                                                "name",
+                                                "count"
+                                            ],
+                                            "properties": {
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "trabajo"
+                                                },
+                                                "count": {
+                                                    "type": "integer",
+                                                    "example": 6
+                                                }
+                                            },
+                                            "type": "object",
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token ausente, inv\u00e1lido o caducado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Par\u00e1metro de consulta inv\u00e1lido",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/estadisticas": {
+            "get": {
+                "tags": [
+                    "Estad\u00edsticas"
+                ],
+                "summary": "Estad\u00edsticas y consumo de IA",
+                "description": "M\u00e9tricas del rango elegido, con las series diarias en crudo. `status` afecta a las series y medias de audios y a la comparativa; no a recordatorios, res\u00famenes, recuento por estado, temas ni consumo de IA.",
+                "operationId": "get_api_estadisticas",
+                "parameters": [
+                    {
+                        "name": "range",
+                        "in": "query",
+                        "description": "D\u00edas hasta hoy, o `custom` para un rango con `from` y `to`.",
+                        "schema": {
+                            "type": "string",
+                            "default": "30",
+                            "enum": [
+                                "15",
+                                "30",
+                                "90",
+                                "365",
+                                "custom"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "Primer d\u00eda (`AAAA-MM-DD`). Obligatorio con `range=custom`.",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "\u00daltimo d\u00eda (`AAAA-MM-DD`). Obligatorio con `range=custom`.",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Solo los audios en ese estado.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "PENDING",
+                                "TRANSCRIBED",
+                                "ERROR"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Estad\u00edsticas del rango",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Statistics"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token ausente, inv\u00e1lido o caducado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Rango desconocido, `custom` sin fechas v\u00e1lidas o estado inv\u00e1lido",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/historial": {
+            "get": {
+                "tags": [
+                    "Historial"
+                ],
+                "summary": "D\u00edas con actividad de un mes",
+                "description": "Devuelve solo los d\u00edas del mes que tienen audios o resumen, para marcarlos en un calendario. El detalle de un d\u00eda se pide con `GET /api/v1/historial/{fecha}`.",
+                "operationId": "get_api_historial",
+                "parameters": [
+                    {
+                        "name": "month",
+                        "in": "query",
+                        "description": "Mes como `AAAA-MM`. Por defecto, el mes actual.",
+                        "schema": {
+                            "type": "string",
+                            "example": "2026-10"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "D\u00edas con actividad",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "required": [
+                                        "month",
+                                        "previous_month",
+                                        "next_month",
+                                        "days"
+                                    ],
+                                    "properties": {
+                                        "month": {
+                                            "type": "string",
+                                            "example": "2026-10"
+                                        },
+                                        "previous_month": {
+                                            "type": "string",
+                                            "example": "2026-09"
+                                        },
+                                        "next_month": {
+                                            "type": "string",
+                                            "example": "2026-11"
+                                        },
+                                        "days": {
+                                            "type": "array",
+                                            "items": {
+                                                "required": [
+                                                    "date",
+                                                    "audio_count",
+                                                    "has_summary"
+                                                ],
+                                                "properties": {
+                                                    "date": {
+                                                        "type": "string",
+                                                        "format": "date"
+                                                    },
+                                                    "audio_count": {
+                                                        "type": "integer",
+                                                        "example": 3
+                                                    },
+                                                    "has_summary": {
+                                                        "type": "boolean"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token ausente, inv\u00e1lido o caducado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Par\u00e1metro de consulta inv\u00e1lido",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/historial/{fecha}": {
+            "get": {
+                "tags": [
+                    "Historial"
+                ],
+                "summary": "Audios y resumen de un d\u00eda",
+                "description": "Un d\u00eda sin audios ni resumen responde `200` con `entries` vac\u00edo y `summary` a `null`.",
+                "operationId": "get_api_historial_day",
+                "parameters": [
+                    {
+                        "name": "fecha",
+                        "in": "path",
+                        "description": "D\u00eda como `AAAA-MM-DD`.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "pattern": "\\d{4}-\\d{2}-\\d{2}"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Solo los audios en ese estado.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "PENDING",
+                                "TRANSCRIBED",
+                                "ERROR"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detalle del d\u00eda",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "required": [
+                                        "date",
+                                        "entries",
+                                        "summary"
+                                    ],
+                                    "properties": {
+                                        "date": {
+                                            "type": "string",
+                                            "format": "date"
+                                        },
+                                        "entries": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Audio"
+                                            }
+                                        },
+                                        "summary": {
+                                            "oneOf": [
+                                                {
+                                                    "$ref": "#/components/schemas/Summary"
+                                                }
+                                            ],
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token ausente, inv\u00e1lido o caducado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "La fecha no existe o el estado no es v\u00e1lido",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/recordatorios": {
+            "get": {
+                "tags": [
+                    "Recordatorios"
+                ],
+                "summary": "Recordatorios",
+                "description": "Listado paginado. Admite un solo filtro: `scope` (por defecto `upcoming`), `month` o `date`; combinarlos es un `422`.",
+                "operationId": "get_api_recordatorios",
+                "parameters": [
+                    {
+                        "name": "scope",
+                        "in": "query",
+                        "description": "`upcoming`: de hoy en adelante, del m\u00e1s cercano al m\u00e1s lejano. `history`: anteriores a hoy, del m\u00e1s reciente al m\u00e1s antiguo.",
+                        "schema": {
+                            "type": "string",
+                            "default": "upcoming",
+                            "enum": [
+                                "upcoming",
+                                "history"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "month",
+                        "in": "query",
+                        "description": "Los de ese mes (`AAAA-MM`), por fecha ascendente.",
+                        "schema": {
+                            "type": "string",
+                            "example": "2026-10"
+                        }
+                    },
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "description": "Los de ese d\u00eda (`AAAA-MM-DD`).",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "$ref": "#/components/parameters/page"
+                    },
+                    {
+                        "$ref": "#/components/parameters/per_page"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "P\u00e1gina de recordatorios",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "required": [
+                                        "items",
+                                        "page",
+                                        "per_page",
+                                        "total"
+                                    ],
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Reminder"
+                                            }
+                                        },
+                                        "page": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "per_page": {
+                                            "type": "integer",
+                                            "example": 20
+                                        },
+                                        "total": {
+                                            "type": "integer",
+                                            "example": 8
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token ausente, inv\u00e1lido o caducado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Filtro inv\u00e1lido, filtros combinados o paginaci\u00f3n inv\u00e1lida",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/recordatorios/proximos": {
+            "get": {
+                "tags": [
+                    "Recordatorios"
+                ],
+                "summary": "Aviso de recordatorios cercanos",
+                "description": "El dato de la campana de la web: recordatorios de los pr\u00f3ximos 5 d\u00edas (hoy incluido) y los del d\u00eda m\u00e1s cercano.",
+                "operationId": "get_api_recordatorios_proximos",
+                "responses": {
+                    "200": {
+                        "description": "Aviso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "required": [
+                                        "count",
+                                        "level",
+                                        "nearest_date",
+                                        "reminders"
+                                    ],
+                                    "properties": {
+                                        "count": {
+                                            "description": "Recordatorios en los pr\u00f3ximos 5 d\u00edas.",
+                                            "type": "integer",
+                                            "example": 3
+                                        },
+                                        "level": {
+                                            "description": "`urgent` si el m\u00e1s cercano es hoy o ma\u00f1ana; `null` si no hay ninguno.",
+                                            "type": "string",
+                                            "nullable": true,
+                                            "enum": [
+                                                "urgent",
+                                                "upcoming"
+                                            ]
+                                        },
+                                        "nearest_date": {
+                                            "type": "string",
+                                            "format": "date",
+                                            "nullable": true
+                                        },
+                                        "reminders": {
+                                            "description": "Los del d\u00eda m\u00e1s cercano.",
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Reminder"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token ausente, inv\u00e1lido o caducado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/resumenes": {
+            "get": {
+                "tags": [
+                    "Res\u00famenes"
+                ],
+                "summary": "Res\u00famenes diarios",
+                "description": "Listado paginado del m\u00e1s reciente al m\u00e1s antiguo. `from` y `to` limitan el rango y se env\u00edan los dos o ninguno.",
+                "operationId": "get_api_resumenes",
+                "parameters": [
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "Primer d\u00eda del rango (`AAAA-MM-DD`, inclusive).",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "\u00daltimo d\u00eda del rango (`AAAA-MM-DD`, inclusive).",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "$ref": "#/components/parameters/page"
+                    },
+                    {
+                        "$ref": "#/components/parameters/per_page"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "P\u00e1gina de res\u00famenes",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "required": [
+                                        "items",
+                                        "page",
+                                        "per_page",
+                                        "total"
+                                    ],
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "allOf": [
+                                                    {
+                                                        "$ref": "#/components/schemas/Summary"
+                                                    },
+                                                    {
+                                                        "required": [
+                                                            "audio_count"
+                                                        ],
+                                                        "properties": {
+                                                            "audio_count": {
+                                                                "description": "Audios recibidos ese d\u00eda.",
+                                                                "type": "integer",
+                                                                "example": 4
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        "page": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "per_page": {
+                                            "type": "integer",
+                                            "example": 20
+                                        },
+                                        "total": {
+                                            "type": "integer",
+                                            "example": 57
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token ausente, inv\u00e1lido o caducado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Rango incompleto o invertido, o paginaci\u00f3n inv\u00e1lida",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/topics": {
+            "get": {
+                "tags": [
+                    "Temas"
+                ],
+                "summary": "Temas",
+                "description": "Todos los temas, sin paginar, del m\u00e1s usado al menos usado y despu\u00e9s por nombre.",
+                "operationId": "get_api_topics",
+                "responses": {
+                    "200": {
+                        "description": "Temas",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "required": [
+                                        "items",
+                                        "total"
+                                    ],
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "allOf": [
+                                                    {
+                                                        "$ref": "#/components/schemas/Topic"
+                                                    },
+                                                    {
+                                                        "required": [
+                                                            "usage_count",
+                                                            "last_used"
+                                                        ],
+                                                        "properties": {
+                                                            "usage_count": {
+                                                                "description": "Res\u00famenes que usan el tema.",
+                                                                "type": "integer",
+                                                                "example": 6
+                                                            },
+                                                            "last_used": {
+                                                                "description": "D\u00eda del resumen m\u00e1s reciente que lo usa.",
+                                                                "type": "string",
+                                                                "format": "date",
+                                                                "nullable": true
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        "total": {
+                                            "type": "integer",
+                                            "example": 42
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token ausente, inv\u00e1lido o caducado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -307,6 +1208,519 @@
                     "message": {
                         "type": "string",
                         "example": "Token ausente, inv\u00e1lido o caducado."
+                    }
+                },
+                "type": "object"
+            },
+            "Transcription": {
+                "required": [
+                    "id",
+                    "content",
+                    "edited_manually",
+                    "model",
+                    "processing_ms",
+                    "created_at",
+                    "updated_at"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 31
+                    },
+                    "content": {
+                        "type": "string",
+                        "example": "Hoy he ido al dentista y despu\u00e9s a comprar."
+                    },
+                    "edited_manually": {
+                        "description": "Corregida a mano tras la transcripci\u00f3n autom\u00e1tica.",
+                        "type": "boolean"
+                    },
+                    "model": {
+                        "type": "string",
+                        "example": "whisper-large-v3",
+                        "nullable": true
+                    },
+                    "processing_ms": {
+                        "description": "Tiempo de transcripci\u00f3n.",
+                        "type": "integer",
+                        "example": 14200,
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "Audio": {
+                "required": [
+                    "id",
+                    "status",
+                    "source",
+                    "duration_seconds",
+                    "received_at",
+                    "error_code",
+                    "error_message",
+                    "transcription"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 42
+                    },
+                    "status": {
+                        "type": "string",
+                        "example": "TRANSCRIBED",
+                        "enum": [
+                            "PENDING",
+                            "TRANSCRIBED",
+                            "ERROR"
+                        ]
+                    },
+                    "source": {
+                        "type": "string",
+                        "example": "app",
+                        "enum": [
+                            "telegram",
+                            "app"
+                        ]
+                    },
+                    "duration_seconds": {
+                        "type": "integer",
+                        "example": 37
+                    },
+                    "received_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "error_code": {
+                        "description": "Solo con `status` `ERROR`.",
+                        "type": "string",
+                        "example": "TIMEOUT",
+                        "nullable": true
+                    },
+                    "error_message": {
+                        "description": "Causa del error, en castellano.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "transcription": {
+                        "description": "`null` mientras el audio no est\u00e9 transcrito.",
+                        "nullable": true,
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Transcription"
+                            }
+                        ]
+                    }
+                },
+                "type": "object"
+            },
+            "Topic": {
+                "required": [
+                    "id",
+                    "name"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 5
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "trabajo"
+                    }
+                },
+                "type": "object"
+            },
+            "Summary": {
+                "required": [
+                    "id",
+                    "date",
+                    "summary_text",
+                    "generated_at",
+                    "emoji_legend",
+                    "topics",
+                    "model",
+                    "prompt_tokens",
+                    "completion_tokens",
+                    "generation_ms"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 12
+                    },
+                    "date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "summary_text": {
+                        "type": "string"
+                    },
+                    "generated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "emoji_legend": {
+                        "description": "Significado de los emojis usados en el resumen.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "emoji",
+                                "meaning"
+                            ],
+                            "properties": {
+                                "emoji": {
+                                    "type": "string",
+                                    "example": "\ud83e\uddb7"
+                                },
+                                "meaning": {
+                                    "type": "string",
+                                    "example": "Dentista"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "nullable": true
+                    },
+                    "topics": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Topic"
+                        }
+                    },
+                    "model": {
+                        "type": "string",
+                        "example": "qwen2.5:14b",
+                        "nullable": true
+                    },
+                    "prompt_tokens": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "completion_tokens": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "generation_ms": {
+                        "type": "integer",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "Reminder": {
+                "required": [
+                    "id",
+                    "date",
+                    "time",
+                    "text",
+                    "created_at",
+                    "updated_at"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 9
+                    },
+                    "date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "time": {
+                        "description": "Hora como `HH:MM`, o `null` si es de todo el d\u00eda.",
+                        "type": "string",
+                        "example": "10:00",
+                        "nullable": true
+                    },
+                    "text": {
+                        "type": "string",
+                        "example": "Dentista"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "DailyValue": {
+                "required": [
+                    "date",
+                    "value"
+                ],
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "value": {
+                        "type": "integer",
+                        "example": 3
+                    }
+                },
+                "type": "object"
+            },
+            "Statistics": {
+                "required": [
+                    "range",
+                    "from",
+                    "to",
+                    "series",
+                    "reminders_series",
+                    "total_audios",
+                    "total_reminders_in_range",
+                    "total_days",
+                    "avg_audios_per_day",
+                    "avg_duration_seconds",
+                    "days_with_summary",
+                    "status_counts",
+                    "topic_frequency",
+                    "current_streak",
+                    "best_streak",
+                    "record_day",
+                    "previous_period_comparison",
+                    "ai_usage"
+                ],
+                "properties": {
+                    "range": {
+                        "type": "string",
+                        "enum": [
+                            "15",
+                            "30",
+                            "90",
+                            "365",
+                            "custom"
+                        ]
+                    },
+                    "from": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "to": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "series": {
+                        "description": "Audios por d\u00eda, un elemento por cada d\u00eda del rango.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DailyValue"
+                        }
+                    },
+                    "reminders_series": {
+                        "description": "Recordatorios por d\u00eda.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DailyValue"
+                        }
+                    },
+                    "total_audios": {
+                        "type": "integer"
+                    },
+                    "total_reminders_in_range": {
+                        "type": "integer"
+                    },
+                    "total_days": {
+                        "type": "integer"
+                    },
+                    "avg_audios_per_day": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 2.4
+                    },
+                    "avg_duration_seconds": {
+                        "type": "integer"
+                    },
+                    "days_with_summary": {
+                        "type": "integer"
+                    },
+                    "status_counts": {
+                        "required": [
+                            "PENDING",
+                            "TRANSCRIBED",
+                            "ERROR"
+                        ],
+                        "properties": {
+                            "PENDING": {
+                                "type": "integer"
+                            },
+                            "TRANSCRIBED": {
+                                "type": "integer"
+                            },
+                            "ERROR": {
+                                "type": "integer"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "topic_frequency": {
+                        "description": "Temas m\u00e1s frecuentes del rango (hasta 8).",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "name",
+                                "count"
+                            ],
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "count": {
+                                    "type": "integer"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "current_streak": {
+                        "description": "D\u00edas seguidos con audio al final del rango.",
+                        "type": "integer"
+                    },
+                    "best_streak": {
+                        "description": "Racha m\u00e1s larga dentro del rango.",
+                        "type": "integer"
+                    },
+                    "record_day": {
+                        "description": "D\u00eda con m\u00e1s audios del rango.",
+                        "nullable": true,
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DailyValue"
+                            }
+                        ]
+                    },
+                    "previous_period_comparison": {
+                        "required": [
+                            "available",
+                            "percentage"
+                        ],
+                        "properties": {
+                            "available": {
+                                "description": "`false` si el periodo anterior no tiene audios.",
+                                "type": "boolean"
+                            },
+                            "percentage": {
+                                "description": "Variaci\u00f3n de la media de audios por d\u00eda.",
+                                "type": "number",
+                                "format": "float",
+                                "example": 12.5,
+                                "nullable": true
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "ai_usage": {
+                        "required": [
+                            "totals",
+                            "days"
+                        ],
+                        "properties": {
+                            "totals": {
+                                "required": [
+                                    "prompt_tokens",
+                                    "completion_tokens",
+                                    "total_tokens",
+                                    "avg_tokens_per_summary",
+                                    "summaries_with_tokens",
+                                    "audio_seconds",
+                                    "whisper_ms",
+                                    "ollama_ms"
+                                ],
+                                "properties": {
+                                    "prompt_tokens": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "completion_tokens": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "total_tokens": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "avg_tokens_per_summary": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "summaries_with_tokens": {
+                                        "type": "integer"
+                                    },
+                                    "audio_seconds": {
+                                        "type": "integer"
+                                    },
+                                    "whisper_ms": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "ollama_ms": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "days": {
+                                "type": "array",
+                                "items": {
+                                    "required": [
+                                        "date",
+                                        "audios",
+                                        "audio_seconds",
+                                        "processing_ms",
+                                        "prompt_tokens",
+                                        "completion_tokens",
+                                        "total_tokens",
+                                        "generation_ms"
+                                    ],
+                                    "properties": {
+                                        "date": {
+                                            "type": "string",
+                                            "format": "date"
+                                        },
+                                        "audios": {
+                                            "type": "integer"
+                                        },
+                                        "audio_seconds": {
+                                            "type": "integer"
+                                        },
+                                        "processing_ms": {
+                                            "type": "integer",
+                                            "nullable": true
+                                        },
+                                        "prompt_tokens": {
+                                            "type": "integer",
+                                            "nullable": true
+                                        },
+                                        "completion_tokens": {
+                                            "type": "integer",
+                                            "nullable": true
+                                        },
+                                        "total_tokens": {
+                                            "type": "integer",
+                                            "nullable": true
+                                        },
+                                        "generation_ms": {
+                                            "type": "integer",
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "type": "object"
                     }
                 },
                 "type": "object"
@@ -365,6 +1779,29 @@
                 "type": "object"
             }
         },
+        "parameters": {
+            "page": {
+                "name": "page",
+                "in": "query",
+                "description": "P\u00e1gina, desde 1.",
+                "schema": {
+                    "type": "integer",
+                    "default": 1,
+                    "minimum": 1
+                }
+            },
+            "per_page": {
+                "name": "per_page",
+                "in": "query",
+                "description": "Elementos por p\u00e1gina.",
+                "schema": {
+                    "type": "integer",
+                    "default": 20,
+                    "maximum": 100,
+                    "minimum": 1
+                }
+            }
+        },
         "securitySchemes": {
             "Bearer": {
                 "type": "http",
@@ -384,6 +1821,27 @@
         },
         {
             "name": "Autenticaci\u00f3n"
+        },
+        {
+            "name": "B\u00fasqueda"
+        },
+        {
+            "name": "Diario"
+        },
+        {
+            "name": "Estad\u00edsticas"
+        },
+        {
+            "name": "Historial"
+        },
+        {
+            "name": "Recordatorios"
+        },
+        {
+            "name": "Res\u00famenes"
+        },
+        {
+            "name": "Temas"
         }
     ]
 }

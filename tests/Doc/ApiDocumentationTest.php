@@ -58,7 +58,7 @@ class ApiDocumentationTest extends WebTestCase
     public function testEveryApiRouteIsInTheHttpFile(): void
     {
         self::bootKernel();
-        $lines = array_map('trim', file(self::DOC_DIR.'/api.http', \FILE_IGNORE_NEW_LINES) ?: []);
+        $lines = array_map($this->normalizeRequest(...), file(self::DOC_DIR.'/api.http', \FILE_IGNORE_NEW_LINES) ?: []);
 
         foreach ($this->apiEndpoints() as [$method, $path]) {
             self::assertContains($method.' {{base_url}}'.$path, $lines, sprintf('%s %s no está en doc/api.http.', $method, $path));
@@ -133,10 +133,23 @@ class ApiDocumentationTest extends WebTestCase
             if (isset($item['item'])) {
                 $requests = [...$requests, ...$this->postmanRequests($item['item'])];
             } elseif (isset($item['request'])) {
-                $requests[] = $item['request']['method'].' '.$item['request']['url']['raw'];
+                $requests[] = $this->normalizeRequest($item['request']['method'].' '.$item['request']['url']['raw']);
             }
         }
 
         return $requests;
+    }
+
+    /**
+     * Deja una petición de una colección como "MÉTODO {{base_url}}/ruta" comparable con la ruta de Symfony:
+     * sin parámetros de consulta y con los parámetros de ruta (`:fecha` en Postman, `{{fecha}}` en el
+     * fichero .http) escritos como `{fecha}`.
+     */
+    private function normalizeRequest(string $request): string
+    {
+        $request = trim(explode('?', $request, 2)[0]);
+        $request = (string) preg_replace('#/:(\w+)#', '/{$1}', $request);
+
+        return (string) preg_replace('#/\{\{(\w+)\}\}#', '/{$1}', $request);
     }
 }
