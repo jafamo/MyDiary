@@ -43,12 +43,20 @@ Aplicación web que recibe notas de voz por Telegram, las transcribe automática
 8. Se responde inmediatamente al usuario en Telegram: *"Audio recibido ✅"* (el webhook debe responder rápido — nada de trabajo pesado síncrono aquí).
 9. Se despacha un mensaje asíncrono (Symfony Messenger) `TranscribeAudioMessage`.
 
+**Captura desde la app (sin Telegram).** `POST /api/v1/audios` (ver 3.7) recibe el fichero directamente y crea el `AudioRecording` con `source = app`, sin identificadores de Telegram:
+1. Se valida la subida: el fichero es obligatorio y no puede superar 25 MB (`AudioUploadService::MAX_BYTES`).
+2. Se calcula su SHA-256 (`content_hash`, único). Si ya existe un audio con ese hash: en `ERROR` se trata como reintento (igual que en el paso 4 de arriba) y en `PENDING` o `TRANSCRIBED` se devuelve el existente sin tocar nada.
+3. Si es nuevo, `ffprobe` (`AudioProbeInterface`) examina el contenido: debe ser un audio `m4a`, `mp3`, `ogg` o `wav` — no cuentan la extensión ni el `Content-Type` del cliente — y de ahí sale también la duración, que no se pide a la app.
+4. El fichero se guarda como `var/audio/<content_hash>.<formato>`, se crea el `AudioRecording` en `PENDING` y se despacha `TranscribeAudioMessage`. Desde aquí el audio sigue el flujo 3.2 igual que uno de Telegram.
+
+La deduplicación es por origen: un mismo audio enviado por Telegram y subido desde la app son dos registros (los de Telegram no calculan `content_hash`).
+
 ### 3.2 Flujo de transcripción (worker asíncrono)
 1. El `TranscribeAudioMessageHandler` recoge el mensaje.
 2. Llama al servicio de transcripción (Open WebUI / whisper.cpp) pasando el fichero de audio.
-3. Guarda el resultado en la entidad `Transcription` (contenido en BD + export a fichero de texto en filesystem), junto con sus métricas de consumo: tiempo de proceso de la llamada que tuvo éxito (`processing_ms`) y modelo (`model`, de `WHISPER_MODEL`). Open WebUI no devuelve tokens de Whisper, así que la métrica de una transcripción es duración del audio + tiempo de proceso.
+3. Guarda el resultado en la entidad `Transcription` (contenido en BD + export a fichero de texto en filesystem, nombrado con `telegram_file_unique_id` o, en los audios de la app, con `content_hash`), junto con sus métricas de consumo: tiempo de proceso de la llamada que tuvo éxito (`processing_ms`) y modelo (`model`, de `WHISPER_MODEL`). Open WebUI no devuelve tokens de Whisper, así que la métrica de una transcripción es duración del audio + tiempo de proceso.
 4. Actualiza el estado del `AudioRecording` a `TRANSCRIBED`.
-5. Envía al usuario en Telegram un resumen corto de esa transcripción concreta, terminado en una línea `🎙️ 1:42 de audio · ⏱️ transcrito en 14 s`.
+5. Envía al usuario en Telegram un resumen corto de esa transcripción concreta, terminado en una línea `🎙️ 1:42 de audio · ⏱️ transcrito en 14 s`. El aviso (y el de fallo del paso 6) se envía igual para los audios subidos desde la app: el handler no distingue el origen.
 6. **Manejo de errores**: si la llamada al servicio de transcripción falla, Symfony Messenger reintenta el `TranscribeAudioMessage` un número limitado de veces con backoff (`retry_strategy` nativo). Si se agotan los reintentos, `AudioRecording` pasa a estado `ERROR`, se guardan `error_code` y `error_message` (ver sección 6) con la causa técnica, y se notifica al usuario por Telegram (*"No se pudo transcribir este audio ❌"*). El audio no se pierde: queda visible en la web con el motivo del error y opción de reintentar o eliminarlo (flujo 3.4-bis).
 
 ### 3.3 Flujo de resumen diario (scheduled, 21:00 Europe/Madrid)
@@ -103,11 +111,12 @@ Segunda entrada a la aplicación, pensada para la app de iPhone (plan por fases 
 - **Autenticación:** token opaco por dispositivo. `POST /api/v1/login` (JSON con `username`, `password` y `device_name`) devuelve el token, que solo se ve en esa respuesta; el resto de peticiones lo envían como `Authorization: Bearer <token>`. En BD solo se guarda su hash SHA-256 (tabla `api_token`). El firewall `api` (`^/api/`) no tiene estado: ni sesión ni CSRF, y la sesión web no sirve para la API. El usuario se toma siempre del token, nunca de un parámetro.
 - **Caducidad y revocación:** un token caduca tras 90 días sin uso (`ApiTokenManager::INACTIVITY_DAYS`); cada uso lo renueva (`last_used_at` se reescribe como mucho una vez por hora) y el caducado se borra al intentar usarlo. `POST /api/v1/logout` revoca el token en uso; por consola, `bin/console app:user:token:list <username>` y `bin/console app:user:token:revoke <id>`.
 - **Límite de intentos:** el login admite 5 intentos cada 15 minutos por IP y usuario (un login correcto reinicia el contador); después responde `429` con `Retry-After`.
-- **Endpoints actuales:** `POST /api/v1/login`, `POST /api/v1/logout` y `GET /api/v1/me` (usuario y datos del token en uso).
+- **Endpoints actuales:** `POST /api/v1/login`, `POST /api/v1/logout`, `GET /api/v1/me` (usuario y datos del token en uso) y `POST /api/v1/audios` (subida de audio).
+- **Subida de audio:** `POST /api/v1/audios` con `multipart/form-data` y el fichero en el campo `file` (flujo en 3.1). Responde siempre con el audio (`id`, `status`, `source`, `duration_seconds`, `received_at`) y un campo `result`: `created` (`201`), `duplicate` (`200`) o `retrying` (`200`, estaba en `ERROR` y se relanza). `422 validation_failed` si falta el fichero, la subida llega incompleta, supera 25 MB o no es un audio admitido. Los límites de infraestructura dejan margen para el envoltorio multipart: `client_max_body_size 30m` en nginx y `upload_max_filesize = 25M` / `post_max_size = 30M` en PHP (`docker/php/conf.d/uploads.ini`); una petición de más de 30 MB la corta nginx con un `413` en HTML, fuera del formato de error de la API.
 - **Convenciones:** cuerpos y respuestas en JSON con claves en `snake_case`; instantes en ISO 8601 UTC (`2026-10-08T07:09:33Z`) y días como `AAAA-MM-DD` en `LocalTimezone`; listados paginados con `page` (desde 1) y `per_page`, y respuesta con `items`, `page`, `per_page` y `total`.
 - **Errores:** toda respuesta de error bajo `/api/` es `{"code": "...", "message": "..."}` (`ApiExceptionListener`). `code` es estable: `bad_request` (400), `unauthorized` (401), `forbidden` (403), `not_found` (404), `method_not_allowed` (405), `conflict` (409), `validation_failed` (422), `too_many_requests` (429) e `internal_error` (500, con mensaje genérico). Los errores de negocio se lanzan con `ApiException`.
 - **Documentación:** cada acción lleva sus atributos OpenAPI. Swagger UI en `/doc/api` y esquema en `/doc/api.json` (fuera de `^/api/`, así que piden sesión web); el esquema versionado está en `doc/openapi.json` (`make openapi` lo regenera). Las colecciones de peticiones son `doc/MyDiary.postman_collection.json` y `doc/api.http`. `tests/Doc/ApiDocumentationTest.php` falla si el esquema o alguna colección no recogen una ruta `/api/v1/*`.
-- **Logs:** la línea `http.request` lleva `api_token_id` en las peticiones autenticadas con token; el login registra `api.login_succeeded`, `api.login_failed` y `api.login_throttled`. Nunca se registra el token, su hash ni la contraseña.
+- **Logs:** la línea `http.request` lleva `api_token_id` en las peticiones autenticadas con token; el login registra `api.login_succeeded`, `api.login_failed` y `api.login_throttled`; cada subida de audio aceptada registra `audio.uploaded` con `audio_recording_id`, `audio_source`, `audio_content_hash` y `audio_upload_result`. Los logs de transcripción llevan `audio_source`, y `telegram_file_unique_id` solo cuando el audio lo tiene. Nunca se registra el token, su hash ni la contraseña.
 
 ## 4. Decisiones de diseño y motivos (importante para no reintroducir complejidad innecesaria)
 
@@ -119,6 +128,7 @@ Estas decisiones se tomaron explícitamente para evitar sobre-ingeniería en un 
 - **Sí se usan interfaces (puertos) puntuales** donde existe razón real para ello, por experiencia previa de cambiar de proveedor:
   - `TranscriberInterface` (implementaciones: Open WebUI / whisper.cpp)
   - `SummaryGeneratorInterface` (implementación: Ollama)
+  - `AudioProbeInterface` (implementación: `ffprobe`; formato y duración de un audio subido). Razón: es un binario externo que no existe en GitHub CI, donde los tests usan un doble
   - `EmbeddingGeneratorInterface` (implementación: Ollama, modelo `nomic-embed-text`) — usado para la búsqueda semántica (3.6)
 - **Symfony Messenger solo para lo async real**: la cadena Telegram → transcripción. No se convierte en bus general de la aplicación.
 - **Gestión de usuarios solo por consola, sin web.** Entidad `User` en BD (Symfony Security). Los usuarios se crean y las contraseñas se cambian con comandos (`bin/console app:user:create`, `bin/console app:user:change-password`) — quien tiene acceso al servidor/contenedor puede cambiar una contraseña sin conocer la actual. No hay registro, ni recuperación de contraseña vía web (sin email, sin tokens), ni gestión de usuarios desde la interfaz.
@@ -144,10 +154,12 @@ src/
 │   ├── AudioRecordingService.php
 │   ├── DailySummaryService.php
 │   ├── Whisper/WhisperTranscriber.php        # implementa TranscriberInterface
-│   └── Ollama/OllamaSummaryGenerator.php     # implementa SummaryGeneratorInterface
+│   ├── Ollama/OllamaSummaryGenerator.php     # implementa SummaryGeneratorInterface
+│   └── Audio/FfprobeAudioProbe.php           # implementa AudioProbeInterface
 ├── Contract/
 │   ├── TranscriberInterface.php
-│   └── SummaryGeneratorInterface.php
+│   ├── SummaryGeneratorInterface.php
+│   └── AudioProbeInterface.php
 ├── Message/
 │   └── TranscribeAudioMessage.php
 ├── MessageHandler/
@@ -174,12 +186,14 @@ src/
 | Campo | Tipo | Notas |
 |---|---|---|
 | id | int/uuid | PK |
-| telegram_message_id | string | ID del mensaje original de Telegram — **unique**, garantiza idempotencia ante reintentos del webhook |
-| telegram_file_unique_id | string | ID de Telegram estable para el contenido del fichero — **unique**, detecta reenvíos del mismo audio (ver 3.1/3.4-bis) |
+| telegram_message_id | string | nullable (vacío en los audios de la app). ID del mensaje original de Telegram — **unique**, garantiza idempotencia ante reintentos del webhook |
+| telegram_file_unique_id | string | nullable (vacío en los audios de la app). ID de Telegram estable para el contenido del fichero — **unique**, detecta reenvíos del mismo audio (ver 3.1/3.4-bis) |
+| source | enum | `telegram` (por defecto; todos los anteriores a la subida por API) o `app` |
+| content_hash | string(64) | nullable. SHA-256 del fichero — **unique**. Solo en los audios de la app: deduplica subidas repetidas (ver 3.1) |
 | file_path | string | Ruta del audio en el filesystem |
 | received_at | datetime | |
 | status | enum | `PENDING`, `TRANSCRIBED`, `ERROR` |
-| duration_seconds | int | Viene del campo `duration` del update de Telegram (`voice`/`audio`), no se calcula |
+| duration_seconds | int | En los audios de Telegram viene del campo `duration` del update (`voice`/`audio`); en los de la app la calcula el servidor con `ffprobe` |
 | error_code | string | nullable. Solo relevante si `status = ERROR`. Código corto (p. ej. `404`, `TIMEOUT`, `SERVICE_UNAVAILABLE`), no necesariamente HTTP — pensado como clave estable, no texto libre |
 | error_message | string | nullable. Solo relevante si `status = ERROR`. Clave/texto asociado al `error_code` (p. ej. `NOT_FOUND`, `OLLAMA_UNREACHABLE`), preparado para poder mapearse a claves de traducción más adelante |
 

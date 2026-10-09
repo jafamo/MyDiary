@@ -30,6 +30,33 @@ nelmio_api_doc:
                         message:
                             type: string
                             example: Token ausente, inválido o caducado.
+                AudioUpload:
+                    type: object
+                    required: [id, status, source, duration_seconds, received_at, result]
+                    properties:
+                        id:
+                            type: integer
+                            example: 42
+                        status:
+                            type: string
+                            enum: [PENDING, TRANSCRIBED, ERROR]
+                            example: PENDING
+                        source:
+                            type: string
+                            enum: [telegram, app]
+                            example: app
+                        duration_seconds:
+                            type: integer
+                            description: Calculada en el servidor a partir del fichero.
+                            example: 37
+                        received_at:
+                            type: string
+                            format: date-time
+                        result:
+                            type: string
+                            enum: [created, duplicate, retrying]
+                            description: '`created`: audio nuevo. `duplicate`: ya existía y no se toca. `retrying`: ya existía con la transcripción fallida y se relanza.'
+                            example: created
         security:
             - Bearer: []
     html_config:

@@ -7,6 +7,7 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    app.audio_storage_dir: '%kernel.project_dir%/var/audio'
 
 services:
     # default configuration for services in *this* file
@@ -21,7 +22,7 @@ services:
             string $openWebUiBaseUrl: '%env(OPENWEBUI_STT_BASE_URL)%'
             string $openWebUiApiKey: '%env(OPENWEBUI_API_KEY)%'
             string $whisperModel: '%env(WHISPER_MODEL)%'
-            string $audioStorageDir: '%kernel.project_dir%/var/audio'
+            string $audioStorageDir: '%app.audio_storage_dir%'
             string $transcriptionStorageDir: '%kernel.project_dir%/var/transcriptions'
             string $ollamaBaseUrl: '%env(OLLAMA_BASE_URL)%'
             string $ollamaModel: '%env(OLLAMA_MODEL)%'
@@ -39,3 +40,15 @@ services:
     App\Contract\TranscriberInterface: '@App\Service\Whisper\WhisperTranscriber'
     App\Contract\SummaryGeneratorInterface: '@App\Service\Ollama\OllamaSummaryGenerator'
     App\Contract\EmbeddingGeneratorInterface: '@App\Service\Ollama\OllamaEmbeddingGenerator'
+    App\Contract\AudioProbeInterface: '@App\Service\Audio\FfprobeAudioProbe'
+
+when@test:
+    parameters:
+        # Los tests no escriben en el almacenamiento real de audios.
+        app.audio_storage_dir: '%kernel.cache_dir%/audio'
+
+    services:
+        # ffprobe no está disponible en CI: los tests usan un doble del sondeo de audio.
+        App\Tests\Double\FakeAudioProbe:
+            public: true
+        App\Contract\AudioProbeInterface: '@App\Tests\Double\FakeAudioProbe'

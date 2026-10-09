@@ -15,11 +15,18 @@ class AudioRecording
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(length: 255, unique: true)]
-    private string $telegramMessageId;
+    #[ORM\Column(length: 255, unique: true, nullable: true)]
+    private ?string $telegramMessageId = null;
 
-    #[ORM\Column(length: 255, unique: true)]
-    private string $telegramFileUniqueId;
+    #[ORM\Column(length: 255, unique: true, nullable: true)]
+    private ?string $telegramFileUniqueId = null;
+
+    #[ORM\Column(length: 16, enumType: AudioSource::class, options: ['default' => 'telegram'])]
+    private AudioSource $source = AudioSource::TELEGRAM;
+
+    /** SHA-256 del fichero; solo lo tienen los audios subidos desde la app. */
+    #[ORM\Column(length: 64, unique: true, nullable: true)]
+    private ?string $contentHash = null;
 
     #[ORM\Column(length: 1024)]
     private string $filePath;
@@ -47,28 +54,61 @@ class AudioRecording
         return $this->id;
     }
 
-    public function getTelegramMessageId(): string
+    public function getTelegramMessageId(): ?string
     {
         return $this->telegramMessageId;
     }
 
-    public function setTelegramMessageId(string $telegramMessageId): static
+    public function setTelegramMessageId(?string $telegramMessageId): static
     {
         $this->telegramMessageId = $telegramMessageId;
 
         return $this;
     }
 
-    public function getTelegramFileUniqueId(): string
+    public function getTelegramFileUniqueId(): ?string
     {
         return $this->telegramFileUniqueId;
     }
 
-    public function setTelegramFileUniqueId(string $telegramFileUniqueId): static
+    public function setTelegramFileUniqueId(?string $telegramFileUniqueId): static
     {
         $this->telegramFileUniqueId = $telegramFileUniqueId;
 
         return $this;
+    }
+
+    public function getSource(): AudioSource
+    {
+        return $this->source;
+    }
+
+    public function setSource(AudioSource $source): static
+    {
+        $this->source = $source;
+
+        return $this;
+    }
+
+    public function getContentHash(): ?string
+    {
+        return $this->contentHash;
+    }
+
+    public function setContentHash(?string $contentHash): static
+    {
+        $this->contentHash = $contentHash;
+
+        return $this;
+    }
+
+    /**
+     * Clave estable del audio para nombrar sus ficheros: el identificador de Telegram o,
+     * en los audios subidos desde la app, el hash del contenido.
+     */
+    public function getStorageKey(): string
+    {
+        return $this->telegramFileUniqueId ?? $this->contentHash ?? throw new \LogicException('El audio no tiene identificador de Telegram ni hash de contenido.');
     }
 
     public function getFilePath(): string

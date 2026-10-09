@@ -15,7 +15,7 @@
 |---|---|---|---|
 | 1 | No hay API: todo devuelve Twig, con sesión + formulario + CSRF | `src/Controller/*`, `config/packages/security.yaml` | 2, 3, 4 |
 | 2 | Lógica de presentación y cálculo dentro de controladores | `EstadisticasController` (rachas, comparativas, consumo IA), `RecordatoriosController` (calendario, paginación), `SearchController` (fusión de resultados), `HistorialController` | 1 |
-| 3 | La captura solo entra por Telegram | `AudioRecording.telegramMessageId` / `telegramFileUniqueId` obligatorios y únicos; `AudioRecordingService::receive()` | 5 |
+| 3 | ~~La captura solo entra por Telegram~~ (resuelto) | `AudioRecording.telegramMessageId` / `telegramFileUniqueId` obligatorios y únicos; `AudioRecordingService::receive()` | 5 |
 | 4 | No se puede escuchar el audio: ninguna ruta sirve los ficheros | — | 6 |
 | 5 | El resumen bajo demanda es síncrono (hasta 3 intentos contra Ollama dentro de la petición; nginx corta a 130 s) | `DailySummaryController`, `DailySummaryService::generateForDate()` | 7 |
 | 6 | Los avisos solo salen por Telegram | `TelegramClient::sendMessage()` llamado desde `DailySummaryService`, `TranscribeAudioMessageHandler`, `TranscriptionFailureListener`, `NotifyRemindersCommand` | 8 |
@@ -39,7 +39,7 @@ Se deciden al proponer la fase correspondiente (regla «Opciones de diseño ante
 | **A. Controladores planos + DTO de salida** (recomendada), bajo `src/Controller/Api/` | Coherente con «sin CRUDs genéricos»; las respuestas (diario, estadísticas) son agregados, no entidades | Serialización escrita a mano |
 | B. API Platform | CRUD, OpenAPI y paginación gratis | Dependencia grande; modela recursos, y aquí casi todo son vistas agregadas; choca con las restricciones de arquitectura |
 
-### D3 — Duración de un audio subido desde la app (fase 5)
+### D3 — Duración de un audio subido desde la app (fase 5) — decidida: opción B
 
 | Opción | Pros | Contras |
 |---|---|---|
@@ -64,6 +64,8 @@ En ambos casos hace falta la cuenta de pago de Apple Developer.
 
 ## Fases
 
+> Estado: fases 1 y 2 finalizadas (publicadas en la release `0.17.0`) y fase 5 finalizada (en `develop`). Fase 0 pendiente. Las finalizadas llevan ✅ en el título.
+
 ### Fase 0 — Endurecer lo que ya está expuesto
 
 Independiente de la API, pero conviene antes de abrir más superficie.
@@ -71,7 +73,7 @@ Independiente de la API, pero conviene antes de abrir más superficie.
 - Mover el secreto del webhook de la URL (`/telegram/webhook/{token}`) a la cabecera `X-Telegram-Bot-Api-Secret-Token`: hoy el token queda escrito en el access log de nginx (`request_uri`) y llega a Elasticsearch. Requiere volver a registrar el webhook (`app:telegram:set-webhook`) en el despliegue.
 - Activar `login_throttling` en el firewall `main` (añade `symfony/rate-limiter`).
 
-### Fase 1 — Sacar la lógica de los controladores
+### Fase 1 — Sacar la lógica de los controladores ✅
 
 > Hecha en el change `extract-controller-logic` (rama `feature/extract-controller-logic`): `EstadisticasService`, `HistorialService`, `RecordatoriosService`, `SearchService`, `MonthGrid` y `TokensChartBuilder`.
 
@@ -84,7 +86,7 @@ Refactor sin cambio funcional: los controladores web quedan en «leer petición 
 - Los servicios devuelven arrays/objetos de datos, no HTML ni JSON ya codificado (p. ej. `series_json` se codifica en el controlador web).
 - Criterio de hecho: los tests funcionales actuales pasan sin modificarse; se añaden tests unitarios de los servicios extraídos.
 
-### Fase 2 — Base de la API
+### Fase 2 — Base de la API ✅
 
 > Hecha en el change `api-base` (rama `feature/api-base`). D1: token opaco con caducidad de 90 días por inactividad. D2: controladores planos documentados con Swagger (`nelmio/api-doc-bundle`), más colecciones Postman y `.http` en `doc/`.
 
@@ -117,7 +119,9 @@ Todos aceptan los mismos filtros que la web (estado, rango, mes).
 - Recordatorios: crear, editar y eliminar, validando con las mismas reglas que `ReminderType`.
 - Temas: renombrar y fusionar, sobre `TopicMerger`.
 
-### Fase 5 — Captura de audio sin Telegram
+### Fase 5 — Captura de audio sin Telegram ✅
+
+> Hecha en el change `api-audio-upload` (rama `feature/api-audio-upload`). D3: duración con `ffprobe` en servidor, detrás de `AudioProbeInterface`. Formatos `m4a`, `mp3`, `ogg` y `wav` validados por contenido, 25 MB como máximo. Los audios de la app avisan por Telegram igual que los demás.
 
 El cambio de modelo de datos del roadmap.
 
@@ -154,7 +158,7 @@ Depende de que exista la app y la cuenta de Apple Developer.
 ## Orden y dependencias
 
 - 0 es independiente. 1 → 2 son la base y van en ese orden.
-- Tras la 2, las fases 3, 4, 5, 6 y 7 son independientes entre sí. Para tener cuanto antes una app útil: **5 (subir audio) → 3 (leer) → 6 → 4 → 7**.
+- Tras la 2, las fases 3, 4, 5, 6 y 7 son independientes entre sí. Para tener cuanto antes una app útil: **5 (subir audio, hecha) → 3 (leer) → 6 → 4 → 7**.
 - 8 va al final y depende de la app.
 
 ## Fuera de alcance (a largo plazo)

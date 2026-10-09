@@ -6,6 +6,78 @@
         "version": "1"
     },
     "paths": {
+        "/api/v1/audios": {
+            "post": {
+                "tags": [
+                    "Audios"
+                ],
+                "summary": "Subir un audio",
+                "description": "Guarda el audio y lo pone en cola para transcribirlo, igual que uno recibido por Telegram. El formato se determina por el contenido del fichero (no por su extensi\u00f3n ni su `Content-Type`) y la duraci\u00f3n se calcula en el servidor. Subir de nuevo el mismo fichero no crea otro audio: devuelve el existente (`duplicate`) o, si su transcripci\u00f3n hab\u00eda fallado, la relanza (`retrying`). Una petici\u00f3n de m\u00e1s de 30 MB la rechaza el servidor web con un `413` que no sigue el formato de error de la API.",
+                "operationId": "post_api_audio_upload",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "file"
+                                ],
+                                "properties": {
+                                    "file": {
+                                        "description": "Audio en formato m4a, mp3, ogg o wav, de 25 MB como m\u00e1ximo.",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Audio nuevo, en cola para transcribirse",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AudioUpload"
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "El audio ya exist\u00eda: sin cambios (`duplicate`) o relanzado tras un fallo (`retrying`)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AudioUpload"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token ausente, inv\u00e1lido o caducado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Falta el fichero, la subida lleg\u00f3 incompleta, supera 25 MB o no es un audio admitido",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/login": {
             "post": {
                 "tags": [
@@ -238,6 +310,59 @@
                     }
                 },
                 "type": "object"
+            },
+            "AudioUpload": {
+                "required": [
+                    "id",
+                    "status",
+                    "source",
+                    "duration_seconds",
+                    "received_at",
+                    "result"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 42
+                    },
+                    "status": {
+                        "type": "string",
+                        "example": "PENDING",
+                        "enum": [
+                            "PENDING",
+                            "TRANSCRIBED",
+                            "ERROR"
+                        ]
+                    },
+                    "source": {
+                        "type": "string",
+                        "example": "app",
+                        "enum": [
+                            "telegram",
+                            "app"
+                        ]
+                    },
+                    "duration_seconds": {
+                        "description": "Calculada en el servidor a partir del fichero.",
+                        "type": "integer",
+                        "example": 37
+                    },
+                    "received_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "result": {
+                        "description": "`created`: audio nuevo. `duplicate`: ya exist\u00eda y no se toca. `retrying`: ya exist\u00eda con la transcripci\u00f3n fallida y se relanza.",
+                        "type": "string",
+                        "example": "created",
+                        "enum": [
+                            "created",
+                            "duplicate",
+                            "retrying"
+                        ]
+                    }
+                },
+                "type": "object"
             }
         },
         "securitySchemes": {
@@ -254,6 +379,9 @@
         }
     ],
     "tags": [
+        {
+            "name": "Audios"
+        },
         {
             "name": "Autenticaci\u00f3n"
         }
