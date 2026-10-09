@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Api;
 
-use App\Entity\AudioRecording;
+use App\Controller\Api\Presenter\AudioPresenter;
 use App\Service\AudioRecordingReceiveResult;
 use App\Service\AudioUploadService;
 use App\Service\InvalidAudioUploadException;
@@ -25,6 +25,7 @@ class AudioController
 
     public function __construct(
         private readonly AudioUploadService $audioUploadService,
+        private readonly AudioPresenter $audioPresenter,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -83,22 +84,8 @@ class AudioController
         ]);
 
         return new JsonResponse(
-            $this->serialize($audioRecording) + ['result' => $result],
+            $this->audioPresenter->brief($audioRecording) + ['result' => $result],
             self::RESULT_CREATED === $result ? Response::HTTP_CREATED : Response::HTTP_OK,
         );
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function serialize(AudioRecording $audioRecording): array
-    {
-        return [
-            'id' => $audioRecording->getId(),
-            'status' => $audioRecording->getStatus()->value,
-            'source' => $audioRecording->getSource()->value,
-            'duration_seconds' => $audioRecording->getDurationSeconds(),
-            'received_at' => ApiFormatter::instant($audioRecording->getReceivedAt()),
-        ];
     }
 }
