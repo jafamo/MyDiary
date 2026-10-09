@@ -36,6 +36,6 @@ Ninguna: son endpoints de la capacidad `api`.
 ## Impact
 
 - **Código nuevo:** controladores en `src/Controller/Api/` (`DiarioController`, `HistorialController`, `ResumenesController`, `BusquedaController`, `EstadisticasController`, `RecordatoriosController`, `TopicsController`), presenters en `src/Controller/Api/Presenter/` y `ApiQuery` (lectura y validación de parámetros).
-- **Código modificado:** `AudioController` (usa el presenter, misma respuesta), `HistorialService`, `RecordatoriosService`, `ReminderRepository`, `DailySummaryRepository`, `ReminderRuntime` y `ApiException` (`notFound`).
+- **Código modificado:** `AudioController` (usa el presenter, misma respuesta), `ApiFormatter`, `HistorialService`, `RecordatoriosService`, `ReminderRepository` y `ReminderRuntime`.
 - **Sin cambios:** base de datos, dependencias, infraestructura, vistas web y webhook de Telegram. Sin migraciones ni pasos de despliegue especiales.
 - **Documentación:** `config/packages/nelmio_api_doc.yaml` (esquemas compartidos), `doc/openapi.json`, `doc/MyDiary.postman_collection.json`, `doc/api.http`, `Especificaciones.md` (3.7), `ROADMAP.md` y `CHANGELOG.md`.

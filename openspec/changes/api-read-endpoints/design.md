@@ -56,7 +56,7 @@ Para recordatorios no hay endpoint de calendario: `GET /recordatorios?month=` de
 - `month=AAAA-MM`: los de ese mes, ascendente.
 - `date=AAAA-MM-DD`: los de ese día.
 
-`RecordatoriosService::page()` centraliza los cuatro casos. `ReminderRepository` gana un par de métodos por rango (`countInRange` / `findPageInRange`); los de `upcoming` e `history` ya existen. Los métodos que usa la web no cambian.
+`RecordatoriosService::page()` centraliza los cuatro casos. `ReminderRepository` gana `findPageInRange` (el total sale de `countByDateInRange`, que ya existía); los de `upcoming` e `history` ya existen. Los métodos que usa la web no cambian.
 
 `GET /recordatorios/proximos` devuelve `count`, `level` (`urgent`, `upcoming` o `null`), `nearest_date` y `reminders` (los del día más cercano). El cálculo sale de `ReminderRuntime` a `RecordatoriosService::upcomingAlert()`; el runtime de Twig delega en él.
 
@@ -64,7 +64,7 @@ Para recordatorios no hay endpoint de calendario: `GET /recordatorios?month=` de
 
 - **Diario:** `date`, `entries` (audios `detail`), `summary` o `null`, `streak` (`current`, `best`), `week` (`total`, `delta`) y `top_topic` (`name`, `count`) o `null`.
 - **Historial de un día:** `date`, `entries` y `summary` o `null`. La fecha va en la ruta con requisito `\d{4}-\d{2}-\d{2}`; si no es una fecha real, `422`. Un día sin nada responde `200` con listas vacías, no `404`.
-- **Resúmenes:** paginado, descendente por fecha, cada elemento es el resumen más `audio_count`. `from` y `to` son opcionales pero van juntos. `DailySummaryRepository` gana `countAll()` / `findPage()` para el listado sin rango.
+- **Resúmenes:** paginado, descendente por fecha, cada elemento es el resumen más `audio_count`. `from` y `to` son opcionales pero van juntos. El listado sin rango usa `count([])` y `findBy()` del repositorio, sin métodos nuevos.
 - **Búsqueda:** `query`, `results` (`type`, `distance`, `date`, `audio` o `null`, `summary` o `null`) y `reminders`. `q` vacío o ausente es `422`. Si falla el embedding, `results` va vacío y los recordatorios se buscan igual, como en la web.
 - **Estadísticas:** `range`, `from`, `to`, las métricas de `overview()` tal cual (ya en `snake_case`, con `series` y `reminders_series`) y `ai_usage` con `totals` y `days`, convertidos a `snake_case` en el controlador. Sin `TokensChartBuilder`: la geometría del gráfico es de la web. `range` admite `15`, `30` (por defecto), `90`, `365` y `custom` (los presets del servicio); `custom` exige `from` y `to` válidos.
 - **Temas:** `items` con `id`, `name`, `usage_count` y `last_used` (día o `null`), más `total`. Sin paginar: es un catálogo pequeño que la app necesita entero para renombrar y fusionar (fase 4).

@@ -6,6 +6,7 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ### Ramas integradas en `develop`
 - `feature/api-audio-upload`
+- `feature/api-read-endpoints`
 
 ### Añadido
 - **Subida de audios por la API** (fase 5 de `ROADMAP.md`): `POST /api/v1/audios` recibe un fichero en el campo `file` (multipart) y lo pone en cola para transcribirse, sin pasar por Telegram. A partir de ahí el audio se comporta como cualquier otro: aparece en Diario e Historial, entra en el resumen del día y avisa por Telegram cuando la transcripción está lista o falla.
@@ -13,11 +14,24 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 - Se aceptan audios `m4a`, `mp3`, `ogg` y `wav` de hasta 25 MB. El formato se comprueba por el contenido real del fichero, no por su extensión ni por el `Content-Type`, y la duración la calcula el servidor con `ffprobe`. Lo que no es un audio admitido se rechaza con `422` y no deja rastro.
 - Logs: cada subida aceptada registra `audio.uploaded` con `audio_recording_id`, `audio_source`, `audio_content_hash` y `audio_upload_result`; los logs de transcripción llevan además `audio_source`.
 - El endpoint está en Swagger (`/doc/api`), en `doc/openapi.json` y en las dos colecciones de peticiones (Postman y `doc/api.http`).
+- **Lectura por la API** (fase 3 de `ROADMAP.md`): la app ya puede consultar todo lo que muestra la web, con los mismos filtros.
+  - `GET /api/v1/diario`: audios de hoy con su transcripción, resumen del día, rachas, total de la semana y tema del mes.
+  - `GET /api/v1/historial?month=AAAA-MM` (días del mes con audios o resumen) y `GET /api/v1/historial/{fecha}` (audios y resumen de un día).
+  - `GET /api/v1/resumenes`: resúmenes paginados, con el número de audios de cada día y filtro por rango de fechas.
+  - `GET /api/v1/busqueda?q=`: búsqueda semántica en transcripciones y resúmenes, y por texto en recordatorios.
+  - `GET /api/v1/estadisticas`: métricas del rango (15, 30, 90, 365 días o personalizado) y consumo de IA.
+  - `GET /api/v1/recordatorios` (próximos, históricos, de un mes o de un día) y `GET /api/v1/recordatorios/proximos` (el aviso de la campana).
+  - `GET /api/v1/topics`: todos los temas con su número de usos.
+- Cada recurso (audio con su transcripción, resumen, recordatorio, tema) tiene la misma forma JSON en todos los endpoints, y nunca incluye rutas de ficheros, embeddings ni identificadores de Telegram.
+- Un parámetro de consulta inválido (estado desconocido, fecha imposible, `per_page` mayor de 100…) responde `422` con el motivo, en lugar de ignorarse como en la web.
+- Los nueve endpoints están en Swagger, en `doc/openapi.json` y en las dos colecciones de peticiones.
 
 ### Cambiado
 - `audio_recording` ya no exige los identificadores de Telegram: los audios guardan su origen (`source`: `telegram` o `app`) y los de la app se identifican por el hash de su contenido (`content_hash`). Los audios existentes quedan como `telegram`. El webhook de Telegram no cambia de comportamiento.
 - Los logs de transcripción solo incluyen `telegram_file_unique_id` cuando el audio lo tiene.
 - Los tests guardan los audios subidos en el directorio de caché de test en lugar de `var/audio`.
+- El aviso de recordatorios cercanos (la campana) se calcula en `RecordatoriosService` en lugar de en la extensión de Twig, para que web y API den el mismo dato. La web muestra lo mismo.
+- El test de documentación de la API compara las rutas ignorando los parámetros de consulta y admite parámetros de ruta en las colecciones (`:fecha` en Postman, `{{fecha}}` en `doc/api.http`).
 
 ### Migraciones
 - `Version20261009090000`: en `audio_recording`, añade `source` y `content_hash` (único) y hace opcionales `telegram_message_id` y `telegram_file_unique_id`. **Requiere `make migrate` tras el despliegue.**
