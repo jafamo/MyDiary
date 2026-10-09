@@ -13,7 +13,7 @@
 
 | # | Bloqueo | Dónde | Fase |
 |---|---|---|---|
-| 1 | No hay API: todo devuelve Twig, con sesión + formulario + CSRF | `src/Controller/*`, `config/packages/security.yaml` | 2, 3, 4 |
+| 1 | No hay API: todo devuelve Twig, con sesión + formulario + CSRF (lectura resuelta; falta la escritura) | `src/Controller/*`, `config/packages/security.yaml` | 2, 3, 4 |
 | 2 | Lógica de presentación y cálculo dentro de controladores | `EstadisticasController` (rachas, comparativas, consumo IA), `RecordatoriosController` (calendario, paginación), `SearchController` (fusión de resultados), `HistorialController` | 1 |
 | 3 | ~~La captura solo entra por Telegram~~ (resuelto) | `AudioRecording.telegramMessageId` / `telegramFileUniqueId` obligatorios y únicos; `AudioRecordingService::receive()` | 5 |
 | 4 | No se puede escuchar el audio: ninguna ruta sirve los ficheros | — | 6 |
@@ -64,7 +64,7 @@ En ambos casos hace falta la cuenta de pago de Apple Developer.
 
 ## Fases
 
-> Estado: fases 1 y 2 finalizadas (publicadas en la release `0.17.0`) y fase 5 finalizada (en `develop`). Fase 0 pendiente. Las finalizadas llevan ✅ en el título.
+> Estado: fases 1 y 2 finalizadas (publicadas en la release `0.17.0`) y fases 3 y 5 finalizadas (en `develop`). Fase 0 pendiente. Las finalizadas llevan ✅ en el título.
 
 ### Fase 0 — Endurecer lo que ya está expuesto
 
@@ -96,7 +96,9 @@ Refactor sin cambio funcional: los controladores web quedan en «leer petición 
 - Logs: `HttpRequestLogListener` ya registra `route` y `status`; los campos nuevos, planos y con prefijo `api_` (p. ej. `api_token_id`). No loguear nunca el token.
 - Tests funcionales de autenticación (sin token, token inválido, token revocado).
 
-### Fase 3 — Endpoints de lectura
+### Fase 3 — Endpoints de lectura ✅
+
+> Hecha en el change `api-read-endpoints` (rama `feature/api-read-endpoints`). Presenters compartidos en `src/Controller/Api/Presenter/`, parámetros validados con `ApiQuery` (inválido = `422`) y calendarios como lista de días con datos, sin la rejilla por semanas de la web.
 
 Equivalentes a las vistas actuales, reutilizando los servicios de la fase 1:
 
@@ -158,7 +160,7 @@ Depende de que exista la app y la cuenta de Apple Developer.
 ## Orden y dependencias
 
 - 0 es independiente. 1 → 2 son la base y van en ese orden.
-- Tras la 2, las fases 3, 4, 5, 6 y 7 son independientes entre sí. Para tener cuanto antes una app útil: **5 (subir audio, hecha) → 3 (leer) → 6 → 4 → 7**.
+- Tras la 2, las fases 3, 4, 5, 6 y 7 son independientes entre sí. Para tener cuanto antes una app útil: **5 (subir audio, hecha) → 3 (leer, hecha) → 6 → 4 → 7**.
 - 8 va al final y depende de la app.
 
 ## Fuera de alcance (a largo plazo)

@@ -129,6 +129,210 @@
           }
         }
       ]
+    },
+    {
+      "name": "Diario",
+      "item": [
+        {
+          "name": "Diario de hoy",
+          "request": {
+            "description": "Audios de hoy con su transcripción, resumen del día (o `null`), rachas, total de la semana y tema del mes.",
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/diario",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "diario"],
+              "query": [
+                { "key": "status", "value": "TRANSCRIBED", "description": "Solo los audios en ese estado: PENDING, TRANSCRIBED o ERROR.", "disabled": true }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Historial",
+      "item": [
+        {
+          "name": "Días con actividad del mes",
+          "request": {
+            "description": "Días del mes que tienen audios o resumen, para marcarlos en un calendario. Sin `month`, el mes actual.",
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/historial?month=2026-10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "historial"],
+              "query": [
+                { "key": "month", "value": "2026-10", "description": "Mes como AAAA-MM." }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Detalle de un día",
+          "request": {
+            "description": "Audios y resumen de un día. Un día sin nada responde `200` con `entries` vacío y `summary` a `null`; una fecha que no existe, `422`.",
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/historial/:fecha",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "historial", ":fecha"],
+              "query": [
+                { "key": "status", "value": "TRANSCRIBED", "description": "Solo los audios en ese estado: PENDING, TRANSCRIBED o ERROR.", "disabled": true }
+              ],
+              "variable": [
+                { "key": "fecha", "value": "2026-10-05", "description": "Día como AAAA-MM-DD." }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Resúmenes",
+      "item": [
+        {
+          "name": "Resúmenes",
+          "request": {
+            "description": "Resúmenes diarios paginados, del más reciente al más antiguo, con el número de audios de cada día. `from` y `to` se envían los dos o ninguno.",
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/resumenes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "resumenes"],
+              "query": [
+                { "key": "from", "value": "2026-10-01", "description": "Primer día del rango (AAAA-MM-DD).", "disabled": true },
+                { "key": "to", "value": "2026-10-31", "description": "Último día del rango (AAAA-MM-DD).", "disabled": true },
+                { "key": "page", "value": "1", "description": "Página, desde 1.", "disabled": true },
+                { "key": "per_page", "value": "20", "description": "Elementos por página (1-100).", "disabled": true }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Búsqueda",
+      "item": [
+        {
+          "name": "Buscar",
+          "request": {
+            "description": "Búsqueda semántica en transcripciones y resúmenes (ordenada por `distance`, menor es más parecido) y por texto en recordatorios. `q` es obligatorio.",
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/busqueda?q=dentista",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "busqueda"],
+              "query": [
+                { "key": "q", "value": "dentista", "description": "Texto a buscar." }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Estadísticas",
+      "item": [
+        {
+          "name": "Estadísticas",
+          "request": {
+            "description": "Métricas del rango con las series diarias en crudo y el consumo de IA (`ai_usage`). `range=custom` exige `from` y `to`.",
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/estadisticas?range=30",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "estadisticas"],
+              "query": [
+                { "key": "range", "value": "30", "description": "15, 30 (por defecto), 90, 365 o custom." },
+                { "key": "from", "value": "2026-10-01", "description": "Solo con range=custom.", "disabled": true },
+                { "key": "to", "value": "2026-10-07", "description": "Solo con range=custom.", "disabled": true },
+                { "key": "status", "value": "TRANSCRIBED", "description": "Solo los audios en ese estado: PENDING, TRANSCRIBED o ERROR.", "disabled": true }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recordatorios",
+      "item": [
+        {
+          "name": "Recordatorios",
+          "request": {
+            "description": "Listado paginado con un solo filtro: `scope` (por defecto `upcoming`), `month` o `date`. Combinarlos responde `422`.",
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/recordatorios?scope=upcoming",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "recordatorios"],
+              "query": [
+                { "key": "scope", "value": "upcoming", "description": "upcoming (de hoy en adelante) o history (anteriores a hoy)." },
+                { "key": "month", "value": "2026-10", "description": "Los de ese mes (AAAA-MM).", "disabled": true },
+                { "key": "date", "value": "2026-10-05", "description": "Los de ese día (AAAA-MM-DD).", "disabled": true },
+                { "key": "page", "value": "1", "description": "Página, desde 1.", "disabled": true },
+                { "key": "per_page", "value": "20", "description": "Elementos por página (1-100).", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Aviso de próximos",
+          "request": {
+            "description": "El dato de la campana: recordatorios de los próximos 5 días, urgencia (`urgent` si el más cercano es hoy o mañana) y los del día más cercano.",
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/recordatorios/proximos",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "recordatorios", "proximos"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Temas",
+      "item": [
+        {
+          "name": "Temas",
+          "request": {
+            "description": "Todos los temas, sin paginar, con su número de usos y el día del último.",
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/topics",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "topics"]
+            }
+          }
+        }
+      ]
     }
   ]
 }

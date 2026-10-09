@@ -62,7 +62,7 @@ Todo cambio que añada o modifique un endpoint de la API lo documenta en el mism
 - Una petición en **las dos** colecciones: `doc/MyDiary.postman_collection.json` y `doc/api.http`.
 - `tests/Doc/ApiDocumentationTest.php` falla si falta alguna de las tres cosas.
 
-Controladores planos en `src/Controller/Api/` (sin API Platform). Errores con `ApiException` y el formato único `code` / `message`; fechas con `ApiFormatter`; el usuario siempre sale del token. Convenciones completas en `Especificaciones.md` 3.7.
+Controladores planos en `src/Controller/Api/` (sin API Platform). Errores con `ApiException` y el formato único `code` / `message`; fechas con `ApiFormatter`; parámetros de consulta con `ApiQuery` (inválido = `422`); la forma JSON de cada recurso sale de su presenter en `src/Controller/Api/Presenter/`, nunca de un array escrito a mano en el controlador; el usuario siempre sale del token. Convenciones completas en `Especificaciones.md` 3.7.
 
 ### Constantes
 

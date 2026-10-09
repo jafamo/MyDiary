@@ -19,6 +19,24 @@ nelmio_api_doc:
                     type: http
                     scheme: bearer
                     description: Token devuelto por `POST /api/v1/login`.
+            parameters:
+                page:
+                    name: page
+                    in: query
+                    description: Página, desde 1.
+                    schema:
+                        type: integer
+                        minimum: 1
+                        default: 1
+                per_page:
+                    name: per_page
+                    in: query
+                    description: Elementos por página.
+                    schema:
+                        type: integer
+                        minimum: 1
+                        maximum: 100
+                        default: 20
             schemas:
                 Error:
                     type: object
@@ -30,6 +48,161 @@ nelmio_api_doc:
                         message:
                             type: string
                             example: Token ausente, inválido o caducado.
+                Transcription:
+                    type: object
+                    required: [id, content, edited_manually, model, processing_ms, created_at, updated_at]
+                    properties:
+                        id: { type: integer, example: 31 }
+                        content: { type: string, example: 'Hoy he ido al dentista y después a comprar.' }
+                        edited_manually: { type: boolean, description: Corregida a mano tras la transcripción automática. }
+                        model: { type: string, nullable: true, example: whisper-large-v3 }
+                        processing_ms: { type: integer, nullable: true, description: Tiempo de transcripción., example: 14200 }
+                        created_at: { type: string, format: date-time }
+                        updated_at: { type: string, format: date-time }
+                Audio:
+                    type: object
+                    required: [id, status, source, duration_seconds, received_at, error_code, error_message, transcription]
+                    properties:
+                        id: { type: integer, example: 42 }
+                        status: { type: string, enum: [PENDING, TRANSCRIBED, ERROR], example: TRANSCRIBED }
+                        source: { type: string, enum: [telegram, app], example: app }
+                        duration_seconds: { type: integer, example: 37 }
+                        received_at: { type: string, format: date-time }
+                        error_code: { type: string, nullable: true, description: Solo con `status` `ERROR`., example: TIMEOUT }
+                        error_message: { type: string, nullable: true, description: 'Causa del error, en castellano.' }
+                        transcription:
+                            nullable: true
+                            description: '`null` mientras el audio no esté transcrito.'
+                            allOf:
+                                - $ref: '#/components/schemas/Transcription'
+                Topic:
+                    type: object
+                    required: [id, name]
+                    properties:
+                        id: { type: integer, example: 5 }
+                        name: { type: string, example: trabajo }
+                Summary:
+                    type: object
+                    required: [id, date, summary_text, generated_at, emoji_legend, topics, model, prompt_tokens, completion_tokens, generation_ms]
+                    properties:
+                        id: { type: integer, example: 12 }
+                        date: { type: string, format: date }
+                        summary_text: { type: string }
+                        generated_at: { type: string, format: date-time }
+                        emoji_legend:
+                            type: array
+                            nullable: true
+                            description: Significado de los emojis usados en el resumen.
+                            items:
+                                type: object
+                                required: [emoji, meaning]
+                                properties:
+                                    emoji: { type: string, example: '🦷' }
+                                    meaning: { type: string, example: Dentista }
+                        topics:
+                            type: array
+                            items:
+                                $ref: '#/components/schemas/Topic'
+                        model: { type: string, nullable: true, example: 'qwen2.5:14b' }
+                        prompt_tokens: { type: integer, nullable: true }
+                        completion_tokens: { type: integer, nullable: true }
+                        generation_ms: { type: integer, nullable: true }
+                Reminder:
+                    type: object
+                    required: [id, date, time, text, created_at, updated_at]
+                    properties:
+                        id: { type: integer, example: 9 }
+                        date: { type: string, format: date }
+                        time: { type: string, nullable: true, description: 'Hora como `HH:MM`, o `null` si es de todo el día.', example: '10:00' }
+                        text: { type: string, example: Dentista }
+                        created_at: { type: string, format: date-time }
+                        updated_at: { type: string, format: date-time }
+                DailyValue:
+                    type: object
+                    required: [date, value]
+                    properties:
+                        date: { type: string, format: date }
+                        value: { type: integer, example: 3 }
+                Statistics:
+                    type: object
+                    required: [range, from, to, series, reminders_series, total_audios, total_reminders_in_range, total_days, avg_audios_per_day, avg_duration_seconds, days_with_summary, status_counts, topic_frequency, current_streak, best_streak, record_day, previous_period_comparison, ai_usage]
+                    properties:
+                        range: { type: string, enum: ['15', '30', '90', '365', custom] }
+                        from: { type: string, format: date }
+                        to: { type: string, format: date }
+                        series:
+                            type: array
+                            description: Audios por día, un elemento por cada día del rango.
+                            items: { $ref: '#/components/schemas/DailyValue' }
+                        reminders_series:
+                            type: array
+                            description: Recordatorios por día.
+                            items: { $ref: '#/components/schemas/DailyValue' }
+                        total_audios: { type: integer }
+                        total_reminders_in_range: { type: integer }
+                        total_days: { type: integer }
+                        avg_audios_per_day: { type: number, format: float, example: 2.4 }
+                        avg_duration_seconds: { type: integer }
+                        days_with_summary: { type: integer }
+                        status_counts:
+                            type: object
+                            required: [PENDING, TRANSCRIBED, ERROR]
+                            properties:
+                                PENDING: { type: integer }
+                                TRANSCRIBED: { type: integer }
+                                ERROR: { type: integer }
+                        topic_frequency:
+                            type: array
+                            description: Temas más frecuentes del rango (hasta 8).
+                            items:
+                                type: object
+                                required: [name, count]
+                                properties:
+                                    name: { type: string }
+                                    count: { type: integer }
+                        current_streak: { type: integer, description: Días seguidos con audio al final del rango. }
+                        best_streak: { type: integer, description: Racha más larga dentro del rango. }
+                        record_day:
+                            nullable: true
+                            description: Día con más audios del rango.
+                            allOf:
+                                - $ref: '#/components/schemas/DailyValue'
+                        previous_period_comparison:
+                            type: object
+                            required: [available, percentage]
+                            properties:
+                                available: { type: boolean, description: '`false` si el periodo anterior no tiene audios.' }
+                                percentage: { type: number, format: float, nullable: true, description: Variación de la media de audios por día., example: 12.5 }
+                        ai_usage:
+                            type: object
+                            required: [totals, days]
+                            properties:
+                                totals:
+                                    type: object
+                                    required: [prompt_tokens, completion_tokens, total_tokens, avg_tokens_per_summary, summaries_with_tokens, audio_seconds, whisper_ms, ollama_ms]
+                                    properties:
+                                        prompt_tokens: { type: integer, nullable: true }
+                                        completion_tokens: { type: integer, nullable: true }
+                                        total_tokens: { type: integer, nullable: true }
+                                        avg_tokens_per_summary: { type: integer, nullable: true }
+                                        summaries_with_tokens: { type: integer }
+                                        audio_seconds: { type: integer }
+                                        whisper_ms: { type: integer, nullable: true }
+                                        ollama_ms: { type: integer, nullable: true }
+                                days:
+                                    type: array
+                                    items:
+                                        type: object
+                                        required: [date, audios, audio_seconds, processing_ms, prompt_tokens, completion_tokens, total_tokens, generation_ms]
+                                        properties:
+                                            date: { type: string, format: date }
+                                            audios: { type: integer }
+                                            audio_seconds: { type: integer }
+                                            processing_ms: { type: integer, nullable: true }
+                                            prompt_tokens: { type: integer, nullable: true }
+                                            completion_tokens: { type: integer, nullable: true }
+                                            total_tokens: { type: integer, nullable: true }
+                                            generation_ms: { type: integer, nullable: true }
                 AudioUpload:
                     type: object
                     required: [id, status, source, duration_seconds, received_at, result]

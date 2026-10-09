@@ -7,6 +7,7 @@ namespace App\Tests\Twig;
 use App\Entity\Reminder;
 use App\Repository\ReminderRepository;
 use App\Service\DateRange;
+use App\Service\RecordatoriosService;
 use App\Twig\ReminderRuntime;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -24,7 +25,7 @@ class ReminderRuntimeTest extends KernelTestCase
         $container = self::getContainer();
         $this->entityManager = $container->get(EntityManagerInterface::class);
         $this->reminderRepository = $container->get(ReminderRepository::class);
-        $this->runtime = new ReminderRuntime($this->reminderRepository);
+        $this->runtime = new ReminderRuntime(new RecordatoriosService($this->reminderRepository));
 
         $this->cleanUp();
     }

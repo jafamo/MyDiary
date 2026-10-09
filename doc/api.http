@@ -34,6 +34,53 @@ GET {{base_url}}/api/v1/me
 Authorization: Bearer {{token}}
 Accept: application/json
 
+### Diario de hoy: audios con su transcripción, resumen, rachas, semana y tema del mes
+# Filtro opcional: ?status=PENDING|TRANSCRIBED|ERROR
+GET {{base_url}}/api/v1/diario
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Historial: días del mes con audios o resumen (por defecto, el mes actual)
+GET {{base_url}}/api/v1/historial?month=2026-10
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Historial de un día: audios y resumen. Filtro opcional: ?status=
+@fecha = 2026-10-05
+GET {{base_url}}/api/v1/historial/{{fecha}}
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Resúmenes, del más reciente al más antiguo. Opcionales: from y to (los dos), page, per_page
+GET {{base_url}}/api/v1/resumenes?page=1&per_page=20
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Búsqueda semántica en transcripciones y resúmenes, y por texto en recordatorios
+GET {{base_url}}/api/v1/busqueda?q=dentista
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Estadísticas y consumo de IA. range: 15, 30 (por defecto), 90, 365 o custom (con from y to)
+GET {{base_url}}/api/v1/estadisticas?range=30
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Recordatorios. Un solo filtro: scope=upcoming|history, month=AAAA-MM o date=AAAA-MM-DD
+GET {{base_url}}/api/v1/recordatorios?scope=upcoming
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Aviso de recordatorios cercanos (la campana): próximos 5 días
+GET {{base_url}}/api/v1/recordatorios/proximos
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Temas con su número de usos
+GET {{base_url}}/api/v1/topics
+Authorization: Bearer {{token}}
+Accept: application/json
+
 ### Subir un audio (m4a, mp3, ogg o wav; 25 MB como máximo)
 # 201 con "result": "created" si es nuevo; 200 con "duplicate" o "retrying" si ya existía.
 # Cambia la ruta por un fichero de audio tuyo (relativa a este fichero).
