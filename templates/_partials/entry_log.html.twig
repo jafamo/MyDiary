@@ -20,6 +20,8 @@
                         {% endif %}
                     </div>
 
+                    <audio class="entry__audio" controls preload="none" src="{{ path('app_audio_recording_file', {audioRecording: entry.id}) }}"></audio>
+
                     {% if entry.status.value == 'TRANSCRIBED' and entry.transcription %}
                         <p class="entry__text">{{ entry.transcription.content }}</p>
                         <div class="metrics">

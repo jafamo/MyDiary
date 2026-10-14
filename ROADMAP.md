@@ -16,7 +16,7 @@
 | 1 | No hay API: todo devuelve Twig, con sesión + formulario + CSRF (lectura resuelta; falta la escritura) | `src/Controller/*`, `config/packages/security.yaml` | 2, 3, 4 |
 | 2 | Lógica de presentación y cálculo dentro de controladores | `EstadisticasController` (rachas, comparativas, consumo IA), `RecordatoriosController` (calendario, paginación), `SearchController` (fusión de resultados), `HistorialController` | 1 |
 | 3 | ~~La captura solo entra por Telegram~~ (resuelto) | `AudioRecording.telegramMessageId` / `telegramFileUniqueId` obligatorios y únicos; `AudioRecordingService::receive()` | 5 |
-| 4 | No se puede escuchar el audio: ninguna ruta sirve los ficheros | — | 6 |
+| 4 | ~~No se puede escuchar el audio: ninguna ruta sirve los ficheros~~ (resuelto) | — | 6 |
 | 5 | El resumen bajo demanda es síncrono (hasta 3 intentos contra Ollama dentro de la petición; nginx corta a 130 s) | `DailySummaryController`, `DailySummaryService::generateForDate()` | 7 |
 | 6 | Los avisos solo salen por Telegram | `TelegramClient::sendMessage()` llamado desde `DailySummaryService`, `TranscribeAudioMessageHandler`, `TranscriptionFailureListener`, `NotifyRemindersCommand` | 8 |
 
@@ -64,7 +64,7 @@ En ambos casos hace falta la cuenta de pago de Apple Developer.
 
 ## Fases
 
-> Estado: fases 1 y 2 finalizadas (publicadas en la release `0.17.0`) y fases 3 y 5 finalizadas (en `develop`). Fase 0 pendiente. Las finalizadas llevan ✅ en el título.
+> Estado: fases 1 y 2 finalizadas (publicadas en la release `0.17.0`) y fases 3, 5 y 6 finalizadas (en `develop`). Fase 0 pendiente. Las finalizadas llevan ✅ en el título.
 
 ### Fase 0 — Endurecer lo que ya está expuesto
 
@@ -135,10 +135,14 @@ El cambio de modelo de datos del roadmap.
 - Mensajes de Telegram: decidir en la propuesta si un audio con `source = app` sigue enviando «resumen de la transcripción» por Telegram o solo los de origen Telegram.
 - `Especificaciones.md`: secciones 3.1 y 6.
 
-### Fase 6 — Escuchar los audios
+### Fase 6 — Escuchar los audios ✅
+
+> Hecha en el change `audio-playback` (rama `feature/audio-playback`). El fichero lo sirve PHP con `BinaryFileResponse` (sin cambios en nginx) desde `AudioFileResponder`, compartido por la API y la web; incluye el reproductor de Diario/Historial.
 
 - `GET /api/v1/audios/{id}/fichero`: descarga autenticada con soporte de `Range` (reproducción con salto).
 - Opcional en el mismo cambio: reproductor en Diario/Historial de la web usando una ruta equivalente con sesión.
+
+**Limitación pendiente — formato de los audios de Telegram.** Se sirven tal cual, en Ogg/Opus. Safari anterior a iOS 17.4 / macOS 14.4 no los reproduce y `AVPlayer` (la app nativa) no admite Ogg en ninguna versión; los subidos desde la app (`m4a`) no tienen el problema. Si la app los necesita, opciones a decidir entonces: convertir a AAC (`.m4a`) con `ffmpeg` (ya está en la imagen PHP) al recibirlos, guardando una copia junto al original, o bajo demanda con caché; o reproducir Opus en la app con una librería propia. Hasta entonces no se convierte nada.
 
 ### Fase 7 — Resumen bajo demanda sin bloquear
 
@@ -160,7 +164,7 @@ Depende de que exista la app y la cuenta de Apple Developer.
 ## Orden y dependencias
 
 - 0 es independiente. 1 → 2 son la base y van en ese orden.
-- Tras la 2, las fases 3, 4, 5, 6 y 7 son independientes entre sí. Para tener cuanto antes una app útil: **5 (subir audio, hecha) → 3 (leer, hecha) → 6 → 4 → 7**.
+- Tras la 2, las fases 3, 4, 5, 6 y 7 son independientes entre sí. Para tener cuanto antes una app útil: **5 (subir audio, hecha) → 3 (leer, hecha) → 6 (escuchar, hecha) → 4 → 7**.
 - 8 va al final y depende de la app.
 
 ## Fuera de alcance (a largo plazo)

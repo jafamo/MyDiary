@@ -78,6 +78,94 @@
                 }
             }
         },
+        "/api/v1/audios/{id}/fichero": {
+            "get": {
+                "tags": [
+                    "Audios"
+                ],
+                "summary": "Descargar el fichero de un audio",
+                "description": "Devuelve el audio original tal como se guard\u00f3 (`ogg` en los de Telegram; `m4a`, `mp3`, `ogg` o `wav` en los subidos desde la app). Admite la cabecera `Range` para reproducir con salto: con un rango v\u00e1lido responde `206` con ese tramo y `Content-Range`. Los audios de Telegram son Ogg/Opus y no se convierten: `AVPlayer` y Safari anterior a iOS 17.4 no los reproducen.",
+                "operationId": "get_api_audio_file",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Identificador del audio",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "pattern": "\\d+"
+                        }
+                    },
+                    {
+                        "name": "Range",
+                        "in": "header",
+                        "description": "Tramo de bytes, p. ej. `bytes=0-1023`",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Fichero completo",
+                        "content": {
+                            "audio/ogg": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            },
+                            "audio/mp4": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            },
+                            "audio/mpeg": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            },
+                            "audio/wav": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    },
+                    "206": {
+                        "description": "Tramo pedido con `Range`, con su cabecera `Content-Range`"
+                    },
+                    "401": {
+                        "description": "Token ausente, inv\u00e1lido o caducado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "El audio no existe o su fichero no est\u00e1 en el servidor",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "416": {
+                        "description": "El rango pedido est\u00e1 fuera del fichero"
+                    }
+                }
+            }
+        },
         "/api/v1/login": {
             "post": {
                 "tags": [

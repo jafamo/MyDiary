@@ -96,6 +96,13 @@ Content-Type: audio/mp4
 < ./nota.m4a
 --audio-boundary--
 
+### Descargar el fichero de un audio
+# 200 con el audio completo; con la cabecera Range, 206 con ese tramo. 404 si no existe.
+@id = 1
+GET {{base_url}}/api/v1/audios/{{id}}/fichero
+Authorization: Bearer {{token}}
+# Range: bytes=0-1023
+
 ### Logout: revoca el token en uso
 POST {{base_url}}/api/v1/logout
 Authorization: Bearer {{token}}
