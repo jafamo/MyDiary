@@ -17,7 +17,7 @@
 | 2 | Lógica de presentación y cálculo dentro de controladores | `EstadisticasController` (rachas, comparativas, consumo IA), `RecordatoriosController` (calendario, paginación), `SearchController` (fusión de resultados), `HistorialController` | 1 |
 | 3 | ~~La captura solo entra por Telegram~~ (resuelto) | `AudioRecording.telegramMessageId` / `telegramFileUniqueId` obligatorios y únicos; `AudioRecordingService::receive()` | 5 |
 | 4 | ~~No se puede escuchar el audio: ninguna ruta sirve los ficheros~~ (resuelto) | — | 6 |
-| 5 | El resumen bajo demanda es síncrono (hasta 3 intentos contra Ollama dentro de la petición; nginx corta a 130 s) | `DailySummaryController`, `DailySummaryService::generateForDate()` | 7 |
+| 5 | ~~El resumen bajo demanda es síncrono~~ (resuelto) | — | 7 |
 | 6 | Los avisos solo salen por Telegram | `TelegramClient::sendMessage()` llamado desde `DailySummaryService`, `TranscribeAudioMessageHandler`, `TranscriptionFailureListener`, `NotifyRemindersCommand` | 8 |
 
 ## Decisiones de diseño abiertas
@@ -46,7 +46,7 @@ Se deciden al proponer la fase correspondiente (regla «Opciones de diseño ante
 | **A. La envía la app** (recomendada) y el servidor la valida como entero razonable | Igual que hoy con Telegram (`duration` viene dado); sin dependencias | Se confía en el cliente |
 | B. Se calcula en servidor con `ffprobe` | Dato fiable | Añade `ffmpeg` a la imagen PHP |
 
-### D4 — Resumen bajo demanda (fase 7)
+### D4 — Resumen bajo demanda (fase 7) — decidida: opción A
 
 | Opción | Pros | Contras |
 |---|---|---|
@@ -64,7 +64,7 @@ En ambos casos hace falta la cuenta de pago de Apple Developer.
 
 ## Fases
 
-> Estado: fases 1 y 2 finalizadas (publicadas en la release `0.17.0`) y fases 3, 4, 5 y 6 finalizadas (en `develop`). Fases 0, 7 y 8 pendientes. Las finalizadas llevan ✅ en el título.
+> Estado: fases 1 y 2 finalizadas (publicadas en la release `0.17.0`) y fases 3, 4, 5, 6 y 7 finalizadas (en `develop`). Fases 0 y 8 pendientes. Las finalizadas llevan ✅ en el título.
 
 ### Fase 0 — Endurecer lo que ya está expuesto
 
@@ -146,7 +146,9 @@ El cambio de modelo de datos del roadmap.
 
 **Limitación pendiente — formato de los audios de Telegram.** Se sirven tal cual, en Ogg/Opus. Safari anterior a iOS 17.4 / macOS 14.4 no los reproduce y `AVPlayer` (la app nativa) no admite Ogg en ninguna versión; los subidos desde la app (`m4a`) no tienen el problema. Si la app los necesita, opciones a decidir entonces: convertir a AAC (`.m4a`) con `ffmpeg` (ya está en la imagen PHP) al recibirlos, guardando una copia junto al original, o bajo demanda con caché; o reproducir Opus en la app con una librería propia. Hasta entonces no se convierte nada.
 
-### Fase 7 — Resumen bajo demanda sin bloquear
+### Fase 7 — Resumen bajo demanda sin bloquear ✅
+
+> Hecha en el change `async-daily-summary` (rama `feature/async-daily-summary`). D4: Messenger asíncrono, con la restricción de `AGENTS.md` ampliada. Estado en la tabla `daily_summary_generation` (una fila por día, también para las generaciones de las 21:00), atasco a los 15 min. La web usa el mismo mecanismo y sondea el estado con un JS mínimo.
 
 Según D4. Con la opción A:
 
@@ -166,7 +168,7 @@ Depende de que exista la app y la cuenta de Apple Developer.
 ## Orden y dependencias
 
 - 0 es independiente. 1 → 2 son la base y van en ese orden.
-- Tras la 2, las fases 3, 4, 5, 6 y 7 son independientes entre sí. Para tener cuanto antes una app útil: **5 (subir audio, hecha) → 3 (leer, hecha) → 6 (escuchar, hecha) → 4 (escribir, hecha) → 7**.
+- Tras la 2, las fases 3, 4, 5, 6 y 7 son independientes entre sí. Para tener cuanto antes una app útil: **5 (subir audio, hecha) → 3 (leer, hecha) → 6 (escuchar, hecha) → 4 (escribir, hecha) → 7 (resumen sin bloquear, hecha)**.
 - 8 va al final y depende de la app.
 
 ## Fuera de alcance (a largo plazo)
