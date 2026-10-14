@@ -64,7 +64,7 @@ En ambos casos hace falta la cuenta de pago de Apple Developer.
 
 ## Fases
 
-> Estado: fases 1 y 2 finalizadas (publicadas en la release `0.17.0`) y fases 3, 4, 5, 6 y 7 finalizadas (en `develop`). Fases 0 y 8 pendientes. Las finalizadas llevan ✅ en el título.
+> Estado: fases 1 y 2 publicadas en la release `0.17.0`, y fases 3, 4, 5, 6 y 7 en la `0.18.0`. Fases 0 y 8 pendientes. Las finalizadas llevan ✅ en el título.
 
 ### Fase 0 — Endurecer lo que ya está expuesto
 
