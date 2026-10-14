@@ -35,4 +35,4 @@
 
 ## Migration Plan
 
-Migración `Version2026101410000` que crea `daily_summary_generation`. En producción: `make migrate` y `make deploy` (reinicia `diary-messenger-worker`). Rollback: revertir el merge y `doctrine:migrations:migrate prev`; los mensajes `GenerateDailySummaryMessage` que queden en Redis sin handler se descartarían.
+Migración `Version20261014112129` que crea `daily_summary_generation`. En producción: `make migrate` y `make deploy` (reinicia `diary-messenger-worker`). Rollback: revertir el merge y `doctrine:migrations:migrate prev`; los mensajes `GenerateDailySummaryMessage` que queden en Redis sin handler se descartarían.
