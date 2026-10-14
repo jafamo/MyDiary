@@ -117,6 +117,13 @@ nelmio_api_doc:
                         text: { type: string, example: Dentista }
                         created_at: { type: string, format: date-time }
                         updated_at: { type: string, format: date-time }
+                ReminderInput:
+                    type: object
+                    required: [date, text]
+                    properties:
+                        date: { type: string, format: date, example: '2026-10-20' }
+                        time: { type: string, nullable: true, description: 'Hora como `HH:MM`; ausente o `null` si es de todo el día.', example: '10:30' }
+                        text: { type: string, example: Dentista }
                 DailyValue:
                     type: object
                     required: [date, value]

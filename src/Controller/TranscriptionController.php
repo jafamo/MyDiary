@@ -7,8 +7,8 @@ namespace App\Controller;
 use App\Entity\AudioRecording;
 use App\Entity\AudioRecordingStatus;
 use App\Form\TranscriptionEditType;
+use App\Service\AudioRecordingDeleter;
 use App\Service\TranscriptionEditor;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -22,7 +22,7 @@ class TranscriptionController
     public function __construct(
         private readonly FormFactoryInterface $formFactory,
         private readonly TranscriptionEditor $transcriptionEditor,
-        private readonly EntityManagerInterface $entityManager,
+        private readonly AudioRecordingDeleter $audioRecordingDeleter,
         private readonly CsrfTokenManagerInterface $csrfTokenManager,
     ) {
     }
@@ -55,27 +55,12 @@ class TranscriptionController
             return new Response(status: Response::HTTP_FORBIDDEN);
         }
 
-        if (!\in_array($audioRecording->getStatus(), [AudioRecordingStatus::TRANSCRIBED, AudioRecordingStatus::ERROR], true)) {
+        if (!$this->audioRecordingDeleter->canDelete($audioRecording)) {
             return new Response(status: Response::HTTP_CONFLICT);
         }
 
-        $transcription = $audioRecording->getTranscription();
-
-        $this->deleteFileIfExists($audioRecording->getFilePath());
-        if (null !== $transcription) {
-            $this->deleteFileIfExists($transcription->getFilePath());
-            $this->entityManager->remove($transcription);
-        }
-        $this->entityManager->remove($audioRecording);
-        $this->entityManager->flush();
+        $this->audioRecordingDeleter->delete($audioRecording);
 
         return new RedirectResponse($request->headers->get('Referer', '/'));
-    }
-
-    private function deleteFileIfExists(string $filePath): void
-    {
-        if (file_exists($filePath)) {
-            unlink($filePath);
-        }
     }
 }

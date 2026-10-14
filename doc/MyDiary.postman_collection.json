@@ -145,7 +145,67 @@
               ]
             }
           }
-        }
+        },
+          {
+            "name": "Editar transcripción",
+            "request": {
+              "description": "Sustituye el texto de la transcripción, la marca como editada a mano y regenera su embedding. Solo audios `TRANSCRIBED` (`409` en otro caso).",
+              "method": "PATCH",
+              "header": [
+                { "key": "Accept", "value": "application/json" },
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"content\": \"Texto corregido\"\n}",
+                "options": { "raw": { "language": "json" } }
+              },
+              "url": {
+                "raw": "{{base_url}}/api/v1/audios/:id/transcripcion",
+                "host": ["{{base_url}}"],
+                "path": ["api", "v1", "audios", ":id", "transcripcion"],
+                "variable": [
+                  { "key": "id", "value": "1", "description": "Identificador del audio." }
+                ]
+              }
+            }
+          },
+          {
+            "name": "Eliminar audio",
+            "request": {
+              "description": "Borra el audio, su transcripción y sus ficheros (`204`). Solo audios `TRANSCRIBED` o `ERROR` (`409` si está `PENDING`). No se puede deshacer.",
+              "method": "DELETE",
+              "header": [
+                { "key": "Accept", "value": "application/json" }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/v1/audios/:id",
+                "host": ["{{base_url}}"],
+                "path": ["api", "v1", "audios", ":id"],
+                "variable": [
+                  { "key": "id", "value": "1", "description": "Identificador del audio." }
+                ]
+              }
+            }
+          },
+          {
+            "name": "Reintentar transcripción",
+            "request": {
+              "description": "Vuelve a poner en cola un audio en `ERROR` (`409` en otro caso). Responde el audio en `PENDING`.",
+              "method": "POST",
+              "header": [
+                { "key": "Accept", "value": "application/json" }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/v1/audios/:id/reintentar",
+                "host": ["{{base_url}}"],
+                "path": ["api", "v1", "audios", ":id", "reintentar"],
+                "variable": [
+                  { "key": "id", "value": "1", "description": "Identificador del audio." }
+                ]
+              }
+            }
+          }
       ]
     },
     {
@@ -329,7 +389,70 @@
               "path": ["api", "v1", "recordatorios", "proximos"]
             }
           }
-        }
+        },
+          {
+            "name": "Crear recordatorio",
+            "request": {
+              "description": "`date` y `text` obligatorios; `time` (`HH:MM`) opcional. Responde `201`.",
+              "method": "POST",
+              "header": [
+                { "key": "Accept", "value": "application/json" },
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"date\": \"2026-10-20\",\n  \"time\": \"10:30\",\n  \"text\": \"Dentista\"\n}",
+                "options": { "raw": { "language": "json" } }
+              },
+              "url": {
+                "raw": "{{base_url}}/api/v1/recordatorios",
+                "host": ["{{base_url}}"],
+                "path": ["api", "v1", "recordatorios"]
+              }
+            }
+          },
+          {
+            "name": "Editar recordatorio",
+            "request": {
+              "description": "Edición parcial: los campos ausentes no cambian. `\"time\": null` quita la hora.",
+              "method": "PATCH",
+              "header": [
+                { "key": "Accept", "value": "application/json" },
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"text\": \"Dentista (traer informe)\"\n}",
+                "options": { "raw": { "language": "json" } }
+              },
+              "url": {
+                "raw": "{{base_url}}/api/v1/recordatorios/:id",
+                "host": ["{{base_url}}"],
+                "path": ["api", "v1", "recordatorios", ":id"],
+                "variable": [
+                  { "key": "id", "value": "1", "description": "Identificador del recordatorio." }
+                ]
+              }
+            }
+          },
+          {
+            "name": "Eliminar recordatorio",
+            "request": {
+              "description": "Responde `204`.",
+              "method": "DELETE",
+              "header": [
+                { "key": "Accept", "value": "application/json" }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/v1/recordatorios/:id",
+                "host": ["{{base_url}}"],
+                "path": ["api", "v1", "recordatorios", ":id"],
+                "variable": [
+                  { "key": "id", "value": "1", "description": "Identificador del recordatorio." }
+                ]
+              }
+            }
+          }
       ]
     },
     {
@@ -349,7 +472,52 @@
               "path": ["api", "v1", "topics"]
             }
           }
-        }
+        },
+          {
+            "name": "Renombrar tema",
+            "request": {
+              "description": "`409` si otro tema ya usa ese nombre (sin distinguir mayúsculas): en ese caso, fusiónalos.",
+              "method": "PATCH",
+              "header": [
+                { "key": "Accept", "value": "application/json" },
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"name\": \"trabajo\"\n}",
+                "options": { "raw": { "language": "json" } }
+              },
+              "url": {
+                "raw": "{{base_url}}/api/v1/topics/:id",
+                "host": ["{{base_url}}"],
+                "path": ["api", "v1", "topics", ":id"],
+                "variable": [
+                  { "key": "id", "value": "1", "description": "Identificador del tema." }
+                ]
+              }
+            }
+          },
+          {
+            "name": "Fusionar temas",
+            "request": {
+              "description": "Asocia a `destination` los resúmenes de los temas de `origins` y elimina estos. Sin confirmación y sin vuelta atrás: la app debe confirmarlo antes.",
+              "method": "POST",
+              "header": [
+                { "key": "Accept", "value": "application/json" },
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"origins\": [\n    4,\n    7\n  ],\n  \"destination\": 2\n}",
+                "options": { "raw": { "language": "json" } }
+              },
+              "url": {
+                "raw": "{{base_url}}/api/v1/topics/fusionar",
+                "host": ["{{base_url}}"],
+                "path": ["api", "v1", "topics", "fusionar"]
+              }
+            }
+          }
       ]
     }
   ]
