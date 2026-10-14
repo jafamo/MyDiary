@@ -8,6 +8,8 @@
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
     app.audio_storage_dir: '%kernel.project_dir%/var/audio'
+    # IP del proxy KeenDNS del router (ver PublicUrlProxyListener). Vacía: sin proxy.
+    env(KEENDNS_PROXY_IP): ''
 
 services:
     # default configuration for services in *this* file
@@ -19,6 +21,7 @@ services:
             string $authorizedChatId: '%env(TELEGRAM_AUTHORIZED_CHAT_ID)%'
             string $webhookToken: '%env(TELEGRAM_WEBHOOK_TOKEN)%'
             string $publicUrl: '%env(APP_PUBLIC_URL)%'
+            string $keenDnsProxyIp: '%env(KEENDNS_PROXY_IP)%'
             string $openWebUiBaseUrl: '%env(OPENWEBUI_STT_BASE_URL)%'
             string $openWebUiApiKey: '%env(OPENWEBUI_API_KEY)%'
             string $whisperModel: '%env(WHISPER_MODEL)%'
