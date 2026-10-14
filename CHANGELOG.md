@@ -8,6 +8,7 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 - `feature/api-audio-upload`
 - `feature/api-read-endpoints`
 - `feature/audio-playback`
+- `feature/api-write-endpoints`
 
 ### Añadido
 - **Subida de audios por la API** (fase 5 de `ROADMAP.md`): `POST /api/v1/audios` recibe un fichero en el campo `file` (multipart) y lo pone en cola para transcribirse, sin pasar por Telegram. A partir de ahí el audio se comporta como cualquier otro: aparece en Diario e Historial, entra en el resumen del día y avisa por Telegram cuando la transcripción está lista o falla.
@@ -29,6 +30,13 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 - **Escuchar los audios** (fase 6 de `ROADMAP.md`): cada entrada de Diario e Historial lleva un reproductor con el audio original, también cuando la transcripción ha fallado o sigue en curso. No descarga nada hasta que se pulsa reproducir.
 - `GET /api/v1/audios/{id}/fichero` sirve el fichero de un audio a la app, con soporte de `Range` (`206`) para reproducir con salto; la web usa la ruta equivalente con sesión `GET /audio/{id}/fichero`. Si el audio existe pero su fichero no está en el servidor, responde `404` y registra `audio.file_missing` (`audio_recording_id`, `audio_source`). El endpoint está en Swagger, en `doc/openapi.json` y en las dos colecciones de peticiones.
 - Limitación conocida: los audios de Telegram son Ogg/Opus y se sirven tal cual; Safari anterior a iOS 17.4 / macOS 14.4 y `AVPlayer` no los reproducen. La conversión a AAC queda anotada en `ROADMAP.md`.
+- **Escritura por la API** (fase 4 de `ROADMAP.md`): la app ya puede modificar lo mismo que la web, con las mismas reglas.
+  - `PATCH /api/v1/audios/{id}/transcripcion`: corregir el texto de una transcripción (se marca como editada y se actualiza la búsqueda).
+  - `DELETE /api/v1/audios/{id}`: eliminar un audio con su transcripción y sus ficheros.
+  - `POST /api/v1/audios/{id}/reintentar`: relanzar la transcripción de un audio que falló.
+  - `POST /api/v1/recordatorios`, `PATCH` y `DELETE /api/v1/recordatorios/{id}`: crear, editar (solo los campos enviados) y eliminar recordatorios.
+  - `PATCH /api/v1/topics/{id}` y `POST /api/v1/topics/fusionar`: renombrar y fusionar temas. Renombrar a un nombre que ya usa otro tema responde `409`; la fusión no pide confirmación, así que la app debe pedirla antes.
+- Una operación que no corresponde al estado del audio (editar uno sin transcribir, borrar uno pendiente, reintentar uno que no ha fallado) responde `409`; datos inválidos o campos desconocidos, `422` con el campo que falla. Los ocho endpoints están en Swagger, en `doc/openapi.json` y en las dos colecciones de peticiones.
 
 ### Cambiado
 - `audio_recording` ya no exige los identificadores de Telegram: los audios guardan su origen (`source`: `telegram` o `app`) y los de la app se identifican por el hash de su contenido (`content_hash`). Los audios existentes quedan como `telegram`. El webhook de Telegram no cambia de comportamiento.
@@ -36,6 +44,7 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 - Los tests guardan los audios subidos en el directorio de caché de test en lugar de `var/audio`.
 - El aviso de recordatorios cercanos (la campana) se calcula en `RecordatoriosService` en lugar de en la extensión de Twig, para que web y API den el mismo dato. La web muestra lo mismo.
 - El test de documentación de la API compara las rutas ignorando los parámetros de consulta y admite parámetros de ruta en las colecciones (`:fecha` en Postman, `{{fecha}}` en `doc/api.http`).
+- Web: el borrado de un audio pasa a `AudioRecordingDeleter`, compartido con la API, sin cambio de comportamiento. El campo de renombrar un tema limita el nombre a 255 caracteres (antes, uno más largo daba un error de base de datos).
 
 ### Migraciones
 - `Version20261009090000`: en `audio_recording`, añade `source` y `content_hash` (único) y hace opcionales `telegram_message_id` y `telegram_file_unique_id`. **Requiere `make migrate` tras el despliegue.**
