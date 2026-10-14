@@ -327,6 +327,8 @@ La zona horaria local (`Europe/Madrid`) no es variable de entorno: es la constan
 
 El usuario (`user` en BD) se crea con `bin/console app:user:create`, no vía variables de entorno.
 
+**Acceso público por el dominio (KeenDNS):** el router Keenetic (`192.168.4.1`) publica `https://diary.jfarinos.keenetic.pro`: termina el HTTPS y reenvía a `diary-nginx` (puerto 9008) por HTTP, con `Host` cambiado a la IP del servidor y sin cabeceras `X-Forwarded-*` fiables. Para que las redirecciones (login, logout) y las URLs absolutas usen el dominio, `App\EventListener\PublicUrlProxyListener` trata las peticiones cuyo `REMOTE_ADDR` es `KEENDNS_PROXY_IP` como recibidas en `APP_PUBLIC_URL` (esquema, host y puerto), antes del router y del firewall. Con `KEENDNS_PROXY_IP` vacía (por defecto) no hace nada; en producción vale `192.168.4.1`. Las peticiones de la red local por IP no cambian. No se usan `trusted_proxies` porque el router no manda cabeceras en las que confiar. Pendiente fuera de la aplicación: el puerto 9008 también recibe peticiones directas desde internet, sin HTTPS; cerrarlo requiere quitar ese reenvío en el router.
+
 ### 7.1 Logging y auditoría (ELK)
 
 Elasticsearch y Kibana ya están desplegados aparte en el mismo servidor de producción (no forman parte de este `docker-compose.yml`, igual que Ollama/Open WebUI). Este repo solo aporta la retención local y el envío de logs hacia ellos:
