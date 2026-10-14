@@ -13,7 +13,7 @@
 
 | # | Bloqueo | Dónde | Fase |
 |---|---|---|---|
-| 1 | No hay API: todo devuelve Twig, con sesión + formulario + CSRF (lectura resuelta; falta la escritura) | `src/Controller/*`, `config/packages/security.yaml` | 2, 3, 4 |
+| 1 | ~~No hay API: todo devuelve Twig, con sesión + formulario + CSRF~~ (resuelto) | — | 2, 3, 4 |
 | 2 | Lógica de presentación y cálculo dentro de controladores | `EstadisticasController` (rachas, comparativas, consumo IA), `RecordatoriosController` (calendario, paginación), `SearchController` (fusión de resultados), `HistorialController` | 1 |
 | 3 | ~~La captura solo entra por Telegram~~ (resuelto) | `AudioRecording.telegramMessageId` / `telegramFileUniqueId` obligatorios y únicos; `AudioRecordingService::receive()` | 5 |
 | 4 | ~~No se puede escuchar el audio: ninguna ruta sirve los ficheros~~ (resuelto) | — | 6 |
@@ -64,7 +64,7 @@ En ambos casos hace falta la cuenta de pago de Apple Developer.
 
 ## Fases
 
-> Estado: fases 1 y 2 finalizadas (publicadas en la release `0.17.0`) y fases 3, 5 y 6 finalizadas (en `develop`). Fase 0 pendiente. Las finalizadas llevan ✅ en el título.
+> Estado: fases 1 y 2 finalizadas (publicadas en la release `0.17.0`) y fases 3, 4, 5 y 6 finalizadas (en `develop`). Fases 0, 7 y 8 pendientes. Las finalizadas llevan ✅ en el título.
 
 ### Fase 0 — Endurecer lo que ya está expuesto
 
@@ -114,7 +114,9 @@ Equivalentes a las vistas actuales, reutilizando los servicios de la fase 1:
 
 Todos aceptan los mismos filtros que la web (estado, rango, mes).
 
-### Fase 4 — Endpoints de escritura
+### Fase 4 — Endpoints de escritura ✅
+
+> Hecha en el change `api-write-endpoints` (rama `feature/api-write-endpoints`). Los cuerpos JSON se validan con los mismos `FormType` de la web a través de `ApiForm`; el borrado de audios se comparte en `AudioRecordingDeleter`. Renombrar a un nombre ya usado es `409` y la fusión no pide confirmación.
 
 - Transcripción: editar (`PATCH`) y eliminar (`DELETE`), sobre `TranscriptionEditor` y el borrado en cascada existente.
 - Audio: reintentar (`POST .../reintentar`), solo en estado `ERROR` (409 en otro caso, como hoy).
@@ -164,7 +166,7 @@ Depende de que exista la app y la cuenta de Apple Developer.
 ## Orden y dependencias
 
 - 0 es independiente. 1 → 2 son la base y van en ese orden.
-- Tras la 2, las fases 3, 4, 5, 6 y 7 son independientes entre sí. Para tener cuanto antes una app útil: **5 (subir audio, hecha) → 3 (leer, hecha) → 6 (escuchar, hecha) → 4 → 7**.
+- Tras la 2, las fases 3, 4, 5, 6 y 7 son independientes entre sí. Para tener cuanto antes una app útil: **5 (subir audio, hecha) → 3 (leer, hecha) → 6 (escuchar, hecha) → 4 (escribir, hecha) → 7**.
 - 8 va al final y depende de la app.
 
 ## Fuera de alcance (a largo plazo)

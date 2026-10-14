@@ -12,9 +12,14 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 
 class TopicRenameType extends AbstractType
 {
+    /** Longitud de la columna `topic.name`. */
+    public const NAME_MAX_LENGTH = 255;
+
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
-        $builder->add('name', TextType::class);
+        $builder->add('name', TextType::class, [
+            'attr' => ['maxlength' => self::NAME_MAX_LENGTH],
+        ]);
     }
 
     public function configureOptions(OptionsResolver $resolver): void

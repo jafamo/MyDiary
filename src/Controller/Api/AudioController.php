@@ -6,11 +6,16 @@ namespace App\Controller\Api;
 
 use App\Controller\Api\Presenter\AudioPresenter;
 use App\Entity\AudioRecording;
+use App\Entity\AudioRecordingStatus;
+use App\Form\TranscriptionEditType;
 use App\Service\AudioFileMissingException;
 use App\Service\AudioFileResponder;
+use App\Service\AudioRecordingDeleter;
 use App\Service\AudioRecordingReceiveResult;
+use App\Service\AudioRecordingService;
 use App\Service\AudioUploadService;
 use App\Service\InvalidAudioUploadException;
+use App\Service\TranscriptionEditor;
 use OpenApi\Attributes as OA;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -32,6 +37,10 @@ class AudioController
         private readonly AudioPresenter $audioPresenter,
         private readonly AudioFileResponder $audioFileResponder,
         private readonly LoggerInterface $logger,
+        private readonly ApiForm $apiForm,
+        private readonly TranscriptionEditor $transcriptionEditor,
+        private readonly AudioRecordingDeleter $audioRecordingDeleter,
+        private readonly AudioRecordingService $audioRecordingService,
     ) {
     }
 
@@ -118,5 +127,78 @@ class AudioController
         } catch (AudioFileMissingException) {
             throw ApiException::notFound('El fichero de este audio no está disponible.');
         }
+    }
+
+    #[Route('/api/v1/audios/{id}/transcripcion', name: 'api_audio_transcription_edit', requirements: ['id' => '\d+'], methods: ['PATCH'])]
+    #[OA\Patch(
+        summary: 'Editar la transcripción de un audio',
+        description: 'Sustituye el texto de la transcripción, la marca como editada a mano y regenera su embedding para la búsqueda. Solo para audios en estado `TRANSCRIBED`.',
+    )]
+    #[OA\Parameter(name: 'id', in: 'path', required: true, description: 'Identificador del audio', schema: new OA\Schema(type: 'integer'))]
+    #[OA\RequestBody(required: true, content: new OA\JsonContent(
+        required: ['content'],
+        properties: [
+            new OA\Property(property: 'content', type: 'string', example: 'Hoy he ido al dentista a las diez.'),
+        ],
+    ))]
+    #[OA\Response(response: 200, description: 'Audio con la transcripción editada', content: new OA\JsonContent(ref: '#/components/schemas/Audio'))]
+    #[OA\Response(response: 400, description: 'El cuerpo no es un objeto JSON', content: new OA\JsonContent(ref: '#/components/schemas/Error'))]
+    #[OA\Response(response: 401, description: 'Token ausente, inválido o caducado', content: new OA\JsonContent(ref: '#/components/schemas/Error'))]
+    #[OA\Response(response: 404, description: 'El audio no existe', content: new OA\JsonContent(ref: '#/components/schemas/Error'))]
+    #[OA\Response(response: 409, description: 'El audio no está transcrito', content: new OA\JsonContent(ref: '#/components/schemas/Error'))]
+    #[OA\Response(response: 422, description: 'Falta `content`, está en blanco o hay campos no admitidos', content: new OA\JsonContent(ref: '#/components/schemas/Error'))]
+    public function editTranscription(AudioRecording $audioRecording, Request $request): JsonResponse
+    {
+        $transcription = $audioRecording->getTranscription();
+        if (AudioRecordingStatus::TRANSCRIBED !== $audioRecording->getStatus() || null === $transcription) {
+            throw ApiException::conflict('Solo se puede editar la transcripción de un audio transcrito.');
+        }
+
+        $this->apiForm->submit(TranscriptionEditType::class, $transcription, $request);
+        $this->transcriptionEditor->applyManualEdit($transcription);
+
+        return new JsonResponse($this->audioPresenter->detail($audioRecording));
+    }
+
+    #[Route('/api/v1/audios/{id}', name: 'api_audio_delete', requirements: ['id' => '\d+'], methods: ['DELETE'])]
+    #[OA\Delete(
+        summary: 'Eliminar un audio',
+        description: 'Borra el audio, su transcripción y sus ficheros. No se puede deshacer. Solo para audios en estado `TRANSCRIBED` o `ERROR`: uno en `PENDING` puede estar transcribiéndose.',
+    )]
+    #[OA\Parameter(name: 'id', in: 'path', required: true, description: 'Identificador del audio', schema: new OA\Schema(type: 'integer'))]
+    #[OA\Response(response: 204, description: 'Audio eliminado')]
+    #[OA\Response(response: 401, description: 'Token ausente, inválido o caducado', content: new OA\JsonContent(ref: '#/components/schemas/Error'))]
+    #[OA\Response(response: 404, description: 'El audio no existe', content: new OA\JsonContent(ref: '#/components/schemas/Error'))]
+    #[OA\Response(response: 409, description: 'El audio está pendiente de transcribir', content: new OA\JsonContent(ref: '#/components/schemas/Error'))]
+    public function delete(AudioRecording $audioRecording): Response
+    {
+        if (!$this->audioRecordingDeleter->canDelete($audioRecording)) {
+            throw ApiException::conflict('No se puede eliminar un audio pendiente de transcribir.');
+        }
+
+        $this->audioRecordingDeleter->delete($audioRecording);
+
+        return new Response(status: Response::HTTP_NO_CONTENT);
+    }
+
+    #[Route('/api/v1/audios/{id}/reintentar', name: 'api_audio_retry', requirements: ['id' => '\d+'], methods: ['POST'])]
+    #[OA\Post(
+        summary: 'Reintentar la transcripción de un audio',
+        description: 'Vuelve a poner en cola un audio cuya transcripción falló: pasa a `PENDING` y se limpian `error_code` y `error_message`. Solo para audios en estado `ERROR`.',
+    )]
+    #[OA\Parameter(name: 'id', in: 'path', required: true, description: 'Identificador del audio', schema: new OA\Schema(type: 'integer'))]
+    #[OA\Response(response: 200, description: 'Audio en cola de nuevo', content: new OA\JsonContent(ref: '#/components/schemas/Audio'))]
+    #[OA\Response(response: 401, description: 'Token ausente, inválido o caducado', content: new OA\JsonContent(ref: '#/components/schemas/Error'))]
+    #[OA\Response(response: 404, description: 'El audio no existe', content: new OA\JsonContent(ref: '#/components/schemas/Error'))]
+    #[OA\Response(response: 409, description: 'El audio no está en error', content: new OA\JsonContent(ref: '#/components/schemas/Error'))]
+    public function retry(AudioRecording $audioRecording): JsonResponse
+    {
+        if (AudioRecordingStatus::ERROR !== $audioRecording->getStatus()) {
+            throw ApiException::conflict('Solo se puede reintentar un audio cuya transcripción ha fallado.');
+        }
+
+        $this->audioRecordingService->retryAfterError($audioRecording);
+
+        return new JsonResponse($this->audioPresenter->detail($audioRecording));
     }
 }

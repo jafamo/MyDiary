@@ -55,6 +55,11 @@ class ApiException extends HttpException
         return new self(Response::HTTP_NOT_FOUND, self::NOT_FOUND, $message);
     }
 
+    public static function conflict(string $message): self
+    {
+        return new self(Response::HTTP_CONFLICT, self::CONFLICT, $message);
+    }
+
     public static function validationFailed(string $message): self
     {
         return new self(Response::HTTP_UNPROCESSABLE_ENTITY, self::VALIDATION_FAILED, $message);

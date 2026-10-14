@@ -103,6 +103,76 @@ GET {{base_url}}/api/v1/audios/{{id}}/fichero
 Authorization: Bearer {{token}}
 # Range: bytes=0-1023
 
+### Editar la transcripción de un audio
+# Solo audios TRANSCRIBED (409 en otro caso). Regenera el embedding para la búsqueda.
+PATCH {{base_url}}/api/v1/audios/{{id}}/transcripcion
+Authorization: Bearer {{token}}
+Accept: application/json
+Content-Type: application/json
+
+{
+  "content": "Texto corregido"
+}
+
+### Eliminar un audio, su transcripción y sus ficheros (204)
+# Solo audios TRANSCRIBED o ERROR (409 si está PENDING). No se puede deshacer.
+DELETE {{base_url}}/api/v1/audios/{{id}}
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Reintentar la transcripción de un audio en ERROR (409 en otro caso)
+POST {{base_url}}/api/v1/audios/{{id}}/reintentar
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Crear un recordatorio (201). date y text obligatorios; time (HH:MM) opcional
+POST {{base_url}}/api/v1/recordatorios
+Authorization: Bearer {{token}}
+Accept: application/json
+Content-Type: application/json
+
+{
+  "date": "2026-10-20",
+  "time": "10:30",
+  "text": "Dentista"
+}
+
+### Editar un recordatorio: los campos ausentes no cambian; "time": null quita la hora
+PATCH {{base_url}}/api/v1/recordatorios/{{id}}
+Authorization: Bearer {{token}}
+Accept: application/json
+Content-Type: application/json
+
+{
+  "text": "Dentista (traer informe)"
+}
+
+### Eliminar un recordatorio (204)
+DELETE {{base_url}}/api/v1/recordatorios/{{id}}
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Renombrar un tema. 409 si otro tema ya usa ese nombre: en ese caso, fusiónalos
+PATCH {{base_url}}/api/v1/topics/{{id}}
+Authorization: Bearer {{token}}
+Accept: application/json
+Content-Type: application/json
+
+{
+  "name": "trabajo"
+}
+
+### Fusionar temas: los resúmenes de origins pasan a destination y origins se eliminan (sin vuelta atrás)
+POST {{base_url}}/api/v1/topics/fusionar
+Authorization: Bearer {{token}}
+Accept: application/json
+Content-Type: application/json
+
+{
+  "origins": [4, 7],
+  "destination": 2
+}
+
 ### Logout: revoca el token en uso
 POST {{base_url}}/api/v1/logout
 Authorization: Bearer {{token}}

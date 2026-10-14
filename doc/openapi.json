@@ -166,6 +166,230 @@
                 }
             }
         },
+        "/api/v1/audios/{id}/transcripcion": {
+            "patch": {
+                "tags": [
+                    "Audios"
+                ],
+                "summary": "Editar la transcripci\u00f3n de un audio",
+                "description": "Sustituye el texto de la transcripci\u00f3n, la marca como editada a mano y regenera su embedding para la b\u00fasqueda. Solo para audios en estado `TRANSCRIBED`.",
+                "operationId": "patch_api_audio_transcription_edit",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Identificador del audio",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "pattern": "\\d+"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "content"
+                                ],
+                                "properties": {
+                                    "content": {
+                                        "type": "string",
+                                        "example": "Hoy he ido al dentista a las diez."
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Audio con la transcripci\u00f3n editada",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Audio"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "El cuerpo no es un objeto JSON",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token ausente, inv\u00e1lido o caducado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "El audio no existe",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "El audio no est\u00e1 transcrito",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Falta `content`, est\u00e1 en blanco o hay campos no admitidos",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/audios/{id}": {
+            "delete": {
+                "tags": [
+                    "Audios"
+                ],
+                "summary": "Eliminar un audio",
+                "description": "Borra el audio, su transcripci\u00f3n y sus ficheros. No se puede deshacer. Solo para audios en estado `TRANSCRIBED` o `ERROR`: uno en `PENDING` puede estar transcribi\u00e9ndose.",
+                "operationId": "delete_api_audio_delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Identificador del audio",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "pattern": "\\d+"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Audio eliminado"
+                    },
+                    "401": {
+                        "description": "Token ausente, inv\u00e1lido o caducado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "El audio no existe",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "El audio est\u00e1 pendiente de transcribir",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/audios/{id}/reintentar": {
+            "post": {
+                "tags": [
+                    "Audios"
+                ],
+                "summary": "Reintentar la transcripci\u00f3n de un audio",
+                "description": "Vuelve a poner en cola un audio cuya transcripci\u00f3n fall\u00f3: pasa a `PENDING` y se limpian `error_code` y `error_message`. Solo para audios en estado `ERROR`.",
+                "operationId": "post_api_audio_retry",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Identificador del audio",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "pattern": "\\d+"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Audio en cola de nuevo",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Audio"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token ausente, inv\u00e1lido o caducado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "El audio no existe",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "El audio no est\u00e1 en error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/login": {
             "post": {
                 "tags": [
@@ -1029,6 +1253,66 @@
                         }
                     }
                 }
+            },
+            "post": {
+                "tags": [
+                    "Recordatorios"
+                ],
+                "summary": "Crear un recordatorio",
+                "description": "Mismas reglas que el formulario de la web: `date` y `text` obligatorios, `time` opcional.",
+                "operationId": "post_api_recordatorios_create",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReminderInput"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Recordatorio creado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Reminder"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "El cuerpo no es un objeto JSON",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token ausente, inv\u00e1lido o caducado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Falta `date` o `text`, alg\u00fan valor no es v\u00e1lido o hay campos no admitidos",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/recordatorios/proximos": {
@@ -1086,6 +1370,150 @@
                     },
                     "401": {
                         "description": "Token ausente, inv\u00e1lido o caducado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/recordatorios/{id}": {
+            "delete": {
+                "tags": [
+                    "Recordatorios"
+                ],
+                "summary": "Eliminar un recordatorio",
+                "operationId": "delete_api_recordatorios_delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Identificador del recordatorio",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "pattern": "\\d+"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Recordatorio eliminado"
+                    },
+                    "401": {
+                        "description": "Token ausente, inv\u00e1lido o caducado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "El recordatorio no existe",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "Recordatorios"
+                ],
+                "summary": "Editar un recordatorio",
+                "description": "Edici\u00f3n parcial: los campos ausentes no cambian. `time` a `null` quita la hora.",
+                "operationId": "patch_api_recordatorios_edit",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Identificador del recordatorio",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "pattern": "\\d+"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-10-20"
+                                    },
+                                    "time": {
+                                        "type": "string",
+                                        "example": "10:30",
+                                        "nullable": true
+                                    },
+                                    "text": {
+                                        "type": "string",
+                                        "example": "Dentista"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Recordatorio editado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Reminder"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "El cuerpo no es un objeto JSON",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token ausente, inv\u00e1lido o caducado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "El recordatorio no existe",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "`date` o `text` vac\u00edos, alg\u00fan valor no es v\u00e1lido o hay campos no admitidos",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1269,6 +1697,192 @@
                     },
                     "401": {
                         "description": "Token ausente, inv\u00e1lido o caducado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/topics/{id}": {
+            "patch": {
+                "tags": [
+                    "Temas"
+                ],
+                "summary": "Renombrar un tema",
+                "description": "El nombre no puede coincidir, sin distinguir may\u00fasculas, con el de otro tema: en ese caso responde `409` y lo indicado es fusionarlos.",
+                "operationId": "patch_api_topics_rename",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Identificador del tema",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "pattern": "\\d+"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "trabajo",
+                                        "maxLength": 255
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Tema renombrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Topic"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "El cuerpo no es un objeto JSON",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token ausente, inv\u00e1lido o caducado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "El tema no existe",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Ya existe otro tema con ese nombre",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Falta `name`, est\u00e1 en blanco, es demasiado largo o hay campos no admitidos",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/topics/fusionar": {
+            "post": {
+                "tags": [
+                    "Temas"
+                ],
+                "summary": "Fusionar temas",
+                "description": "Asocia a `destination` todos los res\u00famenes de los temas de `origins` y elimina estos. No pide confirmaci\u00f3n y no se puede deshacer: la app debe confirmarlo antes. Si `destination` aparece en `origins`, se ignora.",
+                "operationId": "post_api_topics_merge",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "origins",
+                                    "destination"
+                                ],
+                                "properties": {
+                                    "origins": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "example": [
+                                            4,
+                                            7
+                                        ]
+                                    },
+                                    "destination": {
+                                        "type": "integer",
+                                        "example": 2
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Tema destino tras la fusi\u00f3n",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Topic"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "El cuerpo no es un objeto JSON",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token ausente, inv\u00e1lido o caducado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Falta alg\u00fan campo, alg\u00fan tema no existe o no queda ning\u00fan origen distinto del destino",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1538,6 +2152,30 @@
                     "updated_at": {
                         "type": "string",
                         "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "ReminderInput": {
+                "required": [
+                    "date",
+                    "text"
+                ],
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-10-20"
+                    },
+                    "time": {
+                        "description": "Hora como `HH:MM`; ausente o `null` si es de todo el d\u00eda.",
+                        "type": "string",
+                        "example": "10:30",
+                        "nullable": true
+                    },
+                    "text": {
+                        "type": "string",
+                        "example": "Dentista"
                     }
                 },
                 "type": "object"
