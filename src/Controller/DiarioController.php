@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Entity\AudioRecordingStatus;
 use App\Repository\AudioRecordingRepository;
+use App\Repository\DailySummaryGenerationRepository;
 use App\Repository\DailySummaryRepository;
 use App\Service\DateRange;
 use App\Service\DiarioDashboardService;
@@ -20,6 +21,7 @@ class DiarioController
         private readonly AudioRecordingRepository $audioRecordingRepository,
         private readonly DailySummaryRepository $dailySummaryRepository,
         private readonly DiarioDashboardService $dashboardService,
+        private readonly DailySummaryGenerationRepository $dailySummaryGenerationRepository,
         private readonly Environment $twig,
     ) {
     }
@@ -32,12 +34,15 @@ class DiarioController
 
         $entries = $this->audioRecordingRepository->findAllReceivedOn($today, $status);
         $dailySummary = $this->dailySummaryRepository->findOneByDate($today);
+        $generation = $this->dailySummaryGenerationRepository->findOneByDate($today);
 
         return new Response($this->twig->render('diario/index.html.twig', [
             'today' => $today,
             'entries' => $entries,
             'status_filter' => $status,
             'daily_summary' => $dailySummary,
+            'summary_generation' => $generation,
+            'summary_generation_status' => $generation?->effectiveStatus(new \DateTimeImmutable())->value,
             'streak' => $this->dashboardService->getCurrentStreak(),
             'best_streak' => $this->dashboardService->getBestStreak(),
             'week' => $this->dashboardService->getWeekTotalAndTrend(),

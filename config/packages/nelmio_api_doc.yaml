@@ -117,6 +117,16 @@ nelmio_api_doc:
                         text: { type: string, example: Dentista }
                         created_at: { type: string, format: date-time }
                         updated_at: { type: string, format: date-time }
+                SummaryGeneration:
+                    type: object
+                    required: [status, requested_at, started_at, finished_at, error_code, error_message]
+                    properties:
+                        status: { type: string, enum: [QUEUED, RUNNING, DONE, FAILED], description: '`QUEUED`: pedida y pendiente del worker. `RUNNING`: generándose. `DONE`: resumen guardado. `FAILED`: falló (o se atascó: `error_code` `STALLED`).' }
+                        requested_at: { type: string, format: date-time }
+                        started_at: { type: string, format: date-time, nullable: true }
+                        finished_at: { type: string, format: date-time, nullable: true }
+                        error_code: { type: string, nullable: true, example: TIMEOUT }
+                        error_message: { type: string, nullable: true }
                 ReminderInput:
                     type: object
                     required: [date, text]

@@ -60,15 +60,27 @@ El sistema SHALL mostrar, como página principal tras el login, el día actual c
 - **THEN** esa entrada no muestra pie de métricas
 
 ### Requirement: Botón de generación de resumen bajo demanda en Diario
-El sistema SHALL mostrar en la vista Diario un botón "Generar resumen" que dispara la generación (o regeneración) del `DailySummary` del día actual sin esperar al disparo programado de las 21:00, y tras completarse SHALL volver a mostrar Diario con el resultado actualizado.
+El sistema SHALL mostrar en la vista Diario un botón "Generar resumen" que pide la generación (o regeneración) del `DailySummary` del día actual sin esperar al disparo programado de las 21:00. La petición SHALL volver de inmediato a Diario. Mientras la generación de hoy esté en `QUEUED` o `RUNNING`, Diario SHALL mostrar el aviso «Generando el resumen…» con la hora de la petición y el botón desactivado, y SHALL consultar el estado en `GET /diario/resumen/estado` cada pocos segundos para recargar la vista al terminar. Si la última generación de hoy falló, SHALL mostrar «No se pudo generar el resumen» con su hora y el botón con el texto «Reintentar». Si hoy no hay transcripciones, SHALL avisar de ello en lugar de no hacer nada.
 
-#### Scenario: Generar el resumen antes de las 21:00
-- **WHEN** el usuario pulsa "Generar resumen" en Diario antes de que exista un `DailySummary` para hoy
-- **THEN** el sistema genera el resumen y, al recargar la vista, se muestra el panel de resumen del día
+#### Scenario: Pedir el resumen antes de las 21:00
+- **WHEN** el usuario pulsa "Generar resumen" en Diario y hay transcripciones de hoy
+- **THEN** la respuesta redirige a Diario sin esperar a la generación, y Diario muestra «Generando el resumen…» con el botón desactivado
 
-#### Scenario: Regenerar un resumen existente
-- **WHEN** el usuario pulsa "Generar resumen" en Diario y ya existe un `DailySummary` para hoy
-- **THEN** el sistema regenera el resumen con las transcripciones actuales, reemplazando el contenido anterior
+#### Scenario: El resumen termina mientras la página está abierta
+- **WHEN** Diario muestra una generación en curso y esta pasa a `DONE`
+- **THEN** la página se recarga sola y muestra el panel del resumen del día
+
+#### Scenario: La generación falla
+- **WHEN** la última generación de hoy está en `FAILED`
+- **THEN** Diario muestra «No se pudo generar el resumen» con la hora y el botón «Reintentar»
+
+#### Scenario: Sin transcripciones hoy
+- **WHEN** el usuario pulsa "Generar resumen" y hoy no hay transcripciones
+- **THEN** Diario muestra un aviso indicando que no hay transcripciones de hoy y no se encola nada
+
+#### Scenario: Estado sin sesión
+- **WHEN** un visitante sin sesión pide `GET /diario/resumen/estado`
+- **THEN** el sistema le redirige a `/login`
 
 ### Requirement: Vista Historial con calendario
 El sistema SHALL mostrar un calendario navegable por mes (mes anterior/siguiente), marcando visualmente los días con `DailySummary` generado frente a los días con audios pero sin resumen, y SHALL mostrar el log de entradas del día seleccionado con las mismas acciones disponibles en el Diario (editar, eliminar, reintentar según el estado de cada entrada). El log del día seleccionado SHALL poder filtrarse por estado igual que en Diario; el calendario en sí (marcado de días) no se ve afectado por este filtro.

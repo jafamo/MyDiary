@@ -17,6 +17,7 @@ framework:
         routing:
             # Route your messages to the transports
             'App\Message\TranscribeAudioMessage': async
+            'App\Message\GenerateDailySummaryMessage': async
 
 when@test:
     framework:
