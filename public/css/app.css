@@ -182,6 +182,7 @@ table { border-collapse: collapse; width: 100%; }
 .status-pill--transcribed { color: var(--status-transcribed); border-color: var(--status-transcribed); background: color-mix(in srgb, var(--status-transcribed) 12%, transparent); }
 .status-pill--error { color: var(--status-error); border-color: var(--status-error); background: color-mix(in srgb, var(--status-error) 12%, transparent); }
 .entry__text { color: var(--text); max-width: 42rem; white-space: pre-line; }
+.entry__audio { display: block; width: 100%; max-width: 42rem; height: 2.25rem; margin: 0.55rem 0 0.6rem; }
 .entry__text--muted { color: var(--text-muted); font-style: italic; }
 .metrics { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 1rem; margin-top: 0.75rem; padding-top: 0.5rem; border-top: 1px dashed var(--border); font-family: var(--font-display); font-size: 0.75rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .metrics span { display: inline-flex; align-items: center; gap: 0.3rem; }

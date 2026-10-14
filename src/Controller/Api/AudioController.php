@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace App\Controller\Api;
 
 use App\Controller\Api\Presenter\AudioPresenter;
+use App\Entity\AudioRecording;
+use App\Service\AudioFileMissingException;
+use App\Service\AudioFileResponder;
 use App\Service\AudioRecordingReceiveResult;
 use App\Service\AudioUploadService;
 use App\Service\InvalidAudioUploadException;
 use OpenApi\Attributes as OA;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -26,6 +30,7 @@ class AudioController
     public function __construct(
         private readonly AudioUploadService $audioUploadService,
         private readonly AudioPresenter $audioPresenter,
+        private readonly AudioFileResponder $audioFileResponder,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -87,5 +92,31 @@ class AudioController
             $this->audioPresenter->brief($audioRecording) + ['result' => $result],
             self::RESULT_CREATED === $result ? Response::HTTP_CREATED : Response::HTTP_OK,
         );
+    }
+
+    #[Route('/api/v1/audios/{id}/fichero', name: 'api_audio_file', requirements: ['id' => '\d+'], methods: ['GET'])]
+    #[OA\Get(
+        summary: 'Descargar el fichero de un audio',
+        description: 'Devuelve el audio original tal como se guardó (`ogg` en los de Telegram; `m4a`, `mp3`, `ogg` o `wav` en los subidos desde la app). Admite la cabecera `Range` para reproducir con salto: con un rango válido responde `206` con ese tramo y `Content-Range`. Los audios de Telegram son Ogg/Opus y no se convierten: `AVPlayer` y Safari anterior a iOS 17.4 no los reproducen.',
+    )]
+    #[OA\Parameter(name: 'id', in: 'path', required: true, description: 'Identificador del audio', schema: new OA\Schema(type: 'integer'))]
+    #[OA\Parameter(name: 'Range', in: 'header', required: false, description: 'Tramo de bytes, p. ej. `bytes=0-1023`', schema: new OA\Schema(type: 'string'))]
+    #[OA\Response(response: 200, description: 'Fichero completo', content: [
+        new OA\MediaType(mediaType: 'audio/ogg', schema: new OA\Schema(type: 'string', format: 'binary')),
+        new OA\MediaType(mediaType: 'audio/mp4', schema: new OA\Schema(type: 'string', format: 'binary')),
+        new OA\MediaType(mediaType: 'audio/mpeg', schema: new OA\Schema(type: 'string', format: 'binary')),
+        new OA\MediaType(mediaType: 'audio/wav', schema: new OA\Schema(type: 'string', format: 'binary')),
+    ])]
+    #[OA\Response(response: 206, description: 'Tramo pedido con `Range`, con su cabecera `Content-Range`')]
+    #[OA\Response(response: 401, description: 'Token ausente, inválido o caducado', content: new OA\JsonContent(ref: '#/components/schemas/Error'))]
+    #[OA\Response(response: 404, description: 'El audio no existe o su fichero no está en el servidor', content: new OA\JsonContent(ref: '#/components/schemas/Error'))]
+    #[OA\Response(response: 416, description: 'El rango pedido está fuera del fichero')]
+    public function file(AudioRecording $audioRecording): BinaryFileResponse
+    {
+        try {
+            return $this->audioFileResponder->respond($audioRecording);
+        } catch (AudioFileMissingException) {
+            throw ApiException::notFound('El fichero de este audio no está disponible.');
+        }
     }
 }

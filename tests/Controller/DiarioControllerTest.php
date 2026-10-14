@@ -198,6 +198,25 @@ class DiarioControllerTest extends WebTestCase
         self::assertSelectorNotExists('.entry .metrics');
     }
 
+    public function testEveryEntryHasAnAudioPlayerThatDoesNotPreload(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+        $this->createAudioRecording('diario-ctrl-pending', AudioRecordingStatus::PENDING);
+        $this->createAudioRecording('diario-ctrl-error', AudioRecordingStatus::ERROR);
+
+        $client->loginUser($user);
+        $crawler = $client->request('GET', '/');
+
+        self::assertResponseIsSuccessful();
+        $players = $crawler->filter('.entry audio[controls][preload="none"]');
+        self::assertCount(2, $players);
+        foreach ($players as $player) {
+            self::assertMatchesRegularExpression('#^/audio/\d+/fichero$#', (string) $player->getAttribute('src'));
+        }
+    }
+
     public function testDiarioSummaryShowsUsageMetrics(): void
     {
         $client = static::createClient();
