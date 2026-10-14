@@ -32,6 +32,24 @@ class SecurityControllerTest extends WebTestCase
         self::assertResponseRedirects('/login');
     }
 
+    public function testRequestThroughThePublicProxyRedirectsToThePublicLogin(): void
+    {
+        $client = static::createClient();
+        // KEENDNS_PROXY_IP y APP_PUBLIC_URL vienen de .env.test.
+        $client->request('GET', 'http://192.168.4.200/', server: ['REMOTE_ADDR' => '192.0.2.1']);
+
+        self::assertResponseRedirects();
+        self::assertResponseHeaderSame('Location', 'https://diary.example.test/login');
+    }
+
+    public function testRequestFromTheLocalNetworkKeepsItsHost(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', 'http://192.168.4.200/', server: ['REMOTE_ADDR' => '192.168.4.37']);
+
+        self::assertResponseHeaderSame('Location', 'http://192.168.4.200/login');
+    }
+
     public function testLoginFormRendersCorrectly(): void
     {
         $client = static::createClient();
