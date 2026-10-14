@@ -1,6 +1,6 @@
 ## 1. Servicio compartido
 
-- [x] 1.1 Crear `AudioFileMissingException` y `AudioFileResponder` en `src/Service/` (tipo por extensión, caché privada, `Content-Disposition` inline sin la clave, `prepare()` para `Range`, warning `audio.file_missing`)
+- [x] 1.1 Crear `AudioFileMissingException` y `AudioFileResponder` en `src/Service/` (tipo por extensión, caché privada, `Content-Disposition` inline sin la clave, `Range` resuelto por `BinaryFileResponse`, warning `audio.file_missing`)
 - [x] 1.2 Tests unitarios de `AudioFileResponder`: tipos por extensión, fichero ausente lanza excepción y registra el log
 
 ## 2. API
