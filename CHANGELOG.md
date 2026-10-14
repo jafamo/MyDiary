@@ -7,6 +7,7 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 ### Ramas integradas en `develop`
 - `feature/api-audio-upload`
 - `feature/api-read-endpoints`
+- `feature/audio-playback`
 
 ### Añadido
 - **Subida de audios por la API** (fase 5 de `ROADMAP.md`): `POST /api/v1/audios` recibe un fichero en el campo `file` (multipart) y lo pone en cola para transcribirse, sin pasar por Telegram. A partir de ahí el audio se comporta como cualquier otro: aparece en Diario e Historial, entra en el resumen del día y avisa por Telegram cuando la transcripción está lista o falla.
@@ -25,6 +26,9 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 - Cada recurso (audio con su transcripción, resumen, recordatorio, tema) tiene la misma forma JSON en todos los endpoints, y nunca incluye rutas de ficheros, embeddings ni identificadores de Telegram.
 - Un parámetro de consulta inválido (estado desconocido, fecha imposible, `per_page` mayor de 100…) responde `422` con el motivo, en lugar de ignorarse como en la web.
 - Los nueve endpoints están en Swagger, en `doc/openapi.json` y en las dos colecciones de peticiones.
+- **Escuchar los audios** (fase 6 de `ROADMAP.md`): cada entrada de Diario e Historial lleva un reproductor con el audio original, también cuando la transcripción ha fallado o sigue en curso. No descarga nada hasta que se pulsa reproducir.
+- `GET /api/v1/audios/{id}/fichero` sirve el fichero de un audio a la app, con soporte de `Range` (`206`) para reproducir con salto; la web usa la ruta equivalente con sesión `GET /audio/{id}/fichero`. Si el audio existe pero su fichero no está en el servidor, responde `404` y registra `audio.file_missing` (`audio_recording_id`, `audio_source`). El endpoint está en Swagger, en `doc/openapi.json` y en las dos colecciones de peticiones.
+- Limitación conocida: los audios de Telegram son Ogg/Opus y se sirven tal cual; Safari anterior a iOS 17.4 / macOS 14.4 y `AVPlayer` no los reproducen. La conversión a AAC queda anotada en `ROADMAP.md`.
 
 ### Cambiado
 - `audio_recording` ya no exige los identificadores de Telegram: los audios guardan su origen (`source`: `telegram` o `app`) y los de la app se identifican por el hash de su contenido (`content_hash`). Los audios existentes quedan como `telegram`. El webhook de Telegram no cambia de comportamiento.

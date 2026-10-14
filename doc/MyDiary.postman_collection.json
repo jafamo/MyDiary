@@ -127,6 +127,24 @@
               "path": ["api", "v1", "audios"]
             }
           }
+        },
+        {
+          "name": "Descargar fichero",
+          "request": {
+            "description": "Fichero original del audio (`audio/ogg`, `audio/mp4`, `audio/mpeg` o `audio/wav`). Activa la cabecera `Range` para pedir un tramo: responde `206` con `Content-Range`. `404` si el audio no existe o su fichero no está en el servidor.",
+            "method": "GET",
+            "header": [
+              { "key": "Range", "value": "bytes=0-1023", "description": "Tramo de bytes, para reproducir con salto.", "disabled": true }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/audios/:id/fichero",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "audios", ":id", "fichero"],
+              "variable": [
+                { "key": "id", "value": "1", "description": "Identificador del audio." }
+              ]
+            }
+          }
         }
       ]
     },

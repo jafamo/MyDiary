@@ -212,8 +212,8 @@ class DiarioControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $players = $crawler->filter('.entry audio[controls][preload="none"]');
         self::assertCount(2, $players);
-        foreach ($players as $player) {
-            self::assertMatchesRegularExpression('#^/audio/\d+/fichero$#', (string) $player->getAttribute('src'));
+        foreach ($players->extract(['src']) as $src) {
+            self::assertMatchesRegularExpression('#^/audio/\d+/fichero$#', $src);
         }
     }
 
