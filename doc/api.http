@@ -40,6 +40,12 @@ GET {{base_url}}/api/v1/diario
 Authorization: Bearer {{token}}
 Accept: application/json
 
+### Pedir el resumen de hoy: 202 sin esperar a que se genere (409 si hoy no hay transcripciones)
+# El estado se consulta en summary_generation de GET /api/v1/diario (QUEUED, RUNNING, DONE o FAILED).
+POST {{base_url}}/api/v1/diario/resumen
+Authorization: Bearer {{token}}
+Accept: application/json
+
 ### Historial: días del mes con audios o resumen (por defecto, el mes actual)
 GET {{base_url}}/api/v1/historial?month=2026-10
 Authorization: Bearer {{token}}

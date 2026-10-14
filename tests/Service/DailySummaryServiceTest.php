@@ -10,8 +10,11 @@ use App\Contract\SummaryGenerationException;
 use App\Contract\SummaryGeneratorInterface;
 use App\Entity\AudioRecording;
 use App\Entity\AudioRecordingStatus;
+use App\Entity\DailySummaryGeneration;
+use App\Entity\DailySummaryGenerationStatus;
 use App\Entity\Transcription;
 use App\Repository\AudioRecordingRepository;
+use App\Repository\DailySummaryGenerationRepository;
 use App\Repository\DailySummaryRepository;
 use App\Repository\TopicRepository;
 use App\Service\DailySummaryService;
@@ -464,6 +467,99 @@ class DailySummaryServiceTest extends KernelTestCase
         self::assertFalse($service->hasNewTranscriptionsSince($this->testDate));
     }
 
+
+    public function testSuccessfulGenerationIsRecordedAsDone(): void
+    {
+        $this->createTranscribedAudioRecording('summary-msg-1', 'summary-file-1', 'transcripción del día');
+
+        $this->createService($this->fakeGenerator(['summary' => 'Un resumen', 'topics' => []]))->generateForDate($this->testDate);
+
+        $generation = $this->generation();
+        self::assertSame(DailySummaryGenerationStatus::DONE, $generation->getStatus());
+        self::assertNotNull($generation->getStartedAt());
+        self::assertNotNull($generation->getFinishedAt());
+        self::assertNull($generation->getErrorCode());
+    }
+
+    public function testFailedGenerationIsRecordedWithItsError(): void
+    {
+        $this->createTranscribedAudioRecording('summary-msg-3', 'summary-file-3', 'transcripción');
+        $failingGenerator = new class () implements SummaryGeneratorInterface {
+            public function generate(array $transcriptions): array
+            {
+                throw new SummaryGenerationException('TIMEOUT', 'fallo simulado');
+            }
+        };
+
+        $this->createService($failingGenerator)->generateForDate($this->testDate);
+
+        $generation = $this->generation();
+        self::assertSame(DailySummaryGenerationStatus::FAILED, $generation->getStatus());
+        self::assertSame('TIMEOUT', $generation->getErrorCode());
+        self::assertSame('fallo simulado', $generation->getErrorMessage());
+    }
+
+    public function testQueuedRequestKeepsItsRequestTimeWhenItStarts(): void
+    {
+        $this->createTranscribedAudioRecording('summary-msg-1', 'summary-file-1', 'transcripción del día');
+        $requestedAt = new \DateTimeImmutable('-2 minutes');
+        $queued = new DailySummaryGeneration($this->testDate->setTime(0, 0, 0));
+        $queued->markQueued($requestedAt);
+        $this->entityManager->persist($queued);
+        $this->entityManager->flush();
+
+        $this->createService($this->fakeGenerator(['summary' => 'Un resumen', 'topics' => []]))->generateForDate($this->testDate, waitForPending: false);
+
+        $generation = $this->generation();
+        self::assertSame(DailySummaryGenerationStatus::DONE, $generation->getStatus());
+        self::assertSame($requestedAt->format('Y-m-d H:i:s'), $generation->getRequestedAt()->format('Y-m-d H:i:s'));
+        self::assertGreaterThanOrEqual($generation->getRequestedAt(), $generation->getStartedAt());
+    }
+
+    public function testNoTranscriptionsCreatesNoGenerationState(): void
+    {
+        $this->createService($this->fakeGenerator(['summary' => 'no debería llamarse', 'topics' => []]))->generateForDate($this->testDate);
+
+        self::assertNull(self::getContainer()->get(DailySummaryGenerationRepository::class)->findOneByDate($this->testDate));
+    }
+
+    public function testQueuedRequestWithoutTranscriptionsFails(): void
+    {
+        $queued = new DailySummaryGeneration($this->testDate->setTime(0, 0, 0));
+        $queued->markQueued(new \DateTimeImmutable());
+        $this->entityManager->persist($queued);
+        $this->entityManager->flush();
+
+        $this->createService($this->fakeGenerator(['summary' => 'no debería llamarse', 'topics' => []]))->generateForDate($this->testDate, waitForPending: false);
+
+        $generation = $this->generation();
+        self::assertSame(DailySummaryGenerationStatus::FAILED, $generation->getStatus());
+        self::assertSame(DailySummaryGeneration::ERROR_NO_TRANSCRIPTIONS, $generation->getErrorCode());
+    }
+
+    public function testUnexpectedFailureIsRecorded(): void
+    {
+        $queued = new DailySummaryGeneration($this->testDate->setTime(0, 0, 0));
+        $queued->markRunning(new \DateTimeImmutable());
+        $this->entityManager->persist($queued);
+        $this->entityManager->flush();
+
+        $this->createService($this->fakeGenerator(['summary' => 'x', 'topics' => []]))->markUnexpectedFailure($this->testDate, 'Error inesperado');
+
+        $generation = $this->generation();
+        self::assertSame(DailySummaryGenerationStatus::FAILED, $generation->getStatus());
+        self::assertSame(DailySummaryGeneration::ERROR_UNEXPECTED, $generation->getErrorCode());
+    }
+
+    private function generation(): DailySummaryGeneration
+    {
+        $this->entityManager->clear();
+        $generation = self::getContainer()->get(DailySummaryGenerationRepository::class)->findOneByDate($this->testDate);
+        self::assertNotNull($generation);
+
+        return $generation;
+    }
+
     /**
      * @return list<array{url: string, body: mixed}>
      */
@@ -487,6 +583,7 @@ class DailySummaryServiceTest extends KernelTestCase
             $generator,
             $embeddingGenerator ?? $this->fakeEmbeddingGenerator($this->unitVector(0)),
             $this->entityManager,
+            self::getContainer()->get(DailySummaryGenerationRepository::class),
             self::getContainer()->get(TelegramClient::class),
             new UsageFormatter(),
             $logger ?? self::getContainer()->get('logger'),
@@ -617,6 +714,11 @@ class DailySummaryServiceTest extends KernelTestCase
 
     private function cleanUp(): void
     {
+        $generation = self::getContainer()->get(DailySummaryGenerationRepository::class)->findOneByDate($this->testDate);
+        if (null !== $generation) {
+            $this->entityManager->remove($generation);
+        }
+
         $dailySummary = $this->dailySummaryRepository->findOneByDate($this->testDate);
         if (null !== $dailySummary) {
             $this->entityManager->remove($dailySummary);

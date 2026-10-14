@@ -758,6 +758,7 @@
                                         "date",
                                         "entries",
                                         "summary",
+                                        "summary_generation",
                                         "streak",
                                         "week",
                                         "top_topic"
@@ -780,6 +781,15 @@
                                                 }
                                             ],
                                             "nullable": true
+                                        },
+                                        "summary_generation": {
+                                            "oneOf": [
+                                                {
+                                                    "$ref": "#/components/schemas/SummaryGeneration"
+                                                }
+                                            ],
+                                            "nullable": true,
+                                            "description": "\u00daltima generaci\u00f3n del resumen de hoy (pedida o programada), o `null` si no ha habido ninguna."
                                         },
                                         "streak": {
                                             "required": [
@@ -856,6 +866,48 @@
                     },
                     "422": {
                         "description": "Par\u00e1metro de consulta inv\u00e1lido",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/diario/resumen": {
+            "post": {
+                "tags": [
+                    "Diario"
+                ],
+                "summary": "Pedir el resumen de hoy",
+                "description": "Pone en cola la generaci\u00f3n (o regeneraci\u00f3n) del resumen de hoy con las transcripciones disponibles y responde sin esperarla. El resultado se consulta en `summary_generation` de `GET /api/v1/diario`: al pasar a `DONE`, `summary` lleva el resumen nuevo. Si ya hay una generaci\u00f3n en curso, devuelve esa sin encolar otra. Una en curso desde hace m\u00e1s de 15 minutos se da por atascada (`FAILED` con `error_code` `STALLED`) y se puede volver a pedir.",
+                "operationId": "post_api_diario_summary_request",
+                "responses": {
+                    "202": {
+                        "description": "Generaci\u00f3n en cola o ya en curso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SummaryGeneration"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token ausente, inv\u00e1lido o caducado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Hoy no hay transcripciones que resumir",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2152,6 +2204,52 @@
                     "updated_at": {
                         "type": "string",
                         "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "SummaryGeneration": {
+                "required": [
+                    "status",
+                    "requested_at",
+                    "started_at",
+                    "finished_at",
+                    "error_code",
+                    "error_message"
+                ],
+                "properties": {
+                    "status": {
+                        "description": "`QUEUED`: pedida y pendiente del worker. `RUNNING`: gener\u00e1ndose. `DONE`: resumen guardado. `FAILED`: fall\u00f3 (o se atasc\u00f3: `error_code` `STALLED`).",
+                        "type": "string",
+                        "enum": [
+                            "QUEUED",
+                            "RUNNING",
+                            "DONE",
+                            "FAILED"
+                        ]
+                    },
+                    "requested_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "started_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "finished_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "error_code": {
+                        "type": "string",
+                        "example": "TIMEOUT",
+                        "nullable": true
+                    },
+                    "error_message": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
                 "type": "object"

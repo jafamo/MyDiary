@@ -39,7 +39,7 @@ class DiarioControllerTest extends ApiTestCase
 
         self::assertResponseStatusCodeSame(200);
         $json = $this->json();
-        self::assertSame(['date', 'entries', 'summary', 'streak', 'week', 'top_topic'], array_keys($json));
+        self::assertSame(['date', 'entries', 'summary', 'summary_generation', 'streak', 'week', 'top_topic'], array_keys($json));
         self::assertSame($this->today, $json['date']);
 
         $entries = array_column($json['entries'], null, 'id');
