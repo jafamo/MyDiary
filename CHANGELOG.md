@@ -4,6 +4,17 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+## [0.18.1] - 2026-10-14
+
+### Ramas integradas en `develop`
+- `bugfix/public-url-behind-proxy`
+
+### Corregido
+- Al entrar por `https://diary.jfarinos.keenetic.pro` sin sesión, la web redirigía a `http://192.168.4.200/login`, una IP privada inaccesible desde fuera de casa. El proxy KeenDNS del router reenvía las peticiones con el host cambiado a la IP del servidor; ahora las que llegan desde él (`KEENDNS_PROXY_IP`) se tratan como recibidas en `APP_PUBLIC_URL`, así que el login, el logout y la cookie de sesión (ya con `Secure`) usan el dominio y HTTPS. El acceso desde la red local por IP no cambia.
+
+### Despliegue
+- Añadir `KEENDNS_PROXY_IP=192.168.4.1` al `.env` del servidor y `make deploy` (sin migraciones). Sin la variable no cambia nada.
+
 ## [0.18.0] - 2026-10-14
 
 ### Ramas integradas en `develop`
