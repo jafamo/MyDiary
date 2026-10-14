@@ -2,6 +2,10 @@
 
 {% block title %}Diario — {{ today|es_weekday_date }}{% endblock %}
 
+{% block javascripts %}
+    <script src="{{ asset('js/diario.js') }}" defer></script>
+{% endblock %}
+
 {% block body %}
     <main class="content">
         <div class="page-header">
@@ -53,13 +57,33 @@
 
         {% include '_partials/entry_log.html.twig' %}
 
-        <form class="summary-generate" method="post" action="{{ path('app_daily_summary_generate') }}">
-            <input type="hidden" name="_token" value="{{ csrf_token('daily_summary_generate') }}">
-            <button class="btn-action" type="submit">
-                <svg class="icon icon--sm"><use href="#i-refresh"></use></svg>
-                {{ daily_summary ? 'Regenerar resumen' : 'Generar resumen' }}
-            </button>
-        </form>
+        {% set summary_in_progress = summary_generation_status in ['QUEUED', 'RUNNING'] %}
+        <div class="summary-generate">
+            {% for notice in app.flashes('summary_notice') %}
+                <div class="summary-status" role="status">
+                    <svg class="icon icon--sm"><use href="#i-alert"></use></svg>
+                    <span>{{ notice }}</span>
+                </div>
+            {% endfor %}
+            {% if summary_in_progress %}
+                <div class="summary-status" role="status" data-summary-generation-status="{{ summary_generation_status }}" data-status-url="{{ path('app_daily_summary_status') }}">
+                    <svg class="icon icon--sm"><use href="#i-clock"></use></svg>
+                    <span>Generando el resumen… <span class="summary-status__meta">Pedido a las {{ summary_generation.requestedAt|date('H:i', local_timezone) }} · se actualizará solo al terminar</span></span>
+                </div>
+            {% elseif summary_generation_status == 'FAILED' %}
+                <div class="entry__error-box summary-status" role="status">
+                    <svg class="icon icon--sm"><use href="#i-error-outline"></use></svg>
+                    <span>No se pudo generar el resumen ({{ (summary_generation.finishedAt ?? summary_generation.requestedAt)|date('H:i', local_timezone) }})</span>
+                </div>
+            {% endif %}
+            <form method="post" action="{{ path('app_daily_summary_generate') }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('daily_summary_generate') }}">
+                <button class="btn-action" type="submit"{% if summary_in_progress %} disabled{% endif %}>
+                    <svg class="icon icon--sm"><use href="#i-refresh"></use></svg>
+                    {% if summary_generation_status == 'FAILED' %}Reintentar{% elseif daily_summary %}Regenerar resumen{% else %}Generar resumen{% endif %}
+                </button>
+            </form>
+        </div>
 
         {% if daily_summary %}
             <div class="summary-panel">

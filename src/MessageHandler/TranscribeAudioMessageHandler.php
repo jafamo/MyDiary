@@ -47,19 +47,20 @@ class TranscribeAudioMessageHandler
             $content = $this->transcriber->transcribe($audioRecording->getFilePath());
             $processingMs = (int) round((hrtime(true) - $startedAt) / 1_000_000);
         } catch (TranscriptionException $exception) {
-            $this->logger->warning('Fallo al transcribir un intento de audio', [
+            $this->logger->warning('Fallo al transcribir un intento de audio', array_filter([
                 'event' => 'transcription.attempt_failed',
                 'audio_recording_id' => $audioRecording->getId(),
+                'audio_source' => $audioRecording->getSource()->value,
                 'telegram_file_unique_id' => $audioRecording->getTelegramFileUniqueId(),
                 'error_code' => $exception->getErrorCode(),
                 'error_message' => $exception->getErrorMessage(),
                 'exception_class' => $exception::class,
-            ]);
+            ], static fn (mixed $value): bool => null !== $value));
 
             throw $exception;
         }
 
-        $filePath = sprintf('%s/%s.txt', $this->transcriptionStorageDir, $audioRecording->getTelegramFileUniqueId());
+        $filePath = sprintf('%s/%s.txt', $this->transcriptionStorageDir, $audioRecording->getStorageKey());
         $directory = \dirname($filePath);
         if (!is_dir($directory)) {
             mkdir($directory, 0775, true);
@@ -88,6 +89,7 @@ class TranscribeAudioMessageHandler
             'audio_recording_id' => $audioRecording->getId(),
             'transcription_id' => $transcription->getId(),
             'audio_recording_status' => $audioRecording->getStatus()->value,
+            'audio_source' => $audioRecording->getSource()->value,
             'processing_ms' => $processingMs,
             'model' => $transcription->getModel(),
         ]);

@@ -7,8 +7,10 @@ namespace App\Tests\MessageHandler;
 use App\Contract\EmbeddingGenerationException;
 use App\Contract\EmbeddingGeneratorInterface;
 use App\Contract\TranscriberInterface;
+use App\Contract\TranscriptionException;
 use App\Entity\AudioRecording;
 use App\Entity\AudioRecordingStatus;
+use App\Entity\AudioSource;
 use App\Message\TranscribeAudioMessage;
 use App\MessageHandler\TranscribeAudioMessageHandler;
 use App\Repository\AudioRecordingRepository;
@@ -23,6 +25,8 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class TranscribeAudioMessageHandlerTest extends KernelTestCase
 {
+    private const APP_CONTENT_HASH = 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd';
+
     private EntityManagerInterface $entityManager;
     private AudioRecordingRepository $audioRecordingRepository;
     private string $audioFilePath;
@@ -46,6 +50,10 @@ class TranscribeAudioMessageHandlerTest extends KernelTestCase
             if (null !== $audioRecording) {
                 $this->entityManager->remove($audioRecording);
             }
+        }
+        $appAudioRecording = $this->audioRecordingRepository->findOneByContentHash(self::APP_CONTENT_HASH);
+        if (null !== $appAudioRecording) {
+            $this->entityManager->remove($appAudioRecording);
         }
         $this->entityManager->flush();
 
@@ -171,6 +179,123 @@ class TranscribeAudioMessageHandlerTest extends KernelTestCase
         self::assertStringEndsWith('🎙️ 1:42 de audio · ⏱️ transcrito en 0 s', $sentTexts[0]);
 
         unlink($transcription->getFilePath());
+    }
+
+    public function testAudioFromTheAppIsExportedByItsHashAndNotifiedLikeAnyOther(): void
+    {
+        $sentTexts = [];
+        self::getContainer()->set(HttpClientInterface::class, new MockHttpClient(
+            static function (string $method, string $url, array $options) use (&$sentTexts): MockResponse {
+                $sentTexts[] = json_decode($options['body'], true)['text'];
+
+                return new MockResponse('{"ok":true}');
+            },
+        ));
+
+        $audioRecording = $this->createAppAudioRecording(102);
+
+        $handler = $this->createHandler(
+            $this->fakeTranscriber('texto transcrito'),
+            $this->fakeEmbeddingGenerator($this->unitVector(0)),
+        );
+
+        $handler(new TranscribeAudioMessage($audioRecording->getId()));
+
+        $this->entityManager->refresh($audioRecording);
+        $transcription = $audioRecording->getTranscription();
+
+        self::assertSame(AudioRecordingStatus::TRANSCRIBED, $audioRecording->getStatus());
+        self::assertSame(sys_get_temp_dir().'/'.self::APP_CONTENT_HASH.'.txt', $transcription->getFilePath());
+        self::assertStringEqualsFile($transcription->getFilePath(), 'texto transcrito');
+
+        self::assertCount(1, $sentTexts);
+        self::assertStringStartsWith("Transcripción lista ✅\n\ntexto transcrito\n\n", $sentTexts[0]);
+        self::assertStringEndsWith('🎙️ 1:42 de audio · ⏱️ transcrito en 0 s', $sentTexts[0]);
+
+        $created = $this->logRecordsWithEvent('transcription.created');
+        self::assertCount(1, $created);
+        self::assertSame('app', $created[0]->context['audio_source']);
+
+        unlink($transcription->getFilePath());
+    }
+
+    public function testFailedAttemptOfAnAppAudioIsLoggedWithoutTelegramFileId(): void
+    {
+        $audioRecording = $this->createAppAudioRecording();
+
+        try {
+            $this->createHandler($this->failingTranscriber(), $this->fakeEmbeddingGenerator($this->unitVector(0)))(new TranscribeAudioMessage($audioRecording->getId()));
+            self::fail('Se esperaba TranscriptionException');
+        } catch (TranscriptionException) {
+        }
+
+        $records = $this->logRecordsWithEvent('transcription.attempt_failed');
+        self::assertCount(1, $records);
+        self::assertSame('app', $records[0]->context['audio_source']);
+        self::assertArrayNotHasKey('telegram_file_unique_id', $records[0]->context);
+        self::assertSame('TIMEOUT', $records[0]->context['error_code']);
+    }
+
+    public function testFailedAttemptOfATelegramAudioIsLoggedWithItsFileId(): void
+    {
+        $audioRecording = $this->createAudioRecording('handler-msg-1', 'handler-file-1');
+
+        try {
+            $this->createHandler($this->failingTranscriber(), $this->fakeEmbeddingGenerator($this->unitVector(0)))(new TranscribeAudioMessage($audioRecording->getId()));
+            self::fail('Se esperaba TranscriptionException');
+        } catch (TranscriptionException) {
+        }
+
+        $records = $this->logRecordsWithEvent('transcription.attempt_failed');
+        self::assertCount(1, $records);
+        self::assertSame('telegram', $records[0]->context['audio_source']);
+        self::assertSame('handler-file-1', $records[0]->context['telegram_file_unique_id']);
+    }
+
+    private function createAppAudioRecording(int $durationSeconds = 5): AudioRecording
+    {
+        $audioRecording = new AudioRecording();
+        $audioRecording
+            ->setSource(AudioSource::APP)
+            ->setContentHash(self::APP_CONTENT_HASH)
+            ->setFilePath($this->audioFilePath)
+            ->setReceivedAt(new \DateTimeImmutable('2020-01-01 10:00:00'))
+            ->setDurationSeconds($durationSeconds)
+        ;
+        $this->entityManager->persist($audioRecording);
+        $this->entityManager->flush();
+
+        return $audioRecording;
+    }
+
+    private function failingTranscriber(): TranscriberInterface
+    {
+        return new class () implements TranscriberInterface {
+            public function transcribe(string $audioFilePath): string
+            {
+                throw new TranscriptionException('TIMEOUT', 'fallo simulado');
+            }
+
+            public function getModel(): string
+            {
+                return 'whisper-test';
+            }
+        };
+    }
+
+    /**
+     * @return list<\Monolog\LogRecord>
+     */
+    private function logRecordsWithEvent(string $event): array
+    {
+        /** @var TestHandler $logHandler */
+        // Handler "test" definido solo en when@test (PHPStan analiza el contenedor de dev)
+        $logHandler = self::getContainer()->get('monolog.handler.test'); // @phpstan-ignore symfonyContainer.serviceNotFound
+
+        return array_values(array_filter(
+            $logHandler->getRecords(),
+            static fn ($record) => $event === ($record->context['event'] ?? null),
+        ));
     }
 
     private function createAudioRecording(string $telegramMessageId, string $telegramFileUniqueId, int $durationSeconds = 5): AudioRecording

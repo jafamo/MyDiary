@@ -9,8 +9,11 @@ use App\Contract\EmbeddingGeneratorInterface;
 use App\Contract\SummaryGenerationException;
 use App\Contract\SummaryGeneratorInterface;
 use App\Entity\DailySummary;
+use App\Entity\DailySummaryGeneration;
+use App\Entity\DailySummaryGenerationStatus;
 use App\Entity\Topic;
 use App\Repository\AudioRecordingRepository;
+use App\Repository\DailySummaryGenerationRepository;
 use App\Repository\DailySummaryRepository;
 use App\Repository\TopicRepository;
 use App\Service\Telegram\TelegramClient;
@@ -34,6 +37,7 @@ class DailySummaryService
         private readonly SummaryGeneratorInterface $summaryGenerator,
         private readonly EmbeddingGeneratorInterface $embeddingGenerator,
         private readonly EntityManagerInterface $entityManager,
+        private readonly DailySummaryGenerationRepository $dailySummaryGenerationRepository,
         private readonly TelegramClient $telegramClient,
         private readonly UsageFormatter $usageFormatter,
         private readonly LoggerInterface $logger,
@@ -63,10 +67,24 @@ class DailySummaryService
         }
 
         $transcribedRecords = $this->audioRecordingRepository->findTranscribedReceivedOn($date);
+        $generation = $this->dailySummaryGenerationRepository->findOneByDate($date);
 
         if ([] === $transcribedRecords) {
+            // Una petición bajo demanda cuyos audios se borraron mientras esperaba en la cola.
+            if (DailySummaryGenerationStatus::QUEUED === $generation?->getStatus()) {
+                $generation->markFailed(new \DateTimeImmutable(), DailySummaryGeneration::ERROR_NO_TRANSCRIPTIONS, 'No hay transcripciones de ese día.');
+                $this->entityManager->flush();
+            }
+
             return;
         }
+
+        if (null === $generation) {
+            $generation = new DailySummaryGeneration($date->setTime(0, 0, 0));
+            $this->entityManager->persist($generation);
+        }
+        $generation->markRunning(new \DateTimeImmutable());
+        $this->entityManager->flush();
 
         $transcriptions = array_map(
             static fn ($audioRecording) => $audioRecording->getTranscription()->getContent(),
@@ -84,12 +102,32 @@ class DailySummaryService
                 'attempt_count' => $this->generationMaxAttempts,
             ]);
 
+            $generation->markFailed(new \DateTimeImmutable(), $exception->getErrorCode(), $exception->getErrorMessage());
+            $this->entityManager->flush();
+
             $this->telegramClient->sendMessage((int) $this->authorizedChatId, self::MESSAGE_FAILED);
 
             return;
         }
 
         $this->saveDailySummary($date, $result, \count($transcriptions));
+
+        $generation->markDone(new \DateTimeImmutable());
+        $this->entityManager->flush();
+    }
+
+    /**
+     * Para el worker: un error inesperado (no de Ollama) no debe dejar la generación en curso para siempre.
+     */
+    public function markUnexpectedFailure(\DateTimeImmutable $date, string $errorMessage): void
+    {
+        $generation = $this->dailySummaryGenerationRepository->findOneByDate($date);
+        if (null === $generation) {
+            return;
+        }
+
+        $generation->markFailed(new \DateTimeImmutable(), DailySummaryGeneration::ERROR_UNEXPECTED, $errorMessage);
+        $this->entityManager->flush();
     }
 
     private function waitForPendingTranscriptions(\DateTimeImmutable $date): void

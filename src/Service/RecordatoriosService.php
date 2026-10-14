@@ -11,6 +11,11 @@ class RecordatoriosService
 {
     private const UPCOMING_PAGE_SIZE = 20;
     private const HISTORY_PAGE_SIZE = 20;
+    private const ALERT_WINDOW_DAYS = 5;
+    private const ALERT_URGENT_THRESHOLD_DAYS = 1;
+
+    public const SCOPE_UPCOMING = 'upcoming';
+    public const SCOPE_HISTORY = 'history';
 
     public function __construct(
         private readonly ReminderRepository $reminderRepository,
@@ -106,6 +111,62 @@ class RecordatoriosService
         return [
             'next_reminder' => $nextReminder,
             'days_until_next' => null !== $nextReminder ? (int) $today->diff($nextReminder->getDate())->days : null,
+        ];
+    }
+
+    /**
+     * Página de recordatorios para la API, sin ajustar la página (una más allá de la última va vacía).
+     * Con rango [$from, $to] devuelve los de esas fechas; sin él, los próximos o los anteriores a $today según $scope.
+     *
+     * @return array{items: list<Reminder>, total: int}
+     */
+    public function page(\DateTimeImmutable $today, string $scope, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to, int $page, int $perPage): array
+    {
+        if (null !== $from && null !== $to) {
+            return [
+                'items' => $this->reminderRepository->findPageInRange($from, $to, $page, $perPage),
+                'total' => array_sum($this->reminderRepository->countByDateInRange($from, $to)),
+            ];
+        }
+
+        if (self::SCOPE_HISTORY === $scope) {
+            return [
+                'items' => $this->reminderRepository->findPageBeforeDate($today, $page, $perPage),
+                'total' => $this->reminderRepository->countBeforeDate($today),
+            ];
+        }
+
+        return [
+            'items' => $this->reminderRepository->findPageFromDate($today, $page, $perPage),
+            'total' => $this->reminderRepository->countFromDate($today),
+        ];
+    }
+
+    /**
+     * Aviso de recordatorios cercanos (la campana): los de los próximos días desde $today, lo urgente
+     * que es el más cercano y los de ese día.
+     *
+     * @return array{count: int, level: 'urgent'|'upcoming'|null, nearest_date: ?\DateTimeImmutable, nearest_reminders: list<Reminder>}
+     */
+    public function upcomingAlert(\DateTimeImmutable $today): array
+    {
+        $reminders = $this->reminderRepository->findUpcoming($today, self::ALERT_WINDOW_DAYS);
+
+        if ([] === $reminders) {
+            return ['count' => 0, 'level' => null, 'nearest_date' => null, 'nearest_reminders' => []];
+        }
+
+        $nearestDate = $reminders[0]->getDate();
+        $daysToClosest = (int) $today->diff($nearestDate)->days;
+
+        return [
+            'count' => \count($reminders),
+            'level' => $daysToClosest <= self::ALERT_URGENT_THRESHOLD_DAYS ? 'urgent' : 'upcoming',
+            'nearest_date' => $nearestDate,
+            'nearest_reminders' => array_values(array_filter(
+                $reminders,
+                static fn (Reminder $reminder) => $reminder->getDate() == $nearestDate,
+            )),
         ];
     }
 }

@@ -13,11 +13,11 @@
 
 | # | Bloqueo | Dónde | Fase |
 |---|---|---|---|
-| 1 | No hay API: todo devuelve Twig, con sesión + formulario + CSRF | `src/Controller/*`, `config/packages/security.yaml` | 2, 3, 4 |
+| 1 | ~~No hay API: todo devuelve Twig, con sesión + formulario + CSRF~~ (resuelto) | — | 2, 3, 4 |
 | 2 | Lógica de presentación y cálculo dentro de controladores | `EstadisticasController` (rachas, comparativas, consumo IA), `RecordatoriosController` (calendario, paginación), `SearchController` (fusión de resultados), `HistorialController` | 1 |
-| 3 | La captura solo entra por Telegram | `AudioRecording.telegramMessageId` / `telegramFileUniqueId` obligatorios y únicos; `AudioRecordingService::receive()` | 5 |
-| 4 | No se puede escuchar el audio: ninguna ruta sirve los ficheros | — | 6 |
-| 5 | El resumen bajo demanda es síncrono (hasta 3 intentos contra Ollama dentro de la petición; nginx corta a 130 s) | `DailySummaryController`, `DailySummaryService::generateForDate()` | 7 |
+| 3 | ~~La captura solo entra por Telegram~~ (resuelto) | `AudioRecording.telegramMessageId` / `telegramFileUniqueId` obligatorios y únicos; `AudioRecordingService::receive()` | 5 |
+| 4 | ~~No se puede escuchar el audio: ninguna ruta sirve los ficheros~~ (resuelto) | — | 6 |
+| 5 | ~~El resumen bajo demanda es síncrono~~ (resuelto) | — | 7 |
 | 6 | Los avisos solo salen por Telegram | `TelegramClient::sendMessage()` llamado desde `DailySummaryService`, `TranscribeAudioMessageHandler`, `TranscriptionFailureListener`, `NotifyRemindersCommand` | 8 |
 
 ## Decisiones de diseño abiertas
@@ -39,14 +39,14 @@ Se deciden al proponer la fase correspondiente (regla «Opciones de diseño ante
 | **A. Controladores planos + DTO de salida** (recomendada), bajo `src/Controller/Api/` | Coherente con «sin CRUDs genéricos»; las respuestas (diario, estadísticas) son agregados, no entidades | Serialización escrita a mano |
 | B. API Platform | CRUD, OpenAPI y paginación gratis | Dependencia grande; modela recursos, y aquí casi todo son vistas agregadas; choca con las restricciones de arquitectura |
 
-### D3 — Duración de un audio subido desde la app (fase 5)
+### D3 — Duración de un audio subido desde la app (fase 5) — decidida: opción B
 
 | Opción | Pros | Contras |
 |---|---|---|
 | **A. La envía la app** (recomendada) y el servidor la valida como entero razonable | Igual que hoy con Telegram (`duration` viene dado); sin dependencias | Se confía en el cliente |
 | B. Se calcula en servidor con `ffprobe` | Dato fiable | Añade `ffmpeg` a la imagen PHP |
 
-### D4 — Resumen bajo demanda (fase 7)
+### D4 — Resumen bajo demanda (fase 7) — decidida: opción A
 
 | Opción | Pros | Contras |
 |---|---|---|
@@ -64,6 +64,8 @@ En ambos casos hace falta la cuenta de pago de Apple Developer.
 
 ## Fases
 
+> Estado: fases 1 y 2 publicadas en la release `0.17.0`, y fases 3, 4, 5, 6 y 7 en la `0.18.0`. Fases 0 y 8 pendientes. Las finalizadas llevan ✅ en el título.
+
 ### Fase 0 — Endurecer lo que ya está expuesto
 
 Independiente de la API, pero conviene antes de abrir más superficie.
@@ -71,7 +73,7 @@ Independiente de la API, pero conviene antes de abrir más superficie.
 - Mover el secreto del webhook de la URL (`/telegram/webhook/{token}`) a la cabecera `X-Telegram-Bot-Api-Secret-Token`: hoy el token queda escrito en el access log de nginx (`request_uri`) y llega a Elasticsearch. Requiere volver a registrar el webhook (`app:telegram:set-webhook`) en el despliegue.
 - Activar `login_throttling` en el firewall `main` (añade `symfony/rate-limiter`).
 
-### Fase 1 — Sacar la lógica de los controladores
+### Fase 1 — Sacar la lógica de los controladores ✅
 
 > Hecha en el change `extract-controller-logic` (rama `feature/extract-controller-logic`): `EstadisticasService`, `HistorialService`, `RecordatoriosService`, `SearchService`, `MonthGrid` y `TokensChartBuilder`.
 
@@ -84,7 +86,7 @@ Refactor sin cambio funcional: los controladores web quedan en «leer petición 
 - Los servicios devuelven arrays/objetos de datos, no HTML ni JSON ya codificado (p. ej. `series_json` se codifica en el controlador web).
 - Criterio de hecho: los tests funcionales actuales pasan sin modificarse; se añaden tests unitarios de los servicios extraídos.
 
-### Fase 2 — Base de la API
+### Fase 2 — Base de la API ✅
 
 > Hecha en el change `api-base` (rama `feature/api-base`). D1: token opaco con caducidad de 90 días por inactividad. D2: controladores planos documentados con Swagger (`nelmio/api-doc-bundle`), más colecciones Postman y `.http` en `doc/`.
 
@@ -94,7 +96,9 @@ Refactor sin cambio funcional: los controladores web quedan en «leer petición 
 - Logs: `HttpRequestLogListener` ya registra `route` y `status`; los campos nuevos, planos y con prefijo `api_` (p. ej. `api_token_id`). No loguear nunca el token.
 - Tests funcionales de autenticación (sin token, token inválido, token revocado).
 
-### Fase 3 — Endpoints de lectura
+### Fase 3 — Endpoints de lectura ✅
+
+> Hecha en el change `api-read-endpoints` (rama `feature/api-read-endpoints`). Presenters compartidos en `src/Controller/Api/Presenter/`, parámetros validados con `ApiQuery` (inválido = `422`) y calendarios como lista de días con datos, sin la rejilla por semanas de la web.
 
 Equivalentes a las vistas actuales, reutilizando los servicios de la fase 1:
 
@@ -110,14 +114,18 @@ Equivalentes a las vistas actuales, reutilizando los servicios de la fase 1:
 
 Todos aceptan los mismos filtros que la web (estado, rango, mes).
 
-### Fase 4 — Endpoints de escritura
+### Fase 4 — Endpoints de escritura ✅
+
+> Hecha en el change `api-write-endpoints` (rama `feature/api-write-endpoints`). Los cuerpos JSON se validan con los mismos `FormType` de la web a través de `ApiForm`; el borrado de audios se comparte en `AudioRecordingDeleter`. Renombrar a un nombre ya usado es `409` y la fusión no pide confirmación.
 
 - Transcripción: editar (`PATCH`) y eliminar (`DELETE`), sobre `TranscriptionEditor` y el borrado en cascada existente.
 - Audio: reintentar (`POST .../reintentar`), solo en estado `ERROR` (409 en otro caso, como hoy).
 - Recordatorios: crear, editar y eliminar, validando con las mismas reglas que `ReminderType`.
 - Temas: renombrar y fusionar, sobre `TopicMerger`.
 
-### Fase 5 — Captura de audio sin Telegram
+### Fase 5 — Captura de audio sin Telegram ✅
+
+> Hecha en el change `api-audio-upload` (rama `feature/api-audio-upload`). D3: duración con `ffprobe` en servidor, detrás de `AudioProbeInterface`. Formatos `m4a`, `mp3`, `ogg` y `wav` validados por contenido, 25 MB como máximo. Los audios de la app avisan por Telegram igual que los demás.
 
 El cambio de modelo de datos del roadmap.
 
@@ -129,12 +137,18 @@ El cambio de modelo de datos del roadmap.
 - Mensajes de Telegram: decidir en la propuesta si un audio con `source = app` sigue enviando «resumen de la transcripción» por Telegram o solo los de origen Telegram.
 - `Especificaciones.md`: secciones 3.1 y 6.
 
-### Fase 6 — Escuchar los audios
+### Fase 6 — Escuchar los audios ✅
+
+> Hecha en el change `audio-playback` (rama `feature/audio-playback`). El fichero lo sirve PHP con `BinaryFileResponse` (sin cambios en nginx) desde `AudioFileResponder`, compartido por la API y la web; incluye el reproductor de Diario/Historial.
 
 - `GET /api/v1/audios/{id}/fichero`: descarga autenticada con soporte de `Range` (reproducción con salto).
 - Opcional en el mismo cambio: reproductor en Diario/Historial de la web usando una ruta equivalente con sesión.
 
-### Fase 7 — Resumen bajo demanda sin bloquear
+**Limitación pendiente — formato de los audios de Telegram.** Se sirven tal cual, en Ogg/Opus. Safari anterior a iOS 17.4 / macOS 14.4 no los reproduce y `AVPlayer` (la app nativa) no admite Ogg en ninguna versión; los subidos desde la app (`m4a`) no tienen el problema. Si la app los necesita, opciones a decidir entonces: convertir a AAC (`.m4a`) con `ffmpeg` (ya está en la imagen PHP) al recibirlos, guardando una copia junto al original, o bajo demanda con caché; o reproducir Opus en la app con una librería propia. Hasta entonces no se convierte nada.
+
+### Fase 7 — Resumen bajo demanda sin bloquear ✅
+
+> Hecha en el change `async-daily-summary` (rama `feature/async-daily-summary`). D4: Messenger asíncrono, con la restricción de `AGENTS.md` ampliada. Estado en la tabla `daily_summary_generation` (una fila por día, también para las generaciones de las 21:00), atasco a los 15 min. La web usa el mismo mecanismo y sondea el estado con un JS mínimo.
 
 Según D4. Con la opción A:
 
@@ -154,7 +168,7 @@ Depende de que exista la app y la cuenta de Apple Developer.
 ## Orden y dependencias
 
 - 0 es independiente. 1 → 2 son la base y van en ese orden.
-- Tras la 2, las fases 3, 4, 5, 6 y 7 son independientes entre sí. Para tener cuanto antes una app útil: **5 (subir audio) → 3 (leer) → 6 → 4 → 7**.
+- Tras la 2, las fases 3, 4, 5, 6 y 7 son independientes entre sí. Para tener cuanto antes una app útil: **5 (subir audio, hecha) → 3 (leer, hecha) → 6 (escuchar, hecha) → 4 (escribir, hecha) → 7 (resumen sin bloquear, hecha)**.
 - 8 va al final y depende de la app.
 
 ## Fuera de alcance (a largo plazo)

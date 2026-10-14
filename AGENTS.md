@@ -28,8 +28,8 @@ Estas decisiones se tomaron explícitamente para evitar sobre-ingeniería en un 
 - **Sin EasyAdmin.** Las vistas (Diario, Historial, Estadísticas) son dashboards custom con controladores Symfony + `FormType`, no CRUDs genéricos.
 - **Sin hexagonal estricta / sin capas Domain-Application-Infrastructure separadas.** Las entidades Doctrine SON el modelo de dominio.
 - **Sin CQRS ni bus de comandos/queries general.** Servicios de aplicación normales con métodos claros.
-- **Interfaces (puertos) solo puntuales**, donde ya existe razón real: `TranscriberInterface`, `SummaryGeneratorInterface`. No generalizar a otras partes del código sin justificación equivalente.
-- **Symfony Messenger solo para la cadena Telegram → transcripción**, no como bus general.
+- **Interfaces (puertos) solo puntuales**, donde ya existe razón real: `TranscriberInterface`, `SummaryGeneratorInterface`, `AudioProbeInterface` (`ffprobe`, que no existe en CI). No generalizar a otras partes del código sin justificación equivalente.
+- **Symfony Messenger solo para lo async real**: la cadena Telegram → transcripción y la generación del resumen bajo demanda (`GenerateDailySummaryMessage`). No como bus general.
 - **Gestión de usuarios solo por consola.** Entidad `User` en BD (Symfony Security), pero sin registro ni recuperación de contraseña vía web: los usuarios se crean y las contraseñas se cambian con comandos `bin/console app:user:*` (acceso al servidor = ya autenticado como admin). Sin flujo de "olvidé mi contraseña" por email/token. Los tokens de la API se emiten con `POST /api/v1/login` y se listan o revocan con `app:user:token:list` / `app:user:token:revoke`.
 - Regla general: introducir un patrón solo cuando el problema que resuelve ya existe, no de forma anticipada.
 
@@ -62,7 +62,7 @@ Todo cambio que añada o modifique un endpoint de la API lo documenta en el mism
 - Una petición en **las dos** colecciones: `doc/MyDiary.postman_collection.json` y `doc/api.http`.
 - `tests/Doc/ApiDocumentationTest.php` falla si falta alguna de las tres cosas.
 
-Controladores planos en `src/Controller/Api/` (sin API Platform). Errores con `ApiException` y el formato único `code` / `message`; fechas con `ApiFormatter`; el usuario siempre sale del token. Convenciones completas en `Especificaciones.md` 3.7.
+Controladores planos en `src/Controller/Api/` (sin API Platform). Errores con `ApiException` y el formato único `code` / `message`; fechas con `ApiFormatter`; parámetros de consulta con `ApiQuery` (inválido = `422`); la forma JSON de cada recurso sale de su presenter en `src/Controller/Api/Presenter/`, nunca de un array escrito a mano en el controlador; el usuario siempre sale del token. Convenciones completas en `Especificaciones.md` 3.7.
 
 ### Constantes
 

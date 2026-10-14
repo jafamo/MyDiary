@@ -43,12 +43,20 @@ Aplicación web que recibe notas de voz por Telegram, las transcribe automática
 8. Se responde inmediatamente al usuario en Telegram: *"Audio recibido ✅"* (el webhook debe responder rápido — nada de trabajo pesado síncrono aquí).
 9. Se despacha un mensaje asíncrono (Symfony Messenger) `TranscribeAudioMessage`.
 
+**Captura desde la app (sin Telegram).** `POST /api/v1/audios` (ver 3.7) recibe el fichero directamente y crea el `AudioRecording` con `source = app`, sin identificadores de Telegram:
+1. Se valida la subida: el fichero es obligatorio y no puede superar 25 MB (`AudioUploadService::MAX_BYTES`).
+2. Se calcula su SHA-256 (`content_hash`, único). Si ya existe un audio con ese hash: en `ERROR` se trata como reintento (igual que en el paso 4 de arriba) y en `PENDING` o `TRANSCRIBED` se devuelve el existente sin tocar nada.
+3. Si es nuevo, `ffprobe` (`AudioProbeInterface`) examina el contenido: debe ser un audio `m4a`, `mp3`, `ogg` o `wav` — no cuentan la extensión ni el `Content-Type` del cliente — y de ahí sale también la duración, que no se pide a la app.
+4. El fichero se guarda como `var/audio/<content_hash>.<formato>`, se crea el `AudioRecording` en `PENDING` y se despacha `TranscribeAudioMessage`. Desde aquí el audio sigue el flujo 3.2 igual que uno de Telegram.
+
+La deduplicación es por origen: un mismo audio enviado por Telegram y subido desde la app son dos registros (los de Telegram no calculan `content_hash`).
+
 ### 3.2 Flujo de transcripción (worker asíncrono)
 1. El `TranscribeAudioMessageHandler` recoge el mensaje.
 2. Llama al servicio de transcripción (Open WebUI / whisper.cpp) pasando el fichero de audio.
-3. Guarda el resultado en la entidad `Transcription` (contenido en BD + export a fichero de texto en filesystem), junto con sus métricas de consumo: tiempo de proceso de la llamada que tuvo éxito (`processing_ms`) y modelo (`model`, de `WHISPER_MODEL`). Open WebUI no devuelve tokens de Whisper, así que la métrica de una transcripción es duración del audio + tiempo de proceso.
+3. Guarda el resultado en la entidad `Transcription` (contenido en BD + export a fichero de texto en filesystem, nombrado con `telegram_file_unique_id` o, en los audios de la app, con `content_hash`), junto con sus métricas de consumo: tiempo de proceso de la llamada que tuvo éxito (`processing_ms`) y modelo (`model`, de `WHISPER_MODEL`). Open WebUI no devuelve tokens de Whisper, así que la métrica de una transcripción es duración del audio + tiempo de proceso.
 4. Actualiza el estado del `AudioRecording` a `TRANSCRIBED`.
-5. Envía al usuario en Telegram un resumen corto de esa transcripción concreta, terminado en una línea `🎙️ 1:42 de audio · ⏱️ transcrito en 14 s`.
+5. Envía al usuario en Telegram un resumen corto de esa transcripción concreta, terminado en una línea `🎙️ 1:42 de audio · ⏱️ transcrito en 14 s`. El aviso (y el de fallo del paso 6) se envía igual para los audios subidos desde la app: el handler no distingue el origen.
 6. **Manejo de errores**: si la llamada al servicio de transcripción falla, Symfony Messenger reintenta el `TranscribeAudioMessage` un número limitado de veces con backoff (`retry_strategy` nativo). Si se agotan los reintentos, `AudioRecording` pasa a estado `ERROR`, se guardan `error_code` y `error_message` (ver sección 6) con la causa técnica, y se notifica al usuario por Telegram (*"No se pudo transcribir este audio ❌"*). El audio no se pierde: queda visible en la web con el motivo del error y opción de reintentar o eliminarlo (flujo 3.4-bis).
 
 ### 3.3 Flujo de resumen diario (scheduled, 21:00 Europe/Madrid)
@@ -63,7 +71,8 @@ Aplicación web que recibe notas de voz por Telegram, las transcribe automática
 5. Guarda/actualiza el registro `DailySummary` de esa fecha (incluida la leyenda de emojis y las métricas de consumo que devuelve Ollama: tokens de entrada `prompt_tokens`, de salida `completion_tokens`, tiempo de generación `generation_ms` y modelo `model`).
 6. Tras guardar con éxito, envía el resumen por Telegram al usuario, como texto plano: cabecera `📔 Resumen día: <fecha>`, el texto, una línea `🏷️ Tema1 · Tema2` si hay temas una línea con la leyenda (`💼 Trabajo · ✅ Pendientes`) si la hay y, al final, la línea de consumo `🧮 5 audios · 3.412 tokens (2.980 entrada + 432 salida) · ⏱️ 38 s · 🤖 qwen2.5:7b` (sin la parte de tokens si Ollama no los devuelve). Los mensajes de más de 4000 caracteres se dividen en varios (`TelegramClient::sendMessage`), cortando preferentemente entre párrafos. Si ese envío falla (p. ej. error de red con la API de Telegram), el `DailySummary` ya guardado no se revierte; el fallo solo se loguea.
 7. **Manejo de errores**: si la llamada a Ollama falla o la respuesta no es válida (incluido `WRONG_LANGUAGE`), se reintenta hasta completar 3 intentos con 5 s de espera, y cada intento fallido deja un log `warning` `daily_summary.generation_attempt_failed` (`error_code`, `attempt_number`, `max_attempts`); si sigue fallando, se loguea el error (Monolog), no se genera `DailySummary` ese día (la vista Diario simplemente no muestra resumen) y se notifica al usuario por Telegram (*"No se pudo generar el resumen de hoy ⚠️"*). No hay reintento automático al día siguiente.
-8. **Generación bajo demanda desde Diario**: además del disparo programado, la vista Diario tiene un botón "Generar resumen" (o "Regenerar resumen" si ya existe uno) que dispara la misma lógica de forma síncrona dentro de la petición HTTP, para el día actual. A diferencia del disparo programado, **no espera** por `AudioRecording` en `PENDING` — genera de inmediato con las transcripciones ya disponibles en ese momento.
+8. **Generación bajo demanda (Diario y API)**: además del disparo programado, la vista Diario tiene un botón "Generar resumen" (o "Regenerar resumen" si ya existe uno, "Reintentar" si la última falló) y la API `POST /api/v1/diario/resumen`. Ninguno espera a Ollama: `DailySummaryGenerationRequester` deja la generación de hoy en `QUEUED` y despacha un `GenerateDailySummaryMessage` a la cola `async`, que procesa `diary-messenger-worker` con la misma lógica (reintentos, guardado, Telegram). A diferencia del disparo programado, **no espera** por `AudioRecording` en `PENDING`: genera con las transcripciones ya disponibles al procesar el mensaje. Sin transcripciones hoy, la petición se rechaza (aviso en la web, `409` en la API). Si ya hay una generación en curso, no se encola otra. Mientras dura, Diario muestra «Generando el resumen…» con el botón desactivado y `public/js/diario.js` consulta `GET /diario/resumen/estado` cada 5 s para recargar la vista al terminar. Un error inesperado en el worker deja la generación en `FAILED` (`UNEXPECTED`) sin reintentos de Messenger.
+   - **Estado de la generación**: `DailySummaryService` guarda en `daily_summary_generation` (sección 6) el estado de la última generación de cada día en todas las vías (bajo demanda, 21:00, recheck y comando): `RUNNING` al empezar, `DONE` al guardar y `FAILED` con `error_code`/`error_message` si se agotan los intentos. Una generación `QUEUED` o `RUNNING` pedida hace más de 15 minutos (`DailySummaryGeneration::STALL_AFTER_MINUTES`) se considera atascada (worker caído): se muestra como `FAILED` con `error_code` `STALLED` y se puede volver a pedir. Cada petición aceptada registra `daily_summary.generation_requested` con `daily_summary_date` y `daily_summary_request_source` (`web` / `api`).
 9. **Recheck tardío (21:00–00:30 Europe/Madrid)**: Symfony Scheduler dispara además `app:recheck-daily-summary` cada 15 minutos entre las 21:00 y las 00:30. El comando comprueba si hay `AudioRecording` `TRANSCRIBED` del día con `receivedAt` posterior al `generatedAt` del `DailySummary` vigente (o cualquier transcripción del día si el disparo de las 21:00 falló y no hay `DailySummary`); si las hay, regenera el resumen (igual que la generación bajo demanda, sin esperar por `PENDING`) y lo reenvía por Telegram. Si no hay novedades, no hace nada — no reenvía el resumen sin cambios.
 
 ### 3.4 Edición y eliminación
@@ -82,7 +91,7 @@ Distinto del caso anterior: aquí el audio en sí es válido, pero el servicio d
 
 ### 3.5 Vistas / menús (navegación vertical, tras login)
 - **Login**
-- **Diario** — audios + transcripciones del día actual, con el resumen del día al final (visible cuando ya se generó, a partir de las 21:00). El log de entradas se puede filtrar por estado (Todos/Pendiente/Transcrito/Error). Cada transcripción muestra un pie con tiempo de proceso, velocidad (× tiempo real) y modelo; el resumen (aquí y en Resúmenes), tokens de entrada/salida/total, tiempo de generación y modelo. Las métricas ausentes (registros anteriores a su captura) se muestran como "—".
+- **Diario** — audios + transcripciones del día actual, con el resumen del día al final (visible cuando ya se generó, a partir de las 21:00). El log de entradas se puede filtrar por estado (Todos/Pendiente/Transcrito/Error). Cada transcripción muestra un pie con tiempo de proceso, velocidad (× tiempo real) y modelo; el resumen (aquí y en Resúmenes), tokens de entrada/salida/total, tiempo de generación y modelo. Las métricas ausentes (registros anteriores a su captura) se muestran como "—". Cada entrada, en cualquier estado, lleva un reproductor `<audio preload="none">` del fichero original, servido por `GET /audio/{id}/fichero` (con sesión; mismo comportamiento que el endpoint de la API, ver 3.7).
 - **Historial** — vista de calendario (mes) navegable, con acceso a los audios/transcripciones de cada día anterior. El log del día seleccionado admite el mismo filtro por estado que Diario.
 - **Estadísticas** — agregados: nº de audios/día, duración media, temas más frecuentes. Filtrable por rango de fechas y, combinable con este, por estado (recalcula la serie de audios/día, la media diaria y la duración media; el desglose de estados y el ranking de temas siempre muestran el total sin filtrar). Incluye la sección **Consumo IA** sobre el rango (no le afecta el filtro de estado): tokens totales con desglose entrada/salida, media de tokens por resumen, audio transcrito, tiempo de proceso Whisper/Ollama, gráfico de barras apiladas de tokens por día y tabla por día ("Ver como tabla").
 - **Logout**
@@ -103,11 +112,31 @@ Segunda entrada a la aplicación, pensada para la app de iPhone (plan por fases 
 - **Autenticación:** token opaco por dispositivo. `POST /api/v1/login` (JSON con `username`, `password` y `device_name`) devuelve el token, que solo se ve en esa respuesta; el resto de peticiones lo envían como `Authorization: Bearer <token>`. En BD solo se guarda su hash SHA-256 (tabla `api_token`). El firewall `api` (`^/api/`) no tiene estado: ni sesión ni CSRF, y la sesión web no sirve para la API. El usuario se toma siempre del token, nunca de un parámetro.
 - **Caducidad y revocación:** un token caduca tras 90 días sin uso (`ApiTokenManager::INACTIVITY_DAYS`); cada uso lo renueva (`last_used_at` se reescribe como mucho una vez por hora) y el caducado se borra al intentar usarlo. `POST /api/v1/logout` revoca el token en uso; por consola, `bin/console app:user:token:list <username>` y `bin/console app:user:token:revoke <id>`.
 - **Límite de intentos:** el login admite 5 intentos cada 15 minutos por IP y usuario (un login correcto reinicia el contador); después responde `429` con `Retry-After`.
-- **Endpoints actuales:** `POST /api/v1/login`, `POST /api/v1/logout` y `GET /api/v1/me` (usuario y datos del token en uso).
+- **Endpoints actuales:** `POST /api/v1/login`, `POST /api/v1/logout`, `GET /api/v1/me` (usuario y datos del token en uso), `POST /api/v1/audios` (subida de audio), `GET /api/v1/audios/{id}/fichero` (descarga del audio), los de lectura y los de escritura.
+- **Lectura** (equivalentes a las vistas web, sobre los mismos servicios y repositorios):
+  - `GET /api/v1/diario` — audios de hoy con su transcripción, resumen del día, estado de su última generación (`summary_generation`: `status` `QUEUED` / `RUNNING` / `DONE` / `FAILED`, instantes y error, o `null`), rachas, total de la semana y tema del mes. Filtro `status`.
+  - `GET /api/v1/historial?month=AAAA-MM` — solo los días del mes con audios o resumen (`date`, `audio_count`, `has_summary`); la app pinta su propio calendario y la rejilla por semanas (`MonthGrid`) se queda en la web. `GET /api/v1/historial/{fecha}` — audios y resumen de un día (un día vacío es `200` con listas vacías).
+  - `GET /api/v1/resumenes` — paginado, del más reciente al más antiguo, con `audio_count`. Filtros `from` / `to` (los dos o ninguno).
+  - `GET /api/v1/busqueda?q=` — `results` (semántica en transcripciones y resúmenes, por `distance` ascendente) y `reminders` (por texto). Si falla el embedding, `results` va vacío.
+  - `GET /api/v1/estadisticas` — métricas del rango con las series en crudo y `ai_usage` (`totals` y `days`). `range`: `15`, `30`, `90`, `365` o `custom` con `from` / `to`. Sin la geometría del gráfico, que es de la web.
+  - `GET /api/v1/recordatorios` — paginado, con un solo filtro: `scope` (`upcoming` por defecto, o `history`), `month` o `date`. `GET /api/v1/recordatorios/proximos` — el aviso de la campana (`count`, `level`, `nearest_date`, `reminders`), calculado en `RecordatoriosService::upcomingAlert()` para web y API.
+  - `GET /api/v1/topics` — todos los temas, sin paginar, con `usage_count` y `last_used`.
+- **Escritura** (las mismas operaciones y reglas que la web, sin CSRF):
+  - `PATCH /api/v1/audios/{id}/transcripcion` — edita `content` con `TranscriptionEditor` (marca `edited_manually`, reescribe el export y regenera el embedding). Solo audios `TRANSCRIBED`; si no, `409 conflict`. Responde el audio.
+  - `DELETE /api/v1/audios/{id}` — borra audio, transcripción y ficheros con `AudioRecordingDeleter`, compartido con la web. Solo `TRANSCRIBED` o `ERROR`; `PENDING` es `409`. Responde `204`.
+  - `POST /api/v1/audios/{id}/reintentar` — `AudioRecordingService::retryAfterError()`. Solo audios en `ERROR`; si no, `409`. Responde el audio en `PENDING`.
+  - `POST /api/v1/recordatorios` (`201`), `PATCH /api/v1/recordatorios/{id}` (parcial; `"time": null` quita la hora) y `DELETE /api/v1/recordatorios/{id}` (`204`), con `ReminderType`.
+  - `PATCH /api/v1/topics/{id}` — renombra con `TopicRenameType`; si otro tema ya usa el nombre (sin distinguir mayúsculas), `409` (en la web es un `422` con el mensaje en la página). `POST /api/v1/topics/fusionar` — `origins` (ids) y `destination` (id) con `TopicMergeType` y `TopicMerger`, sin el paso de confirmación de la web; responde el tema destino.
+- **Resumen bajo demanda:** `POST /api/v1/diario/resumen`, sin cuerpo, encola la generación del resumen de hoy (flujo en 3.3, punto 8) y responde `202` con el estado (misma forma que `summary_generation`); si ya había una en curso, `202` con esa. `409 conflict` si hoy no hay transcripciones.
+- **Cuerpos JSON:** se validan con `ApiForm`, que envía el JSON al mismo `FormType` de la web (sin `symfony/validator`, las reglas son las del formulario). Un cuerpo que no es un objeto JSON es `400 bad_request`; un campo desconocido, un campo `required` ausente, `null` o en blanco, un texto que supera el `attr.maxlength` del campo (p. ej. 255 en el nombre de un tema) o un valor que el formulario no puede transformar (fecha imposible, hora inválida, id inexistente) es `422 validation_failed` con un mensaje que nombra el campo. En los `PATCH`, los campos ausentes conservan su valor.
+- **Formas de respuesta:** cada recurso tiene una única forma JSON, generada por los presenters de `src/Controller/Api/Presenter/` (`AudioPresenter`, `SummaryPresenter`, `ReminderPresenter`, `TopicPresenter`) y declarada una vez como esquema en `config/packages/nelmio_api_doc.yaml`. Un audio lleva su `transcription` (o `null`) y, si falló, `error_code` y `error_message`. Nunca se exponen rutas de ficheros, embeddings, `content_hash` ni identificadores de Telegram.
+- **Parámetros de consulta:** se leen con `ApiQuery`. Uno ausente toma su valor por defecto (`page` 1, `per_page` 20, máximo 100); uno presente e inválido es `422 validation_failed` (la web, en cambio, ignora los filtros inválidos). Una página más allá de la última devuelve `items` vacío con el `total` real.
+- **Subida de audio:** `POST /api/v1/audios` con `multipart/form-data` y el fichero en el campo `file` (flujo en 3.1). Responde siempre con el audio (`id`, `status`, `source`, `duration_seconds`, `received_at`) y un campo `result`: `created` (`201`), `duplicate` (`200`) o `retrying` (`200`, estaba en `ERROR` y se relanza). `422 validation_failed` si falta el fichero, la subida llega incompleta, supera 25 MB o no es un audio admitido. Los límites de infraestructura dejan margen para el envoltorio multipart: `client_max_body_size 30m` en nginx y `upload_max_filesize = 25M` / `post_max_size = 30M` en PHP (`docker/php/conf.d/uploads.ini`); una petición de más de 30 MB la corta nginx con un `413` en HTML, fuera del formato de error de la API.
+- **Descarga de audio:** `GET /api/v1/audios/{id}/fichero` devuelve el fichero original con `Content-Type` según su extensión (`audio/ogg`, `audio/mp4`, `audio/mpeg`, `audio/wav`), `Content-Disposition: inline; filename=audio-<id>.<ext>` (sin la clave de almacenamiento) y `Cache-Control: private, max-age=86400`. Admite `Range` (`206` con `Content-Range`; `416` si el rango está fuera del fichero). Lo sirve PHP con `BinaryFileResponse` desde `AudioFileResponder`, compartido con la ruta web `/audio/{id}/fichero`; nginx no interviene. `404 not_found` si el audio no existe o su fichero no está en disco. No hay conversión de formato: los audios de Telegram son Ogg/Opus, que `AVPlayer` y Safari anterior a iOS 17.4 no reproducen (ver `ROADMAP.md`).
 - **Convenciones:** cuerpos y respuestas en JSON con claves en `snake_case`; instantes en ISO 8601 UTC (`2026-10-08T07:09:33Z`) y días como `AAAA-MM-DD` en `LocalTimezone`; listados paginados con `page` (desde 1) y `per_page`, y respuesta con `items`, `page`, `per_page` y `total`.
 - **Errores:** toda respuesta de error bajo `/api/` es `{"code": "...", "message": "..."}` (`ApiExceptionListener`). `code` es estable: `bad_request` (400), `unauthorized` (401), `forbidden` (403), `not_found` (404), `method_not_allowed` (405), `conflict` (409), `validation_failed` (422), `too_many_requests` (429) e `internal_error` (500, con mensaje genérico). Los errores de negocio se lanzan con `ApiException`.
 - **Documentación:** cada acción lleva sus atributos OpenAPI. Swagger UI en `/doc/api` y esquema en `/doc/api.json` (fuera de `^/api/`, así que piden sesión web); el esquema versionado está en `doc/openapi.json` (`make openapi` lo regenera). Las colecciones de peticiones son `doc/MyDiary.postman_collection.json` y `doc/api.http`. `tests/Doc/ApiDocumentationTest.php` falla si el esquema o alguna colección no recogen una ruta `/api/v1/*`.
-- **Logs:** la línea `http.request` lleva `api_token_id` en las peticiones autenticadas con token; el login registra `api.login_succeeded`, `api.login_failed` y `api.login_throttled`. Nunca se registra el token, su hash ni la contraseña.
+- **Logs:** la línea `http.request` lleva `api_token_id` en las peticiones autenticadas con token; el login registra `api.login_succeeded`, `api.login_failed` y `api.login_throttled`; cada subida de audio aceptada registra `audio.uploaded` con `audio_recording_id`, `audio_source`, `audio_content_hash` y `audio_upload_result`. Un audio cuyo fichero falta en disco registra un warning `audio.file_missing` con `audio_recording_id` y `audio_source` (las descargas normales solo aparecen en `http.request`). Los logs de transcripción llevan `audio_source`, y `telegram_file_unique_id` solo cuando el audio lo tiene. Nunca se registra el token, su hash ni la contraseña.
 
 ## 4. Decisiones de diseño y motivos (importante para no reintroducir complejidad innecesaria)
 
@@ -119,8 +148,9 @@ Estas decisiones se tomaron explícitamente para evitar sobre-ingeniería en un 
 - **Sí se usan interfaces (puertos) puntuales** donde existe razón real para ello, por experiencia previa de cambiar de proveedor:
   - `TranscriberInterface` (implementaciones: Open WebUI / whisper.cpp)
   - `SummaryGeneratorInterface` (implementación: Ollama)
+  - `AudioProbeInterface` (implementación: `ffprobe`; formato y duración de un audio subido). Razón: es un binario externo que no existe en GitHub CI, donde los tests usan un doble
   - `EmbeddingGeneratorInterface` (implementación: Ollama, modelo `nomic-embed-text`) — usado para la búsqueda semántica (3.6)
-- **Symfony Messenger solo para lo async real**: la cadena Telegram → transcripción. No se convierte en bus general de la aplicación.
+- **Symfony Messenger solo para lo async real**: la cadena Telegram → transcripción y la generación del resumen bajo demanda (`GenerateDailySummaryMessage`, desde la web y la API, para no tener la petición HTTP esperando a Ollama). No se convierte en bus general de la aplicación.
 - **Gestión de usuarios solo por consola, sin web.** Entidad `User` en BD (Symfony Security). Los usuarios se crean y las contraseñas se cambian con comandos (`bin/console app:user:create`, `bin/console app:user:change-password`) — quien tiene acceso al servidor/contenedor puede cambiar una contraseña sin conocer la actual. No hay registro, ni recuperación de contraseña vía web (sin email, sin tokens), ni gestión de usuarios desde la interfaz.
 - Regla general aplicada: **introducir un patrón solo cuando el problema que resuelve ya existe**, no de forma anticipada. Si en el futuro aparece una necesidad real de más desacoplo en un punto concreto, se extrae la interfaz correspondiente entonces.
 
@@ -144,10 +174,12 @@ src/
 │   ├── AudioRecordingService.php
 │   ├── DailySummaryService.php
 │   ├── Whisper/WhisperTranscriber.php        # implementa TranscriberInterface
-│   └── Ollama/OllamaSummaryGenerator.php     # implementa SummaryGeneratorInterface
+│   ├── Ollama/OllamaSummaryGenerator.php     # implementa SummaryGeneratorInterface
+│   └── Audio/FfprobeAudioProbe.php           # implementa AudioProbeInterface
 ├── Contract/
 │   ├── TranscriberInterface.php
-│   └── SummaryGeneratorInterface.php
+│   ├── SummaryGeneratorInterface.php
+│   └── AudioProbeInterface.php
 ├── Message/
 │   └── TranscribeAudioMessage.php
 ├── MessageHandler/
@@ -174,12 +206,14 @@ src/
 | Campo | Tipo | Notas |
 |---|---|---|
 | id | int/uuid | PK |
-| telegram_message_id | string | ID del mensaje original de Telegram — **unique**, garantiza idempotencia ante reintentos del webhook |
-| telegram_file_unique_id | string | ID de Telegram estable para el contenido del fichero — **unique**, detecta reenvíos del mismo audio (ver 3.1/3.4-bis) |
+| telegram_message_id | string | nullable (vacío en los audios de la app). ID del mensaje original de Telegram — **unique**, garantiza idempotencia ante reintentos del webhook |
+| telegram_file_unique_id | string | nullable (vacío en los audios de la app). ID de Telegram estable para el contenido del fichero — **unique**, detecta reenvíos del mismo audio (ver 3.1/3.4-bis) |
+| source | enum | `telegram` (por defecto; todos los anteriores a la subida por API) o `app` |
+| content_hash | string(64) | nullable. SHA-256 del fichero — **unique**. Solo en los audios de la app: deduplica subidas repetidas (ver 3.1) |
 | file_path | string | Ruta del audio en el filesystem |
 | received_at | datetime | |
 | status | enum | `PENDING`, `TRANSCRIBED`, `ERROR` |
-| duration_seconds | int | Viene del campo `duration` del update de Telegram (`voice`/`audio`), no se calcula |
+| duration_seconds | int | En los audios de Telegram viene del campo `duration` del update (`voice`/`audio`); en los de la app la calcula el servidor con `ffprobe` |
 | error_code | string | nullable. Solo relevante si `status = ERROR`. Código corto (p. ej. `404`, `TIMEOUT`, `SERVICE_UNAVAILABLE`), no necesariamente HTTP — pensado como clave estable, no texto libre |
 | error_message | string | nullable. Solo relevante si `status = ERROR`. Clave/texto asociado al `error_code` (p. ej. `NOT_FOUND`, `OLLAMA_UNREACHABLE`), preparado para poder mapearse a claves de traducción más adelante |
 
@@ -222,6 +256,20 @@ Relación N:M con `topic` a través de tabla pivote `daily_summary_topic`.
 | name | string | **unique** — nombre normalizado del tema (permite agregarlo en Estadísticas: "temas más frecuentes" entre días) |
 
 No hay flujo de gestión manual de `topic`: se crean automáticamente al generar el resumen diario (3.3) si no existen ya con ese `name`.
+
+### `daily_summary_generation`
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | int | PK |
+| date | date | **unique** — una fila por día, que se reescribe en cada generación |
+| status | string | `QUEUED` (pedida bajo demanda, pendiente del worker), `RUNNING`, `DONE` o `FAILED` |
+| requested_at | datetime | Cuándo se pidió (en las programadas, cuándo empezó) |
+| started_at | datetime, nullable | |
+| finished_at | datetime, nullable | |
+| error_code | string, nullable | Código del fallo (`TIMEOUT`, `WRONG_LANGUAGE`… de Ollama, `NO_TRANSCRIPTIONS` o `UNEXPECTED`). `STALLED` no se guarda: se calcula al mostrarla |
+| error_message | text, nullable | |
+
+Existe aunque el día no tenga `daily_summary` (p. ej. la primera generación del día, o una que falló).
 
 ### `app_user`
 Nota: la tabla se llama `app_user`, no `user` — `user` es palabra reservada en PostgreSQL y provoca errores intermitentes de "column does not exist" en consultas generadas por Doctrine si no se cita de forma consistente; se evita el problema de raíz renombrando la tabla.

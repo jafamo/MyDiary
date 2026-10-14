@@ -63,14 +63,15 @@ class TranscriptionFailureListener
         ;
         $this->entityManager->flush();
 
-        $this->logger->error('Se agotaron los reintentos de transcripción', [
+        $this->logger->error('Se agotaron los reintentos de transcripción', array_filter([
             'event' => 'transcription.retry_exhausted',
             'audio_recording_id' => $audioRecording->getId(),
+            'audio_source' => $audioRecording->getSource()->value,
             'telegram_file_unique_id' => $audioRecording->getTelegramFileUniqueId(),
             'error_code' => $errorCode,
             'error_message' => $errorMessage,
             'exception_class' => $exception::class,
-        ]);
+        ], static fn (mixed $value): bool => null !== $value));
 
         $this->telegramClient->sendMessage((int) $this->authorizedChatId, self::MESSAGE_FAILED);
     }

@@ -52,7 +52,7 @@
                                         <details class="topic-rename">
                                             <summary class="btn-action"><svg class="icon icon--sm"><use href="#i-edit"></use></svg> Renombrar</summary>
                                             <div class="topic-rename__row">
-                                                <input type="text" form="topic-rename-{{ row.topic.id }}" name="topic_rename[name]" value="{{ row.topic.name }}" aria-label="Nuevo nombre de {{ row.topic.name }}">
+                                                <input type="text" form="topic-rename-{{ row.topic.id }}" name="topic_rename[name]" value="{{ row.topic.name }}" maxlength="{{ constant('App\\Form\\TopicRenameType::NAME_MAX_LENGTH') }}" aria-label="Nuevo nombre de {{ row.topic.name }}">
                                                 <button class="btn-action btn-action--primary" type="submit" form="topic-rename-{{ row.topic.id }}">Guardar</button>
                                             </div>
                                         </details>

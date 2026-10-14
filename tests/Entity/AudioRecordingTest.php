@@ -6,6 +6,7 @@ namespace App\Tests\Entity;
 
 use App\Entity\AudioRecording;
 use App\Entity\AudioRecordingStatus;
+use App\Entity\AudioSource;
 use PHPUnit\Framework\TestCase;
 
 class AudioRecordingTest extends TestCase
@@ -53,5 +54,32 @@ class AudioRecordingTest extends TestCase
         self::assertSame(AudioRecordingStatus::ERROR, $audioRecording->getStatus());
         self::assertSame('TIMEOUT', $audioRecording->getErrorCode());
         self::assertSame('OLLAMA_UNREACHABLE', $audioRecording->getErrorMessage());
+    }
+
+    public function testSourceDefaultsToTelegramAndTelegramIdsAreOptional(): void
+    {
+        $audioRecording = new AudioRecording();
+
+        self::assertSame(AudioSource::TELEGRAM, $audioRecording->getSource());
+        self::assertNull($audioRecording->getTelegramMessageId());
+        self::assertNull($audioRecording->getTelegramFileUniqueId());
+        self::assertNull($audioRecording->getContentHash());
+    }
+
+    public function testStorageKeyIsTheTelegramFileIdOrTheContentHash(): void
+    {
+        $fromTelegram = (new AudioRecording())->setTelegramFileUniqueId('file-1');
+        $fromApp = (new AudioRecording())->setSource(AudioSource::APP)->setContentHash(str_repeat('a', 64));
+
+        self::assertSame('file-1', $fromTelegram->getStorageKey());
+        self::assertSame(AudioSource::APP, $fromApp->getSource());
+        self::assertSame(str_repeat('a', 64), $fromApp->getStorageKey());
+    }
+
+    public function testStorageKeyFailsWithoutAnyIdentifier(): void
+    {
+        $this->expectException(\LogicException::class);
+
+        (new AudioRecording())->getStorageKey();
     }
 }

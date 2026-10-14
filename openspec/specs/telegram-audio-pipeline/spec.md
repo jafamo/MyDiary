@@ -42,7 +42,7 @@ El sistema SHALL, para un audio nuevo, guardar `duration_seconds` desde el updat
 - **THEN** se crea un `AudioRecording` en `PENDING` con `telegram_message_id`, `telegram_file_unique_id` y `duration_seconds` correctos, el fichero queda descargado en el filesystem, se responde *"Audio recibido ✅"*, y se despacha un `TranscribeAudioMessage`
 
 ### Requirement: Transcripción asíncrona
-El sistema SHALL, al procesar `TranscribeAudioMessage`, llamar al servicio de transcripción configurado (`TranscriberInterface`), guardar el resultado en `Transcription` (contenido en BD y export a fichero, junto con sus métricas de consumo), marcar el `AudioRecording` como `TRANSCRIBED`, y notificar al usuario con un resumen corto por Telegram. El mensaje de Telegram SHALL terminar, tras una línea en blanco, con una línea de métricas con el formato `🎙️ <m:ss> de audio · ⏱️ transcrito en <tiempo>`, donde `<tiempo>` se expresa en segundos (`14 s`) si es menor de un minuto y en minutos y segundos (`1 min 05 s`) en caso contrario.
+El sistema SHALL, al procesar `TranscribeAudioMessage`, llamar al servicio de transcripción configurado (`TranscriberInterface`), guardar el resultado en `Transcription` (contenido en BD y export a fichero, junto con sus métricas de consumo), marcar el `AudioRecording` como `TRANSCRIBED`, y notificar al usuario con un resumen corto por Telegram. El mensaje de Telegram SHALL terminar, tras una línea en blanco, con una línea de métricas con el formato `🎙️ <m:ss> de audio · ⏱️ transcrito en <tiempo>`, donde `<tiempo>` se expresa en segundos (`14 s`) si es menor de un minuto y en minutos y segundos (`1 min 05 s`) en caso contrario. El comportamiento SHALL ser el mismo sea cual sea el `source` del audio (`telegram` o `app`). El fichero exportado SHALL nombrarse con `telegram_file_unique_id` y, si el audio no lo tiene, con su `content_hash`.
 
 #### Scenario: Transcripción exitosa
 - **WHEN** el handler procesa un `TranscribeAudioMessage` y la llamada al transcriptor tiene éxito
@@ -51,6 +51,10 @@ El sistema SHALL, al procesar `TranscribeAudioMessage`, llamar al servicio de tr
 #### Scenario: Mensaje con métricas de la transcripción
 - **WHEN** se transcribe con éxito un audio de 102 segundos y la llamada al transcriptor tarda 14.200 ms
 - **THEN** el mensaje de Telegram termina con la línea `🎙️ 1:42 de audio · ⏱️ transcrito en 14 s`
+
+#### Scenario: Audio subido desde la app
+- **WHEN** el handler transcribe con éxito un `AudioRecording` con `source` `app` y sin identificadores de Telegram
+- **THEN** la `Transcription` se exporta a `<content_hash>.txt`, el audio pasa a `TRANSCRIBED` y se envía el mismo mensaje de Telegram que para un audio de origen `telegram`
 
 ### Requirement: Reintentos con backoff y fallo definitivo
 El sistema SHALL reintentar automáticamente `TranscribeAudioMessage` un número limitado de veces con backoff si la transcripción falla. Al agotar los reintentos, SHALL marcar el `AudioRecording` como `ERROR` con `error_code`/`error_message`, y SHALL notificar al usuario *"No se pudo transcribir este audio ❌"*.

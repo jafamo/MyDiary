@@ -6,6 +6,7 @@ namespace App\Service;
 
 use App\Entity\AudioRecording;
 use App\Entity\AudioRecordingStatus;
+use App\Entity\AudioSource;
 use App\Message\TranscribeAudioMessage;
 use App\Repository\AudioRecordingRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -52,6 +53,7 @@ class AudioRecordingService
         $audioRecording
             ->setTelegramMessageId($telegramMessageId)
             ->setTelegramFileUniqueId($telegramFileUniqueId)
+            ->setSource(AudioSource::TELEGRAM)
             ->setFilePath($filePath)
             ->setReceivedAt(new \DateTimeImmutable())
             ->setDurationSeconds($durationSeconds)
@@ -63,6 +65,44 @@ class AudioRecordingService
         $this->messageBus->dispatch(new TranscribeAudioMessage($audioRecording->getId()));
 
         return AudioRecordingReceiveResult::CREATED;
+    }
+
+    /**
+     * Entrada de un audio subido desde la app, identificado por el hash de su contenido.
+     *
+     * @param callable(): array{filePath: string, durationSeconds: int} $storeFile valida y guarda el fichero; solo se invoca para audios nuevos
+     */
+    public function receiveUpload(string $contentHash, callable $storeFile): AudioUploadResult
+    {
+        $existing = $this->audioRecordingRepository->findOneByContentHash($contentHash);
+
+        if (null !== $existing) {
+            if (AudioRecordingStatus::ERROR === $existing->getStatus()) {
+                $this->retryAfterError($existing);
+
+                return new AudioUploadResult($existing, AudioRecordingReceiveResult::RETRYING_AFTER_ERROR);
+            }
+
+            return new AudioUploadResult($existing, AudioRecordingReceiveResult::DUPLICATE_FILE);
+        }
+
+        ['filePath' => $filePath, 'durationSeconds' => $durationSeconds] = $storeFile();
+
+        $audioRecording = new AudioRecording();
+        $audioRecording
+            ->setSource(AudioSource::APP)
+            ->setContentHash($contentHash)
+            ->setFilePath($filePath)
+            ->setReceivedAt(new \DateTimeImmutable())
+            ->setDurationSeconds($durationSeconds)
+        ;
+
+        $this->entityManager->persist($audioRecording);
+        $this->entityManager->flush();
+
+        $this->messageBus->dispatch(new TranscribeAudioMessage($audioRecording->getId()));
+
+        return new AudioUploadResult($audioRecording, AudioRecordingReceiveResult::CREATED);
     }
 
     public function retryAfterError(AudioRecording $audioRecording): void

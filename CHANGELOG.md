@@ -4,6 +4,68 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+## [0.18.0] - 2026-10-14
+
+### Ramas integradas en `develop`
+- `feature/api-audio-upload`
+- `feature/api-read-endpoints`
+- `feature/audio-playback`
+- `feature/api-write-endpoints`
+- `feature/async-daily-summary`
+
+### Añadido
+- **Subida de audios por la API** (fase 5 de `ROADMAP.md`): `POST /api/v1/audios` recibe un fichero en el campo `file` (multipart) y lo pone en cola para transcribirse, sin pasar por Telegram. A partir de ahí el audio se comporta como cualquier otro: aparece en Diario e Historial, entra en el resumen del día y avisa por Telegram cuando la transcripción está lista o falla.
+- La respuesta devuelve siempre el audio (`id`, `status`, `source`, `duration_seconds`, `received_at`) y un campo `result`: `created` (`201`) si es nuevo, `duplicate` (`200`) si ese mismo fichero ya se había subido, o `retrying` (`200`) si su transcripción había fallado y se relanza. Reintentar una subida tras un corte de red no duplica el audio ni devuelve un error.
+- Se aceptan audios `m4a`, `mp3`, `ogg` y `wav` de hasta 25 MB. El formato se comprueba por el contenido real del fichero, no por su extensión ni por el `Content-Type`, y la duración la calcula el servidor con `ffprobe`. Lo que no es un audio admitido se rechaza con `422` y no deja rastro.
+- Logs: cada subida aceptada registra `audio.uploaded` con `audio_recording_id`, `audio_source`, `audio_content_hash` y `audio_upload_result`; los logs de transcripción llevan además `audio_source`.
+- El endpoint está en Swagger (`/doc/api`), en `doc/openapi.json` y en las dos colecciones de peticiones (Postman y `doc/api.http`).
+- **Lectura por la API** (fase 3 de `ROADMAP.md`): la app ya puede consultar todo lo que muestra la web, con los mismos filtros.
+  - `GET /api/v1/diario`: audios de hoy con su transcripción, resumen del día, rachas, total de la semana y tema del mes.
+  - `GET /api/v1/historial?month=AAAA-MM` (días del mes con audios o resumen) y `GET /api/v1/historial/{fecha}` (audios y resumen de un día).
+  - `GET /api/v1/resumenes`: resúmenes paginados, con el número de audios de cada día y filtro por rango de fechas.
+  - `GET /api/v1/busqueda?q=`: búsqueda semántica en transcripciones y resúmenes, y por texto en recordatorios.
+  - `GET /api/v1/estadisticas`: métricas del rango (15, 30, 90, 365 días o personalizado) y consumo de IA.
+  - `GET /api/v1/recordatorios` (próximos, históricos, de un mes o de un día) y `GET /api/v1/recordatorios/proximos` (el aviso de la campana).
+  - `GET /api/v1/topics`: todos los temas con su número de usos.
+- Cada recurso (audio con su transcripción, resumen, recordatorio, tema) tiene la misma forma JSON en todos los endpoints, y nunca incluye rutas de ficheros, embeddings ni identificadores de Telegram.
+- Un parámetro de consulta inválido (estado desconocido, fecha imposible, `per_page` mayor de 100…) responde `422` con el motivo, en lugar de ignorarse como en la web.
+- Los nueve endpoints están en Swagger, en `doc/openapi.json` y en las dos colecciones de peticiones.
+- **Escuchar los audios** (fase 6 de `ROADMAP.md`): cada entrada de Diario e Historial lleva un reproductor con el audio original, también cuando la transcripción ha fallado o sigue en curso. No descarga nada hasta que se pulsa reproducir.
+- `GET /api/v1/audios/{id}/fichero` sirve el fichero de un audio a la app, con soporte de `Range` (`206`) para reproducir con salto; la web usa la ruta equivalente con sesión `GET /audio/{id}/fichero`. Si el audio existe pero su fichero no está en el servidor, responde `404` y registra `audio.file_missing` (`audio_recording_id`, `audio_source`). El endpoint está en Swagger, en `doc/openapi.json` y en las dos colecciones de peticiones.
+- Limitación conocida: los audios de Telegram son Ogg/Opus y se sirven tal cual; Safari anterior a iOS 17.4 / macOS 14.4 y `AVPlayer` no los reproducen. La conversión a AAC queda anotada en `ROADMAP.md`.
+- **Escritura por la API** (fase 4 de `ROADMAP.md`): la app ya puede modificar lo mismo que la web, con las mismas reglas.
+  - `PATCH /api/v1/audios/{id}/transcripcion`: corregir el texto de una transcripción (se marca como editada y se actualiza la búsqueda).
+  - `DELETE /api/v1/audios/{id}`: eliminar un audio con su transcripción y sus ficheros.
+  - `POST /api/v1/audios/{id}/reintentar`: relanzar la transcripción de un audio que falló.
+  - `POST /api/v1/recordatorios`, `PATCH` y `DELETE /api/v1/recordatorios/{id}`: crear, editar (solo los campos enviados) y eliminar recordatorios.
+  - `PATCH /api/v1/topics/{id}` y `POST /api/v1/topics/fusionar`: renombrar y fusionar temas. Renombrar a un nombre que ya usa otro tema responde `409`; la fusión no pide confirmación, así que la app debe pedirla antes.
+- Una operación que no corresponde al estado del audio (editar uno sin transcribir, borrar uno pendiente, reintentar uno que no ha fallado) responde `409`; datos inválidos o campos desconocidos, `422` con el campo que falla. Los ocho endpoints están en Swagger, en `doc/openapi.json` y en las dos colecciones de peticiones.
+- **El resumen bajo demanda ya no bloquea** (fase 7 de `ROADMAP.md`): pedirlo desde Diario o desde la app lo pone en cola y vuelve al instante; lo genera el worker con la misma lógica, reintentos y avisos por Telegram de siempre. Antes la petición esperaba hasta 2 minutos a Ollama y nginx podía cortarla.
+  - Diario muestra «Generando el resumen…» con el botón desactivado y se recarga sola al terminar; si falla, «No se pudo generar el resumen» y el botón «Reintentar». Si hoy no hay transcripciones, lo avisa en lugar de no hacer nada.
+  - `POST /api/v1/diario/resumen` responde `202` con el estado (o el de la generación en curso, sin duplicarla) y `409` si hoy no hay transcripciones. `GET /api/v1/diario` incluye `summary_generation` (`QUEUED`, `RUNNING`, `DONE` o `FAILED`, con instantes y motivo del error). En Swagger, `doc/openapi.json` y las dos colecciones.
+  - El estado se guarda para cada día en todas las generaciones, también la de las 21:00, así que la app sabe si falló. Una generación que no termina en 15 minutos (worker caído) se muestra como fallida (`STALLED`) y se puede volver a pedir.
+  - Log `daily_summary.generation_requested` con `daily_summary_date` y `daily_summary_request_source` (`web` / `api`).
+
+### Cambiado
+- `audio_recording` ya no exige los identificadores de Telegram: los audios guardan su origen (`source`: `telegram` o `app`) y los de la app se identifican por el hash de su contenido (`content_hash`). Los audios existentes quedan como `telegram`. El webhook de Telegram no cambia de comportamiento.
+- Los logs de transcripción solo incluyen `telegram_file_unique_id` cuando el audio lo tiene.
+- Los tests guardan los audios subidos en el directorio de caché de test en lugar de `var/audio`.
+- El aviso de recordatorios cercanos (la campana) se calcula en `RecordatoriosService` en lugar de en la extensión de Twig, para que web y API den el mismo dato. La web muestra lo mismo.
+- El test de documentación de la API compara las rutas ignorando los parámetros de consulta y admite parámetros de ruta en las colecciones (`:fecha` en Postman, `{{fecha}}` en `doc/api.http`).
+- Symfony Messenger se usa también para el resumen bajo demanda (`GenerateDailySummaryMessage` en la cola `async`); la restricción de arquitectura de `AGENTS.md` y `Especificaciones.md` se amplía en ese sentido, sin convertirlo en bus general.
+- Web: el borrado de un audio pasa a `AudioRecordingDeleter`, compartido con la API, sin cambio de comportamiento. El campo de renombrar un tema limita el nombre a 255 caracteres (antes, uno más largo daba un error de base de datos).
+
+### Migraciones
+- `Version20261009090000`: en `audio_recording`, añade `source` y `content_hash` (único) y hace opcionales `telegram_message_id` y `telegram_file_unique_id`. **Requiere `make migrate` tras el despliegue.**
+- `Version20261014112129`: crea `daily_summary_generation` (estado de la generación del resumen de cada día). La aplica el mismo `make migrate`.
+
+### Despliegue
+- La imagen PHP cambia (añade `ffmpeg`, por `ffprobe`, y sube los límites de subida a 25 MB por fichero) y hay una dependencia nueva (`symfony/process`). `make deploy` no reconstruye la imagen ni instala dependencias, así que en el servidor, por este orden: `git pull origin main`, `make build`, `make up` (recrea `diary-php` y `diary-messenger-worker` con la imagen nueva), `make composer-install`, `make migrate` y `make deploy`.
+- nginx pasa a admitir peticiones de 30 MB (`client_max_body_size`). El fichero de configuración está montado, pero nginx solo lo lee al arrancar: `docker compose --env-file .env restart diary-nginx`.
+- **Pendiente de verificar tras desplegar:** que Whisper (Open WebUI) transcribe un `.m4a`, el formato que graba el iPhone; no se pudo probar en local. Basta subir un `.m4a` real a `POST /api/v1/audios`: si Whisper lo rechazara, el audio queda en `ERROR`, visible y reintentable.
+- El worker debe reiniciarse para cargar el handler del resumen bajo demanda: `make deploy` ya reinicia `diary-messenger-worker` (y en la secuencia anterior también lo recrea `make up`).
+- Comprobación: `docker compose --env-file .env exec diary-php ffprobe -version` debe responder, y `docker compose --env-file .env exec diary-php php -r 'echo ini_get("upload_max_filesize");'` debe dar `25M`.
+
 ## [0.17.0] - 2026-10-08
 
 ### Ramas integradas en `develop`

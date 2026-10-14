@@ -42,6 +42,28 @@ class HistorialService
     }
 
     /**
+     * Días del mes de $firstOfMonth que tienen audios o resumen, por orden de fecha. Es el mismo dato
+     * que el calendario de `month()`, sin la rejilla por semanas: lo usa la API.
+     *
+     * @return list<array{date: string, audio_count: int, has_summary: bool}>
+     */
+    public function monthDays(\DateTimeImmutable $firstOfMonth): array
+    {
+        $lastOfMonth = $firstOfMonth->modify('last day of this month');
+        $entryCounts = $this->audioRecordingRepository->countByDateInRange($firstOfMonth, $lastOfMonth);
+        $summaryDates = array_flip($this->dailySummaryRepository->findDatesWithSummaryInRange($firstOfMonth, $lastOfMonth));
+
+        $dates = array_keys($entryCounts + $summaryDates);
+        sort($dates);
+
+        return array_map(static fn (string $date) => [
+            'date' => $date,
+            'audio_count' => $entryCounts[$date] ?? 0,
+            'has_summary' => isset($summaryDates[$date]),
+        ], $dates);
+    }
+
+    /**
      * Audios del día seleccionado (`Y-m-d`). Sin fecha o con una fecha inválida no hay selección.
      *
      * @return array{selected_date: \DateTimeImmutable|null, selected_entries: list<AudioRecording>}

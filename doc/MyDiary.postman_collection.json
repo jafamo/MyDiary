@@ -89,6 +89,451 @@
           }
         }
       ]
+    },
+    {
+      "name": "Audios",
+      "item": [
+        {
+          "name": "Subir audio",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Audio aceptado', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "    pm.expect(pm.response.json().result).to.be.oneOf(['created', 'duplicate', 'retrying']);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "description": "Sube un audio (m4a, mp3, ogg o wav, 25 MB como máximo) y lo pone en cola para transcribirlo. Elige el fichero en el campo `file`. `201` con `result` `created` si es nuevo; `200` con `duplicate` si ya existía o `retrying` si su transcripción había fallado y se relanza. `422` si falta el fichero, supera el tamaño o no es un audio admitido.",
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": [], "description": "Fichero de audio" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/audios",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "audios"]
+            }
+          }
+        },
+        {
+          "name": "Descargar fichero",
+          "request": {
+            "description": "Fichero original del audio (`audio/ogg`, `audio/mp4`, `audio/mpeg` o `audio/wav`). Activa la cabecera `Range` para pedir un tramo: responde `206` con `Content-Range`. `404` si el audio no existe o su fichero no está en el servidor.",
+            "method": "GET",
+            "header": [
+              { "key": "Range", "value": "bytes=0-1023", "description": "Tramo de bytes, para reproducir con salto.", "disabled": true }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/audios/:id/fichero",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "audios", ":id", "fichero"],
+              "variable": [
+                { "key": "id", "value": "1", "description": "Identificador del audio." }
+              ]
+            }
+          }
+        },
+          {
+            "name": "Editar transcripción",
+            "request": {
+              "description": "Sustituye el texto de la transcripción, la marca como editada a mano y regenera su embedding. Solo audios `TRANSCRIBED` (`409` en otro caso).",
+              "method": "PATCH",
+              "header": [
+                { "key": "Accept", "value": "application/json" },
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"content\": \"Texto corregido\"\n}",
+                "options": { "raw": { "language": "json" } }
+              },
+              "url": {
+                "raw": "{{base_url}}/api/v1/audios/:id/transcripcion",
+                "host": ["{{base_url}}"],
+                "path": ["api", "v1", "audios", ":id", "transcripcion"],
+                "variable": [
+                  { "key": "id", "value": "1", "description": "Identificador del audio." }
+                ]
+              }
+            }
+          },
+          {
+            "name": "Eliminar audio",
+            "request": {
+              "description": "Borra el audio, su transcripción y sus ficheros (`204`). Solo audios `TRANSCRIBED` o `ERROR` (`409` si está `PENDING`). No se puede deshacer.",
+              "method": "DELETE",
+              "header": [
+                { "key": "Accept", "value": "application/json" }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/v1/audios/:id",
+                "host": ["{{base_url}}"],
+                "path": ["api", "v1", "audios", ":id"],
+                "variable": [
+                  { "key": "id", "value": "1", "description": "Identificador del audio." }
+                ]
+              }
+            }
+          },
+          {
+            "name": "Reintentar transcripción",
+            "request": {
+              "description": "Vuelve a poner en cola un audio en `ERROR` (`409` en otro caso). Responde el audio en `PENDING`.",
+              "method": "POST",
+              "header": [
+                { "key": "Accept", "value": "application/json" }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/v1/audios/:id/reintentar",
+                "host": ["{{base_url}}"],
+                "path": ["api", "v1", "audios", ":id", "reintentar"],
+                "variable": [
+                  { "key": "id", "value": "1", "description": "Identificador del audio." }
+                ]
+              }
+            }
+          }
+      ]
+    },
+    {
+      "name": "Diario",
+      "item": [
+        {
+          "name": "Diario de hoy",
+          "request": {
+            "description": "Audios de hoy con su transcripción, resumen del día (o `null`), rachas, total de la semana y tema del mes.",
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/diario",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "diario"],
+              "query": [
+                { "key": "status", "value": "TRANSCRIBED", "description": "Solo los audios en ese estado: PENDING, TRANSCRIBED o ERROR.", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Pedir el resumen de hoy",
+          "request": {
+            "description": "Pone en cola la generación del resumen de hoy y responde `202` sin esperarla. Si ya hay una en curso, devuelve esa. `409` si hoy no hay transcripciones. El resultado se consulta en `summary_generation` de Diario de hoy.",
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/diario/resumen",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "diario", "resumen"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Historial",
+      "item": [
+        {
+          "name": "Días con actividad del mes",
+          "request": {
+            "description": "Días del mes que tienen audios o resumen, para marcarlos en un calendario. Sin `month`, el mes actual.",
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/historial?month=2026-10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "historial"],
+              "query": [
+                { "key": "month", "value": "2026-10", "description": "Mes como AAAA-MM." }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Detalle de un día",
+          "request": {
+            "description": "Audios y resumen de un día. Un día sin nada responde `200` con `entries` vacío y `summary` a `null`; una fecha que no existe, `422`.",
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/historial/:fecha",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "historial", ":fecha"],
+              "query": [
+                { "key": "status", "value": "TRANSCRIBED", "description": "Solo los audios en ese estado: PENDING, TRANSCRIBED o ERROR.", "disabled": true }
+              ],
+              "variable": [
+                { "key": "fecha", "value": "2026-10-05", "description": "Día como AAAA-MM-DD." }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Resúmenes",
+      "item": [
+        {
+          "name": "Resúmenes",
+          "request": {
+            "description": "Resúmenes diarios paginados, del más reciente al más antiguo, con el número de audios de cada día. `from` y `to` se envían los dos o ninguno.",
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/resumenes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "resumenes"],
+              "query": [
+                { "key": "from", "value": "2026-10-01", "description": "Primer día del rango (AAAA-MM-DD).", "disabled": true },
+                { "key": "to", "value": "2026-10-31", "description": "Último día del rango (AAAA-MM-DD).", "disabled": true },
+                { "key": "page", "value": "1", "description": "Página, desde 1.", "disabled": true },
+                { "key": "per_page", "value": "20", "description": "Elementos por página (1-100).", "disabled": true }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Búsqueda",
+      "item": [
+        {
+          "name": "Buscar",
+          "request": {
+            "description": "Búsqueda semántica en transcripciones y resúmenes (ordenada por `distance`, menor es más parecido) y por texto en recordatorios. `q` es obligatorio.",
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/busqueda?q=dentista",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "busqueda"],
+              "query": [
+                { "key": "q", "value": "dentista", "description": "Texto a buscar." }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Estadísticas",
+      "item": [
+        {
+          "name": "Estadísticas",
+          "request": {
+            "description": "Métricas del rango con las series diarias en crudo y el consumo de IA (`ai_usage`). `range=custom` exige `from` y `to`.",
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/estadisticas?range=30",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "estadisticas"],
+              "query": [
+                { "key": "range", "value": "30", "description": "15, 30 (por defecto), 90, 365 o custom." },
+                { "key": "from", "value": "2026-10-01", "description": "Solo con range=custom.", "disabled": true },
+                { "key": "to", "value": "2026-10-07", "description": "Solo con range=custom.", "disabled": true },
+                { "key": "status", "value": "TRANSCRIBED", "description": "Solo los audios en ese estado: PENDING, TRANSCRIBED o ERROR.", "disabled": true }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recordatorios",
+      "item": [
+        {
+          "name": "Recordatorios",
+          "request": {
+            "description": "Listado paginado con un solo filtro: `scope` (por defecto `upcoming`), `month` o `date`. Combinarlos responde `422`.",
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/recordatorios?scope=upcoming",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "recordatorios"],
+              "query": [
+                { "key": "scope", "value": "upcoming", "description": "upcoming (de hoy en adelante) o history (anteriores a hoy)." },
+                { "key": "month", "value": "2026-10", "description": "Los de ese mes (AAAA-MM).", "disabled": true },
+                { "key": "date", "value": "2026-10-05", "description": "Los de ese día (AAAA-MM-DD).", "disabled": true },
+                { "key": "page", "value": "1", "description": "Página, desde 1.", "disabled": true },
+                { "key": "per_page", "value": "20", "description": "Elementos por página (1-100).", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Aviso de próximos",
+          "request": {
+            "description": "El dato de la campana: recordatorios de los próximos 5 días, urgencia (`urgent` si el más cercano es hoy o mañana) y los del día más cercano.",
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/recordatorios/proximos",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "recordatorios", "proximos"]
+            }
+          }
+        },
+          {
+            "name": "Crear recordatorio",
+            "request": {
+              "description": "`date` y `text` obligatorios; `time` (`HH:MM`) opcional. Responde `201`.",
+              "method": "POST",
+              "header": [
+                { "key": "Accept", "value": "application/json" },
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"date\": \"2026-10-20\",\n  \"time\": \"10:30\",\n  \"text\": \"Dentista\"\n}",
+                "options": { "raw": { "language": "json" } }
+              },
+              "url": {
+                "raw": "{{base_url}}/api/v1/recordatorios",
+                "host": ["{{base_url}}"],
+                "path": ["api", "v1", "recordatorios"]
+              }
+            }
+          },
+          {
+            "name": "Editar recordatorio",
+            "request": {
+              "description": "Edición parcial: los campos ausentes no cambian. `\"time\": null` quita la hora.",
+              "method": "PATCH",
+              "header": [
+                { "key": "Accept", "value": "application/json" },
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"text\": \"Dentista (traer informe)\"\n}",
+                "options": { "raw": { "language": "json" } }
+              },
+              "url": {
+                "raw": "{{base_url}}/api/v1/recordatorios/:id",
+                "host": ["{{base_url}}"],
+                "path": ["api", "v1", "recordatorios", ":id"],
+                "variable": [
+                  { "key": "id", "value": "1", "description": "Identificador del recordatorio." }
+                ]
+              }
+            }
+          },
+          {
+            "name": "Eliminar recordatorio",
+            "request": {
+              "description": "Responde `204`.",
+              "method": "DELETE",
+              "header": [
+                { "key": "Accept", "value": "application/json" }
+              ],
+              "url": {
+                "raw": "{{base_url}}/api/v1/recordatorios/:id",
+                "host": ["{{base_url}}"],
+                "path": ["api", "v1", "recordatorios", ":id"],
+                "variable": [
+                  { "key": "id", "value": "1", "description": "Identificador del recordatorio." }
+                ]
+              }
+            }
+          }
+      ]
+    },
+    {
+      "name": "Temas",
+      "item": [
+        {
+          "name": "Temas",
+          "request": {
+            "description": "Todos los temas, sin paginar, con su número de usos y el día del último.",
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/topics",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "topics"]
+            }
+          }
+        },
+          {
+            "name": "Renombrar tema",
+            "request": {
+              "description": "`409` si otro tema ya usa ese nombre (sin distinguir mayúsculas): en ese caso, fusiónalos.",
+              "method": "PATCH",
+              "header": [
+                { "key": "Accept", "value": "application/json" },
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"name\": \"trabajo\"\n}",
+                "options": { "raw": { "language": "json" } }
+              },
+              "url": {
+                "raw": "{{base_url}}/api/v1/topics/:id",
+                "host": ["{{base_url}}"],
+                "path": ["api", "v1", "topics", ":id"],
+                "variable": [
+                  { "key": "id", "value": "1", "description": "Identificador del tema." }
+                ]
+              }
+            }
+          },
+          {
+            "name": "Fusionar temas",
+            "request": {
+              "description": "Asocia a `destination` los resúmenes de los temas de `origins` y elimina estos. Sin confirmación y sin vuelta atrás: la app debe confirmarlo antes.",
+              "method": "POST",
+              "header": [
+                { "key": "Accept", "value": "application/json" },
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"origins\": [\n    4,\n    7\n  ],\n  \"destination\": 2\n}",
+                "options": { "raw": { "language": "json" } }
+              },
+              "url": {
+                "raw": "{{base_url}}/api/v1/topics/fusionar",
+                "host": ["{{base_url}}"],
+                "path": ["api", "v1", "topics", "fusionar"]
+              }
+            }
+          }
+      ]
     }
   ]
 }

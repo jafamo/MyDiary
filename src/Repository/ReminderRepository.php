@@ -110,6 +110,27 @@ class ReminderRepository extends ServiceEntityRepository
     }
 
     /**
+     * Página de recordatorios con fecha dentro de [$from, $to], ordenados por fecha ascendente.
+     *
+     * @return list<Reminder>
+     */
+    public function findPageInRange(\DateTimeImmutable $from, \DateTimeImmutable $to, int $page, int $pageSize): array
+    {
+        return $this->createQueryBuilder('r')
+            ->andWhere('r.date >= :from')
+            ->andWhere('r.date <= :to')
+            ->orderBy('r.date', 'ASC')
+            ->addOrderBy('r.createdAt', 'ASC')
+            ->setParameter('from', $from)
+            ->setParameter('to', $to)
+            ->setFirstResult(($page - 1) * $pageSize)
+            ->setMaxResults($pageSize)
+            ->getQuery()
+            ->getResult()
+        ;
+    }
+
+    /**
      * Número de recordatorios con fecha anterior a $before.
      */
     public function countBeforeDate(\DateTimeImmutable $before): int

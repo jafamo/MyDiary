@@ -34,6 +34,151 @@ GET {{base_url}}/api/v1/me
 Authorization: Bearer {{token}}
 Accept: application/json
 
+### Diario de hoy: audios con su transcripción, resumen, rachas, semana y tema del mes
+# Filtro opcional: ?status=PENDING|TRANSCRIBED|ERROR
+GET {{base_url}}/api/v1/diario
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Pedir el resumen de hoy: 202 sin esperar a que se genere (409 si hoy no hay transcripciones)
+# El estado se consulta en summary_generation de GET /api/v1/diario (QUEUED, RUNNING, DONE o FAILED).
+POST {{base_url}}/api/v1/diario/resumen
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Historial: días del mes con audios o resumen (por defecto, el mes actual)
+GET {{base_url}}/api/v1/historial?month=2026-10
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Historial de un día: audios y resumen. Filtro opcional: ?status=
+@fecha = 2026-10-05
+GET {{base_url}}/api/v1/historial/{{fecha}}
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Resúmenes, del más reciente al más antiguo. Opcionales: from y to (los dos), page, per_page
+GET {{base_url}}/api/v1/resumenes?page=1&per_page=20
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Búsqueda semántica en transcripciones y resúmenes, y por texto en recordatorios
+GET {{base_url}}/api/v1/busqueda?q=dentista
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Estadísticas y consumo de IA. range: 15, 30 (por defecto), 90, 365 o custom (con from y to)
+GET {{base_url}}/api/v1/estadisticas?range=30
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Recordatorios. Un solo filtro: scope=upcoming|history, month=AAAA-MM o date=AAAA-MM-DD
+GET {{base_url}}/api/v1/recordatorios?scope=upcoming
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Aviso de recordatorios cercanos (la campana): próximos 5 días
+GET {{base_url}}/api/v1/recordatorios/proximos
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Temas con su número de usos
+GET {{base_url}}/api/v1/topics
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Subir un audio (m4a, mp3, ogg o wav; 25 MB como máximo)
+# 201 con "result": "created" si es nuevo; 200 con "duplicate" o "retrying" si ya existía.
+# Cambia la ruta por un fichero de audio tuyo (relativa a este fichero).
+POST {{base_url}}/api/v1/audios
+Authorization: Bearer {{token}}
+Accept: application/json
+Content-Type: multipart/form-data; boundary=audio-boundary
+
+--audio-boundary
+Content-Disposition: form-data; name="file"; filename="nota.m4a"
+Content-Type: audio/mp4
+
+< ./nota.m4a
+--audio-boundary--
+
+### Descargar el fichero de un audio
+# 200 con el audio completo; con la cabecera Range, 206 con ese tramo. 404 si no existe.
+@id = 1
+GET {{base_url}}/api/v1/audios/{{id}}/fichero
+Authorization: Bearer {{token}}
+# Range: bytes=0-1023
+
+### Editar la transcripción de un audio
+# Solo audios TRANSCRIBED (409 en otro caso). Regenera el embedding para la búsqueda.
+PATCH {{base_url}}/api/v1/audios/{{id}}/transcripcion
+Authorization: Bearer {{token}}
+Accept: application/json
+Content-Type: application/json
+
+{
+  "content": "Texto corregido"
+}
+
+### Eliminar un audio, su transcripción y sus ficheros (204)
+# Solo audios TRANSCRIBED o ERROR (409 si está PENDING). No se puede deshacer.
+DELETE {{base_url}}/api/v1/audios/{{id}}
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Reintentar la transcripción de un audio en ERROR (409 en otro caso)
+POST {{base_url}}/api/v1/audios/{{id}}/reintentar
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Crear un recordatorio (201). date y text obligatorios; time (HH:MM) opcional
+POST {{base_url}}/api/v1/recordatorios
+Authorization: Bearer {{token}}
+Accept: application/json
+Content-Type: application/json
+
+{
+  "date": "2026-10-20",
+  "time": "10:30",
+  "text": "Dentista"
+}
+
+### Editar un recordatorio: los campos ausentes no cambian; "time": null quita la hora
+PATCH {{base_url}}/api/v1/recordatorios/{{id}}
+Authorization: Bearer {{token}}
+Accept: application/json
+Content-Type: application/json
+
+{
+  "text": "Dentista (traer informe)"
+}
+
+### Eliminar un recordatorio (204)
+DELETE {{base_url}}/api/v1/recordatorios/{{id}}
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Renombrar un tema. 409 si otro tema ya usa ese nombre: en ese caso, fusiónalos
+PATCH {{base_url}}/api/v1/topics/{{id}}
+Authorization: Bearer {{token}}
+Accept: application/json
+Content-Type: application/json
+
+{
+  "name": "trabajo"
+}
+
+### Fusionar temas: los resúmenes de origins pasan a destination y origins se eliminan (sin vuelta atrás)
+POST {{base_url}}/api/v1/topics/fusionar
+Authorization: Bearer {{token}}
+Accept: application/json
+Content-Type: application/json
+
+{
+  "origins": [4, 7],
+  "destination": 2
+}
+
 ### Logout: revoca el token en uso
 POST {{base_url}}/api/v1/logout
 Authorization: Bearer {{token}}
