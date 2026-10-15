@@ -44,7 +44,8 @@ More detail and rationale in [`AGENTS.md`](./AGENTS.md) and section 4 of [`Espec
 4. 🗣️➡️📄 Whisper / Open WebUI transcribes the audio; on failure it's retried and, if it keeps failing, marked `ERROR` (retryable from the web)
 5. ⏰ At 21:00 (Europe/Madrid), Symfony Scheduler generates the daily summary with Ollama — or on demand, right away, from a button in Diario. Summaries not written in Spanish are rejected and retried; if it still fails, a Telegram notice is sent
 6. 🔔 At 08:00 (Europe/Madrid), Telegram sends the reminders due today
-7. 🌐 The user reviews everything from the web: **Diario**, **Historial**, **Resúmenes**, **Búsqueda**, **Recordatorios**, **Estadísticas**, **Temas** — editing transcriptions, retrying failed ones, or deleting audios in cascade (DB + files)
+7. 🙃 At 15:00 and 17:00 (Europe/Madrid, configurable), if no audio has arrived that day, Telegram nudges you to record something
+8. 🌐 The user reviews everything from the web: **Diario**, **Historial**, **Resúmenes**, **Búsqueda**, **Recordatorios**, **Estadísticas**, **Temas** — editing transcriptions, retrying failed ones, or deleting audios in cascade (DB + files)
 
 ```mermaid
 flowchart TD

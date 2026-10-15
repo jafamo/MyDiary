@@ -8,6 +8,7 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 - `feature/failure-notice-device`
 - `feature/idle-day-reminder`
 - `feature/review-before-finish`
+- `bugfix/idle-day-reminder-review`
 
 ### Añadido
 - **Aviso de día sin audios**: si a las 15:00 o a las 17:00 (Europe/Madrid) no ha llegado ningún audio en el día, ni por Telegram ni por la app, el bot manda «No has hecho nada hoy? venga no seas así». Si ya hay algún audio, aunque su transcripción esté pendiente o haya fallado, no manda nada. Las horas se cambian con `IDLE_DAY_REMINDER_HOURS` (p. ej. `15,17`; vacía lo desactiva) y el texto con `IDLE_DAY_REMINDER_MESSAGE`.

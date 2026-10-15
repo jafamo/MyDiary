@@ -9,6 +9,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Scheduler\RecurringMessage;
+use Symfony\Component\Yaml\Yaml;
 
 class ScheduleTest extends TestCase
 {
@@ -42,6 +43,15 @@ class ScheduleTest extends TestCase
         yield 'negativa' => ['-1'];
         yield 'con minutos' => ['15:30'];
         yield 'texto' => ['tarde'];
+    }
+
+    public function testDefaultsWhenTheVariablesAreNotDefined(): void
+    {
+        // Sin IDLE_DAY_REMINDER_* en el .env, se aplican los valores por defecto de services.yaml.
+        $parameters = Yaml::parseFile(\dirname(__DIR__).'/config/services.yaml')['parameters'];
+
+        self::assertSame([15, 17], Schedule::parseHours($parameters['env(IDLE_DAY_REMINDER_HOURS)']));
+        self::assertSame('No has hecho nada hoy? venga no seas así', $parameters['env(IDLE_DAY_REMINDER_MESSAGE)']);
     }
 
     public function testSchedulesTheIdleDayReminderAtEachHour(): void
