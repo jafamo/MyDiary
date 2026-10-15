@@ -145,7 +145,7 @@ class AudioRecordingServiceTest extends KernelTestCase
 
     public function testNewUploadIsCreatedAndMessageDispatched(): void
     {
-        $upload = $this->service->receiveUpload(self::HASH, fn () => ['filePath' => '/data/audio/upload.m4a', 'durationSeconds' => 37]);
+        $upload = $this->service->receiveUpload(self::HASH, 'Pixel', fn () => ['filePath' => '/data/audio/upload.m4a', 'durationSeconds' => 37]);
 
         self::assertSame(AudioRecordingReceiveResult::CREATED, $upload->result);
 
@@ -158,15 +158,16 @@ class AudioRecordingServiceTest extends KernelTestCase
         self::assertSame(37, $audioRecording->getDurationSeconds());
         self::assertNull($audioRecording->getTelegramMessageId());
         self::assertNull($audioRecording->getTelegramFileUniqueId());
+        self::assertSame('Pixel', $audioRecording->getDeviceName());
         self::assertSame([$audioRecording->getId()], $this->dispatchedAudioRecordingIds());
     }
 
     public function testDuplicateUploadDoesNotStoreNorDispatch(): void
     {
-        $first = $this->service->receiveUpload(self::HASH, fn () => ['filePath' => '/data/audio/upload.m4a', 'durationSeconds' => 37]);
+        $first = $this->service->receiveUpload(self::HASH, 'Pixel', fn () => ['filePath' => '/data/audio/upload.m4a', 'durationSeconds' => 37]);
 
         $storeCalled = false;
-        $second = $this->service->receiveUpload(self::HASH, function () use (&$storeCalled): array {
+        $second = $this->service->receiveUpload(self::HASH, 'iPhone', function () use (&$storeCalled): array {
             $storeCalled = true;
 
             return ['filePath' => '/data/audio/upload.m4a', 'durationSeconds' => 37];
@@ -176,11 +177,12 @@ class AudioRecordingServiceTest extends KernelTestCase
         self::assertSame($first->audioRecording->getId(), $second->audioRecording->getId());
         self::assertFalse($storeCalled);
         self::assertCount(1, $this->dispatchedAudioRecordingIds());
+        self::assertSame('Pixel', $second->audioRecording->getDeviceName(), 'Un duplicado no cambia el dispositivo');
     }
 
     public function testUploadAfterErrorResetsStatusAndDispatchesNewMessage(): void
     {
-        $audioRecording = $this->service->receiveUpload(self::HASH, fn () => ['filePath' => '/data/audio/upload.m4a', 'durationSeconds' => 37])->audioRecording;
+        $audioRecording = $this->service->receiveUpload(self::HASH, 'Pixel', fn () => ['filePath' => '/data/audio/upload.m4a', 'durationSeconds' => 37])->audioRecording;
         $audioRecording
             ->setStatus(AudioRecordingStatus::ERROR)
             ->setErrorCode('TIMEOUT')
@@ -189,7 +191,7 @@ class AudioRecordingServiceTest extends KernelTestCase
         $this->entityManager->flush();
 
         $storeCalled = false;
-        $upload = $this->service->receiveUpload(self::HASH, function () use (&$storeCalled): array {
+        $upload = $this->service->receiveUpload(self::HASH, 'iPhone', function () use (&$storeCalled): array {
             $storeCalled = true;
 
             return ['filePath' => '/data/audio/upload.m4a', 'durationSeconds' => 37];
@@ -203,13 +205,14 @@ class AudioRecordingServiceTest extends KernelTestCase
         self::assertSame(AudioRecordingStatus::PENDING, $audioRecording->getStatus());
         self::assertNull($audioRecording->getErrorCode());
         self::assertNull($audioRecording->getErrorMessage());
+        self::assertSame('iPhone', $audioRecording->getDeviceName(), 'El reintento guarda el dispositivo que reenvía');
         self::assertSame([$audioRecording->getId(), $audioRecording->getId()], $this->dispatchedAudioRecordingIds());
     }
 
     public function testRejectedUploadCreatesNothing(): void
     {
         try {
-            $this->service->receiveUpload(self::HASH, fn () => throw new \RuntimeException('no es un audio'));
+            $this->service->receiveUpload(self::HASH, null, fn () => throw new \RuntimeException('no es un audio'));
             self::fail('Se esperaba la excepción del guardado');
         } catch (\RuntimeException) {
         }

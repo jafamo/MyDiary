@@ -12,6 +12,7 @@ use App\EventListener\TranscriptionFailureListener;
 use App\Message\TranscribeAudioMessage;
 use App\Repository\AudioRecordingRepository;
 use App\Service\Telegram\TelegramClient;
+use App\Service\UsageFormatter;
 use Doctrine\ORM\EntityManagerInterface;
 use Monolog\Handler\TestHandler;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -24,6 +25,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 class TranscriptionFailureListenerTest extends KernelTestCase
 {
     private const APP_CONTENT_HASH = 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+    private const NUMERIC_TELEGRAM_MESSAGE_ID = '987654';
 
     private EntityManagerInterface $entityManager;
     private AudioRecordingRepository $audioRecordingRepository;
@@ -38,7 +40,7 @@ class TranscriptionFailureListenerTest extends KernelTestCase
 
     protected function tearDown(): void
     {
-        foreach (['listener-msg-1', 'listener-msg-2'] as $telegramMessageId) {
+        foreach (['listener-msg-1', 'listener-msg-2', self::NUMERIC_TELEGRAM_MESSAGE_ID] as $telegramMessageId) {
             $audioRecording = $this->audioRecordingRepository->findOneByTelegramMessageId($telegramMessageId);
 
             if (null !== $audioRecording) {
@@ -142,6 +144,81 @@ class TranscriptionFailureListenerTest extends KernelTestCase
         self::assertArrayNotHasKey('telegram_file_unique_id', $records[0]->context);
     }
 
+    public function testNoticeOfAnAppAudioShowsTheDeviceTheLocalTimeAndTheDuration(): void
+    {
+        $bodies = $this->captureTelegramRequests();
+        $audioRecording = $this->persistAppAudioRecording('Google Pixel 7 (Android 16)');
+
+        $this->createListener()($this->failedEvent($audioRecording));
+
+        self::assertCount(1, $bodies);
+        self::assertSame(
+            "No se pudo transcribir la nota ❌\n📱 Google Pixel 7 (Android 16)\n🕐 15/10 05:02 · 0:14",
+            $bodies[0]['text'],
+        );
+        self::assertArrayNotHasKey('reply_parameters', $bodies[0]);
+    }
+
+    public function testNoticeOfAnAppAudioWithoutDeviceSaysApp(): void
+    {
+        $bodies = $this->captureTelegramRequests();
+        $audioRecording = $this->persistAppAudioRecording(null);
+
+        $this->createListener()($this->failedEvent($audioRecording));
+
+        self::assertSame('📱 App', explode("\n", $bodies[0]['text'])[1]);
+    }
+
+    public function testNoticeOfATelegramAudioRepliesToTheOriginalMessage(): void
+    {
+        $bodies = $this->captureTelegramRequests();
+        $audioRecording = $this->persistAudioRecording(self::NUMERIC_TELEGRAM_MESSAGE_ID, 'listener-file-3');
+
+        $this->createListener()($this->failedEvent($audioRecording));
+
+        self::assertSame('💬 Telegram', explode("\n", $bodies[0]['text'])[1]);
+        self::assertSame(
+            ['message_id' => (int) self::NUMERIC_TELEGRAM_MESSAGE_ID, 'allow_sending_without_reply' => true],
+            $bodies[0]['reply_parameters'],
+        );
+    }
+
+    /**
+     * Cuerpos JSON de las peticiones a Telegram, en orden. Se rellena al enviar.
+     *
+     * @return \ArrayObject<int, array<string, mixed>>
+     */
+    private function captureTelegramRequests(): \ArrayObject
+    {
+        $bodies = new \ArrayObject();
+        self::getContainer()->set(HttpClientInterface::class, new MockHttpClient(
+            static function (string $method, string $url, array $options) use ($bodies): MockResponse {
+                $bodies[] = json_decode($options['body'], true);
+
+                return new MockResponse('{"ok":true}');
+            },
+        ));
+
+        return $bodies;
+    }
+
+    private function persistAppAudioRecording(?string $deviceName): AudioRecording
+    {
+        $audioRecording = new AudioRecording();
+        $audioRecording
+            ->setSource(AudioSource::APP)
+            ->setContentHash(self::APP_CONTENT_HASH)
+            ->setDeviceName($deviceName)
+            ->setFilePath('/data/audio/'.self::APP_CONTENT_HASH.'.m4a')
+            ->setReceivedAt(new \DateTimeImmutable('2026-10-15 03:02:00', new \DateTimeZone('UTC')))
+            ->setDurationSeconds(14)
+        ;
+        $this->entityManager->persist($audioRecording);
+        $this->entityManager->flush();
+
+        return $audioRecording;
+    }
+
     private function failedEvent(AudioRecording $audioRecording): WorkerMessageFailedEvent
     {
         return new WorkerMessageFailedEvent(
@@ -172,6 +249,7 @@ class TranscriptionFailureListenerTest extends KernelTestCase
             $this->audioRecordingRepository,
             $this->entityManager,
             self::getContainer()->get(TelegramClient::class),
+            new UsageFormatter(),
             self::getContainer()->get('logger'),
             $_ENV['TELEGRAM_AUTHORIZED_CHAT_ID'],
         );

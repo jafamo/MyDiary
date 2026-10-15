@@ -4,6 +4,29 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+## [0.19.0] - 2026-10-15
+
+### Ramas integradas en `develop`
+- `feature/failure-notice-device`
+- `feature/idle-day-reminder`
+- `feature/review-before-finish`
+- `bugfix/idle-day-reminder-review`
+
+### Añadido
+- **Aviso de día sin audios**: si a las 15:00 o a las 17:00 (Europe/Madrid) no ha llegado ningún audio en el día, ni por Telegram ni por la app, el bot manda «No has hecho nada hoy? venga no seas así». Si ya hay algún audio, aunque su transcripción esté pendiente o haya fallado, no manda nada. Las horas se cambian con `IDLE_DAY_REMINDER_HOURS` (p. ej. `15,17`; vacía lo desactiva) y el texto con `IDLE_DAY_REMINDER_MESSAGE`.
+
+### Cambiado
+- El aviso de Telegram cuando falla la transcripción dice qué nota es: «No se pudo transcribir la nota ❌», el origen (📱 el dispositivo desde el que se subió con la app, o 💬 Telegram) y el día, la hora local y la duración (`🕐 15/10 05:02 · 0:14`). En los audios de Telegram el aviso responde al mensaje del audio.
+- Los audios subidos por la API guardan el nombre del dispositivo del token (`device_name`); un reintento tras un fallo (`retrying`) guarda el del que reenvía. No cambia el contrato de la API. Los audios de la app anteriores salen como «📱 App».
+- Flujo de desarrollo (`AGENTS.md` y skill `desarrollo`): antes de integrar una rama en `develop`, el agente presenta un resumen de revisión (pedido frente a hecho, decisiones, tests, checklist de olvidos habituales) y espera confirmación. Así los olvidos se corrigen en la propia rama y no con otra después.
+
+### Migraciones
+- `Version20261015060000`: columna `audio_recording.device_name` (nullable). **Requiere `make migrate` tras el despliegue.**
+
+### Despliegue
+- En el servidor: `make deploy` y después `make migrate`. No hay variables nuevas obligatorias.
+- Aviso de día sin audios: no requiere nada; las variables `IDLE_DAY_REMINDER_*` son opcionales. El despliegue ya reinicia `diary-messenger-worker`, que es lo que hace falta para que se programe el aviso. Para cambiar las horas o el texto después, editar el `.env` del servidor y reiniciar el worker.
+
 ## [0.18.1] - 2026-10-14
 
 ### Ramas integradas en `develop`

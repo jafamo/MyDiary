@@ -22,15 +22,26 @@ class TelegramClient
 
     /**
      * Los textos que superan el límite de Telegram se envían en varios mensajes, en orden.
+     *
+     * Con $replyToMessageId, el primer mensaje responde a ese mensaje del chat; si ya no
+     * existe, se envía igualmente sin la respuesta.
      */
-    public function sendMessage(int $chatId, string $text): void
+    public function sendMessage(int $chatId, string $text, ?int $replyToMessageId = null): void
     {
-        foreach (self::splitText($text, self::MAX_MESSAGE_LENGTH) as $part) {
+        foreach (self::splitText($text, self::MAX_MESSAGE_LENGTH) as $index => $part) {
+            $payload = [
+                'chat_id' => $chatId,
+                'text' => $part,
+            ];
+            if (null !== $replyToMessageId && 0 === $index) {
+                $payload['reply_parameters'] = [
+                    'message_id' => $replyToMessageId,
+                    'allow_sending_without_reply' => true,
+                ];
+            }
+
             $this->httpClient->request('POST', $this->apiUrl('sendMessage'), [
-                'json' => [
-                    'chat_id' => $chatId,
-                    'text' => $part,
-                ],
+                'json' => $payload,
             ]);
         }
     }

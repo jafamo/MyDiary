@@ -29,11 +29,12 @@ class AudioUploadService
     }
 
     /**
-     * @param string $uploadedFilePath fichero temporal de la subida; no se modifica
+     * @param string      $uploadedFilePath fichero temporal de la subida; no se modifica
+     * @param string|null $deviceName       dispositivo del token que lo sube
      *
      * @throws InvalidAudioUploadException si el fichero supera el tamaño máximo o no es un audio admitido
      */
-    public function upload(string $uploadedFilePath): AudioUploadResult
+    public function upload(string $uploadedFilePath, ?string $deviceName = null): AudioUploadResult
     {
         if (filesize($uploadedFilePath) > self::MAX_BYTES) {
             throw new InvalidAudioUploadException(self::tooLargeMessage());
@@ -43,6 +44,7 @@ class AudioUploadService
 
         return $this->audioRecordingService->receiveUpload(
             $contentHash,
+            $deviceName,
             function () use ($uploadedFilePath, $contentHash): array {
                 try {
                     $probe = $this->audioProbe->probe($uploadedFilePath);

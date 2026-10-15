@@ -57,7 +57,7 @@ La deduplicación es por origen: un mismo audio enviado por Telegram y subido de
 3. Guarda el resultado en la entidad `Transcription` (contenido en BD + export a fichero de texto en filesystem, nombrado con `telegram_file_unique_id` o, en los audios de la app, con `content_hash`), junto con sus métricas de consumo: tiempo de proceso de la llamada que tuvo éxito (`processing_ms`) y modelo (`model`, de `WHISPER_MODEL`). Open WebUI no devuelve tokens de Whisper, así que la métrica de una transcripción es duración del audio + tiempo de proceso.
 4. Actualiza el estado del `AudioRecording` a `TRANSCRIBED`.
 5. Envía al usuario en Telegram un resumen corto de esa transcripción concreta, terminado en una línea `🎙️ 1:42 de audio · ⏱️ transcrito en 14 s`. El aviso (y el de fallo del paso 6) se envía igual para los audios subidos desde la app: el handler no distingue el origen.
-6. **Manejo de errores**: si la llamada al servicio de transcripción falla, Symfony Messenger reintenta el `TranscribeAudioMessage` un número limitado de veces con backoff (`retry_strategy` nativo). Si se agotan los reintentos, `AudioRecording` pasa a estado `ERROR`, se guardan `error_code` y `error_message` (ver sección 6) con la causa técnica, y se notifica al usuario por Telegram (*"No se pudo transcribir este audio ❌"*). El audio no se pierde: queda visible en la web con el motivo del error y opción de reintentar o eliminarlo (flujo 3.4-bis).
+6. **Manejo de errores**: si la llamada al servicio de transcripción falla, Symfony Messenger reintenta el `TranscribeAudioMessage` un número limitado de veces con backoff (`retry_strategy` nativo). Si se agotan los reintentos, `AudioRecording` pasa a estado `ERROR`, se guardan `error_code` y `error_message` (ver sección 6) con la causa técnica, y se notifica al usuario por Telegram con «No se pudo transcribir la nota ❌», el origen (📱 dispositivo de la app, o 💬 Telegram) y el día, la hora local y la duración del audio; en los de Telegram, como respuesta al mensaje del audio. El audio no se pierde: queda visible en la web con el motivo del error y opción de reintentar o eliminarlo (flujo 3.4-bis).
 
 ### 3.3 Flujo de resumen diario (scheduled, 21:00 Europe/Madrid)
 1. Symfony Scheduler dispara el comando `app:generate-daily-summary` cada día a las 21:00 (timezone Europe/Madrid).
@@ -74,6 +74,13 @@ La deduplicación es por origen: un mismo audio enviado por Telegram y subido de
 8. **Generación bajo demanda (Diario y API)**: además del disparo programado, la vista Diario tiene un botón "Generar resumen" (o "Regenerar resumen" si ya existe uno, "Reintentar" si la última falló) y la API `POST /api/v1/diario/resumen`. Ninguno espera a Ollama: `DailySummaryGenerationRequester` deja la generación de hoy en `QUEUED` y despacha un `GenerateDailySummaryMessage` a la cola `async`, que procesa `diary-messenger-worker` con la misma lógica (reintentos, guardado, Telegram). A diferencia del disparo programado, **no espera** por `AudioRecording` en `PENDING`: genera con las transcripciones ya disponibles al procesar el mensaje. Sin transcripciones hoy, la petición se rechaza (aviso en la web, `409` en la API). Si ya hay una generación en curso, no se encola otra. Mientras dura, Diario muestra «Generando el resumen…» con el botón desactivado y `public/js/diario.js` consulta `GET /diario/resumen/estado` cada 5 s para recargar la vista al terminar. Un error inesperado en el worker deja la generación en `FAILED` (`UNEXPECTED`) sin reintentos de Messenger.
    - **Estado de la generación**: `DailySummaryService` guarda en `daily_summary_generation` (sección 6) el estado de la última generación de cada día en todas las vías (bajo demanda, 21:00, recheck y comando): `RUNNING` al empezar, `DONE` al guardar y `FAILED` con `error_code`/`error_message` si se agotan los intentos. Una generación `QUEUED` o `RUNNING` pedida hace más de 15 minutos (`DailySummaryGeneration::STALL_AFTER_MINUTES`) se considera atascada (worker caído): se muestra como `FAILED` con `error_code` `STALLED` y se puede volver a pedir. Cada petición aceptada registra `daily_summary.generation_requested` con `daily_summary_date` y `daily_summary_request_source` (`web` / `api`).
 9. **Recheck tardío (21:00–00:30 Europe/Madrid)**: Symfony Scheduler dispara además `app:recheck-daily-summary` cada 15 minutos entre las 21:00 y las 00:30. El comando comprueba si hay `AudioRecording` `TRANSCRIBED` del día con `receivedAt` posterior al `generatedAt` del `DailySummary` vigente (o cualquier transcripción del día si el disparo de las 21:00 falló y no hay `DailySummary`); si las hay, regenera el resumen (igual que la generación bajo demanda, sin esperar por `PENDING`) y lo reenvía por Telegram. Si no hay novedades, no hace nada — no reenvía el resumen sin cambios.
+
+### 3.3-bis Aviso de día sin audios (scheduled, 15:00 y 17:00 Europe/Madrid)
+
+1. Symfony Scheduler dispara `app:notify-idle-day` en cada hora en punto (Europe/Madrid) de `IDLE_DAY_REMINDER_HOURS`, una lista separada por comas que por defecto es `15,17`. Si está vacía, no se programa ningún aviso. Una hora que no sea un entero entre 0 y 23 hace fallar el arranque del worker.
+2. El comando cuenta los `AudioRecording` recibidos hoy (día local), de cualquier origen (Telegram o API) y en cualquier estado. Si hay al menos uno, no hace nada (log `idle_day.skipped`).
+3. Si no hay ninguno, envía al chat autorizado el texto de `IDLE_DAY_REMINDER_MESSAGE` (por defecto «No has hecho nada hoy? venga no seas así»; log `idle_day.notified`). No guarda qué avisos ha enviado: si a las 17:00 sigue sin haber audios, vuelve a avisar.
+4. Ambas variables tienen su valor por defecto en `config/services.yaml`, así que no hace falta definirlas. El horario se construye al arrancar el worker: para que un cambio de horas surta efecto hay que reiniciar `diary-messenger-worker`.
 
 ### 3.4 Edición y eliminación
 - Desde la web se puede editar manualmente el texto de una transcripción.
@@ -196,6 +203,7 @@ src/
 │   └── TranscriptionEditType.php
 └── Command/
     ├── GenerateDailySummaryCommand.php         # invocado por Scheduler a las 21:00
+    ├── NotifyIdleDayCommand.php                # app:notify-idle-day, invocado por Scheduler (IDLE_DAY_REMINDER_HOURS)
     ├── CreateUserCommand.php                   # app:user:create
     └── ChangeUserPasswordCommand.php            # app:user:change-password
 ```
@@ -210,6 +218,7 @@ src/
 | telegram_file_unique_id | string | nullable (vacío en los audios de la app). ID de Telegram estable para el contenido del fichero — **unique**, detecta reenvíos del mismo audio (ver 3.1/3.4-bis) |
 | source | enum | `telegram` (por defecto; todos los anteriores a la subida por API) o `app` |
 | content_hash | string(64) | nullable. SHA-256 del fichero — **unique**. Solo en los audios de la app: deduplica subidas repetidas (ver 3.1) |
+| device_name | string(100) | nullable. Solo en los audios de la app: nombre del dispositivo del token que lo subió (copia de `api_token.name`; se actualiza en un reintento tras error). Sale en el aviso de fallo de transcripción |
 | file_path | string | Ruta del audio en el filesystem |
 | received_at | datetime | |
 | status | enum | `PENDING`, `TRANSCRIBED`, `ERROR` |
