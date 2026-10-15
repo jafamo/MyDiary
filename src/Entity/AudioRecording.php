@@ -28,6 +28,10 @@ class AudioRecording
     #[ORM\Column(length: 64, unique: true, nullable: true)]
     private ?string $contentHash = null;
 
+    /** Dispositivo del token que subió el audio desde la app; copia de `ApiToken::name`. */
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $deviceName = null;
+
     #[ORM\Column(length: 1024)]
     private string $filePath;
 
@@ -98,6 +102,18 @@ class AudioRecording
     public function setContentHash(?string $contentHash): static
     {
         $this->contentHash = $contentHash;
+
+        return $this;
+    }
+
+    public function getDeviceName(): ?string
+    {
+        return $this->deviceName;
+    }
+
+    public function setDeviceName(?string $deviceName): static
+    {
+        $this->deviceName = $deviceName;
 
         return $this;
     }

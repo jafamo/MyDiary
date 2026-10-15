@@ -70,14 +70,16 @@ class AudioRecordingService
     /**
      * Entrada de un audio subido desde la app, identificado por el hash de su contenido.
      *
-     * @param callable(): array{filePath: string, durationSeconds: int} $storeFile valida y guarda el fichero; solo se invoca para audios nuevos
+     * @param string|null                                               $deviceName dispositivo del token que lo sube; se guarda al crearlo y al relanzarlo tras un error
+     * @param callable(): array{filePath: string, durationSeconds: int} $storeFile  valida y guarda el fichero; solo se invoca para audios nuevos
      */
-    public function receiveUpload(string $contentHash, callable $storeFile): AudioUploadResult
+    public function receiveUpload(string $contentHash, ?string $deviceName, callable $storeFile): AudioUploadResult
     {
         $existing = $this->audioRecordingRepository->findOneByContentHash($contentHash);
 
         if (null !== $existing) {
             if (AudioRecordingStatus::ERROR === $existing->getStatus()) {
+                $existing->setDeviceName($deviceName);
                 $this->retryAfterError($existing);
 
                 return new AudioUploadResult($existing, AudioRecordingReceiveResult::RETRYING_AFTER_ERROR);
@@ -92,6 +94,7 @@ class AudioRecordingService
         $audioRecording
             ->setSource(AudioSource::APP)
             ->setContentHash($contentHash)
+            ->setDeviceName($deviceName)
             ->setFilePath($filePath)
             ->setReceivedAt(new \DateTimeImmutable())
             ->setDurationSeconds($durationSeconds)

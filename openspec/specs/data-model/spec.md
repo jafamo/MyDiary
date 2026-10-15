@@ -3,7 +3,7 @@
 Entidades Doctrine que forman el modelo de dominio de la aplicación (registros de audio, transcripciones, resúmenes diarios, temas y usuarios) y sus migraciones versionadas.
 ## Requirements
 ### Requirement: Entidad `AudioRecording`
-El sistema SHALL definir una entidad Doctrine `AudioRecording` con los campos de `Especificaciones.md` sección 6: `telegram_message_id` (nullable, unique), `telegram_file_unique_id` (nullable, unique), `source` (enum `telegram`/`app`, obligatorio), `content_hash` (SHA-256 en hexadecimal, nullable, unique), `file_path`, `received_at`, `status` (enum `PENDING`/`TRANSCRIBED`/`ERROR`), `duration_seconds`, `error_code` (nullable), `error_message` (nullable). Los audios de origen `telegram` SHALL tener los dos identificadores de Telegram; los de origen `app` SHALL tener `content_hash` y no tener identificadores de Telegram.
+El sistema SHALL definir una entidad Doctrine `AudioRecording` con los campos de `Especificaciones.md` sección 6: `telegram_message_id` (nullable, unique), `telegram_file_unique_id` (nullable, unique), `source` (enum `telegram`/`app`, obligatorio), `content_hash` (SHA-256 en hexadecimal, nullable, unique), `file_path`, `received_at`, `status` (enum `PENDING`/`TRANSCRIBED`/`ERROR`), `duration_seconds`, `error_code` (nullable), `error_message` (nullable), `device_name` (hasta 100 caracteres, nullable). Los audios de origen `telegram` SHALL tener los dos identificadores de Telegram; los de origen `app` SHALL tener `content_hash` y no tener identificadores de Telegram. `device_name` SHALL ser el nombre del dispositivo del token que subió el audio, copiado y no como relación (el token puede revocarse), y SHALL quedar a `null` en los audios de Telegram.
 
 #### Scenario: Constraints únicos aplicados
 - **WHEN** se inspecciona el esquema de `audio_recording`
@@ -16,6 +16,10 @@ El sistema SHALL definir una entidad Doctrine `AudioRecording` con los campos de
 #### Scenario: Audios anteriores marcados como de Telegram
 - **WHEN** se aplica la migración sobre una base de datos con audios existentes
 - **THEN** las filas existentes quedan con `source` `telegram` y `content_hash` a `null`, sin error
+
+#### Scenario: Audios anteriores sin dispositivo
+- **WHEN** se aplica la migración de `device_name` sobre una base de datos con audios existentes
+- **THEN** las filas existentes quedan con `device_name` a `null`, sin error
 
 ### Requirement: Entidad `Transcription`
 El sistema SHALL definir una entidad Doctrine `Transcription` relacionada 1:1 con `AudioRecording` (`onDelete: CASCADE`), con campos `content`, `file_path`, `edited_manually` (default false), `processing_ms` (entero, nullable), `model` (string, nullable), `created_at`, `updated_at`.

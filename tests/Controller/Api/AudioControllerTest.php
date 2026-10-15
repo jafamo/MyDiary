@@ -78,6 +78,7 @@ class AudioControllerTest extends ApiTestCase
         self::assertNull($audioRecording->getTelegramMessageId());
         self::assertSame(37, $audioRecording->getDurationSeconds());
         self::assertStringEndsWith('/'.$contentHash.'.m4a', $audioRecording->getFilePath());
+        self::assertSame('iPhone', $audioRecording->getDeviceName(), 'Guarda el dispositivo del token');
         self::assertFileEquals($path, $audioRecording->getFilePath());
 
         self::assertSame([$json['id']], $this->dispatchedAudioRecordingIds());

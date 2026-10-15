@@ -4,6 +4,16 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+### Ramas integradas en `develop`
+- `feature/failure-notice-device`
+
+### Cambiado
+- El aviso de Telegram cuando falla la transcripción dice qué nota es: «No se pudo transcribir la nota ❌», el origen (📱 el dispositivo desde el que se subió con la app, o 💬 Telegram) y el día, la hora local y la duración (`🕐 15/10 05:02 · 0:14`). En los audios de Telegram el aviso responde al mensaje del audio.
+- Los audios subidos por la API guardan el nombre del dispositivo del token (`device_name`); un reintento tras un fallo (`retrying`) guarda el del que reenvía. No cambia el contrato de la API. Los audios de la app anteriores salen como «📱 App».
+
+### Migraciones
+- `Version20261015060000`: columna `audio_recording.device_name` (nullable).
+
 ## [0.18.1] - 2026-10-14
 
 ### Ramas integradas en `develop`

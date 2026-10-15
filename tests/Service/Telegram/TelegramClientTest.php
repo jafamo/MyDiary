@@ -31,6 +31,38 @@ class TelegramClientTest extends TestCase
         self::assertStringContainsString('Audio recibido', $requestedOptions['body']);
     }
 
+    public function testReplyGoesOnlyInTheFirstMessageAndToleratesAMissingOriginal(): void
+    {
+        $bodies = [];
+        $mockClient = new MockHttpClient(function (string $method, string $url, array $options) use (&$bodies) {
+            $bodies[] = json_decode($options['body'], true);
+
+            return new MockResponse('{"ok":true}');
+        });
+
+        (new TelegramClient($mockClient, 'test-token'))->sendMessage(12345, str_repeat('palabra ', 1000), 678);
+
+        self::assertGreaterThan(1, \count($bodies));
+        self::assertSame(['message_id' => 678, 'allow_sending_without_reply' => true], $bodies[0]['reply_parameters']);
+        foreach (\array_slice($bodies, 1) as $body) {
+            self::assertArrayNotHasKey('reply_parameters', $body);
+        }
+    }
+
+    public function testMessageWithoutReplyHasNoReplyParameters(): void
+    {
+        $body = null;
+        $mockClient = new MockHttpClient(function (string $method, string $url, array $options) use (&$body) {
+            $body = json_decode($options['body'], true);
+
+            return new MockResponse('{"ok":true}');
+        });
+
+        (new TelegramClient($mockClient, 'test-token'))->sendMessage(12345, 'Hola');
+
+        self::assertArrayNotHasKey('reply_parameters', $body);
+    }
+
     public function testShortMessageIsSentInOneRequest(): void
     {
         $texts = $this->sendAndCollectTexts(str_repeat('a', 4000));

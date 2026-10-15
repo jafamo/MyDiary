@@ -6,8 +6,10 @@ namespace App\Controller\Api;
 
 use App\Controller\Api\Presenter\AudioPresenter;
 use App\Entity\AudioRecording;
+use App\Entity\ApiToken;
 use App\Entity\AudioRecordingStatus;
 use App\Form\TranscriptionEditType;
+use App\Security\ApiTokenHandler;
 use App\Service\AudioFileMissingException;
 use App\Service\AudioFileResponder;
 use App\Service\AudioRecordingDeleter;
@@ -77,7 +79,11 @@ class AudioController
         }
 
         try {
-            $upload = $this->audioUploadService->upload($file->getPathname());
+            $apiToken = $request->attributes->get(ApiTokenHandler::REQUEST_ATTRIBUTE);
+            $upload = $this->audioUploadService->upload(
+                $file->getPathname(),
+                $apiToken instanceof ApiToken ? $apiToken->getName() : null,
+            );
         } catch (InvalidAudioUploadException $exception) {
             throw ApiException::validationFailed($exception->getMessage());
         }

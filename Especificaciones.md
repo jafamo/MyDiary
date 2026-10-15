@@ -57,7 +57,7 @@ La deduplicación es por origen: un mismo audio enviado por Telegram y subido de
 3. Guarda el resultado en la entidad `Transcription` (contenido en BD + export a fichero de texto en filesystem, nombrado con `telegram_file_unique_id` o, en los audios de la app, con `content_hash`), junto con sus métricas de consumo: tiempo de proceso de la llamada que tuvo éxito (`processing_ms`) y modelo (`model`, de `WHISPER_MODEL`). Open WebUI no devuelve tokens de Whisper, así que la métrica de una transcripción es duración del audio + tiempo de proceso.
 4. Actualiza el estado del `AudioRecording` a `TRANSCRIBED`.
 5. Envía al usuario en Telegram un resumen corto de esa transcripción concreta, terminado en una línea `🎙️ 1:42 de audio · ⏱️ transcrito en 14 s`. El aviso (y el de fallo del paso 6) se envía igual para los audios subidos desde la app: el handler no distingue el origen.
-6. **Manejo de errores**: si la llamada al servicio de transcripción falla, Symfony Messenger reintenta el `TranscribeAudioMessage` un número limitado de veces con backoff (`retry_strategy` nativo). Si se agotan los reintentos, `AudioRecording` pasa a estado `ERROR`, se guardan `error_code` y `error_message` (ver sección 6) con la causa técnica, y se notifica al usuario por Telegram (*"No se pudo transcribir este audio ❌"*). El audio no se pierde: queda visible en la web con el motivo del error y opción de reintentar o eliminarlo (flujo 3.4-bis).
+6. **Manejo de errores**: si la llamada al servicio de transcripción falla, Symfony Messenger reintenta el `TranscribeAudioMessage` un número limitado de veces con backoff (`retry_strategy` nativo). Si se agotan los reintentos, `AudioRecording` pasa a estado `ERROR`, se guardan `error_code` y `error_message` (ver sección 6) con la causa técnica, y se notifica al usuario por Telegram con «No se pudo transcribir la nota ❌», el origen (📱 dispositivo de la app, o 💬 Telegram) y el día, la hora local y la duración del audio; en los de Telegram, como respuesta al mensaje del audio. El audio no se pierde: queda visible en la web con el motivo del error y opción de reintentar o eliminarlo (flujo 3.4-bis).
 
 ### 3.3 Flujo de resumen diario (scheduled, 21:00 Europe/Madrid)
 1. Symfony Scheduler dispara el comando `app:generate-daily-summary` cada día a las 21:00 (timezone Europe/Madrid).
@@ -210,6 +210,7 @@ src/
 | telegram_file_unique_id | string | nullable (vacío en los audios de la app). ID de Telegram estable para el contenido del fichero — **unique**, detecta reenvíos del mismo audio (ver 3.1/3.4-bis) |
 | source | enum | `telegram` (por defecto; todos los anteriores a la subida por API) o `app` |
 | content_hash | string(64) | nullable. SHA-256 del fichero — **unique**. Solo en los audios de la app: deduplica subidas repetidas (ver 3.1) |
+| device_name | string(100) | nullable. Solo en los audios de la app: nombre del dispositivo del token que lo subió (copia de `api_token.name`; se actualiza en un reintento tras error). Sale en el aviso de fallo de transcripción |
 | file_path | string | Ruta del audio en el filesystem |
 | received_at | datetime | |
 | status | enum | `PENDING`, `TRANSCRIBED`, `ERROR` |
