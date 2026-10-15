@@ -6,6 +6,10 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ### Ramas integradas en `develop`
 - `feature/failure-notice-device`
+- `feature/idle-day-reminder`
+
+### Añadido
+- **Aviso de día sin audios**: si a las 15:00 o a las 17:00 (Europe/Madrid) no ha llegado ningún audio en el día, ni por Telegram ni por la app, el bot manda «No has hecho nada hoy? venga no seas así». Si ya hay algún audio, aunque su transcripción esté pendiente o haya fallado, no manda nada. Las horas se cambian con `IDLE_DAY_REMINDER_HOURS` (p. ej. `15,17`; vacía lo desactiva) y el texto con `IDLE_DAY_REMINDER_MESSAGE`.
 
 ### Cambiado
 - El aviso de Telegram cuando falla la transcripción dice qué nota es: «No se pudo transcribir la nota ❌», el origen (📱 el dispositivo desde el que se subió con la app, o 💬 Telegram) y el día, la hora local y la duración (`🕐 15/10 05:02 · 0:14`). En los audios de Telegram el aviso responde al mensaje del audio.
@@ -13,6 +17,9 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ### Migraciones
 - `Version20261015060000`: columna `audio_recording.device_name` (nullable).
+
+### Despliegue
+- Aviso de día sin audios: no requiere nada; las variables `IDLE_DAY_REMINDER_*` son opcionales. El despliegue ya reinicia `diary-messenger-worker`, que es lo que hace falta para que se programe el aviso. Para cambiar las horas o el texto después, editar el `.env` del servidor y reiniciar el worker.
 
 ## [0.18.1] - 2026-10-14
 
