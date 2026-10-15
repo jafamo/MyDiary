@@ -10,8 +10,8 @@
 ## Decisions
 
 - **`#[Target('api_login.limiter')]` en el parámetro**, como pide Symfony. Se descarta un `bind` en `services.yaml`: es justo el mecanismo de nombres que se está retirando, y alejaría la configuración del único sitio que la usa. Elegido con el usuario.
-- **Test sobre el log de deprecaciones del contenedor**: arranca el kernel de test y comprueba que `<build_dir>/<container_class>Deprecations.log` no tenga ninguna entrada (o no exista). Así cubre cualquier deprecación de compilación, no solo esta. Riesgo aceptado: una actualización de dependencias que traiga deprecaciones de terceros romperá CI, y hay que corregirlas en ese momento.
+- **Test que compila un contenedor nuevo y captura las deprecaciones**: bajo PHPUnit el kernel no escribe `Deprecations.log` (`KernelTrait` lo omite si existe `PHPUNIT_COMPOSER_INSTALL`), así que leer ese fichero no detectaba nada (comprobado: el test pasaba sin la corrección). El test arranca una subclase del `Kernel` de test con la caché en un directorio temporal y recoge con `set_error_handler` las `E_USER_DEPRECATED`/`E_DEPRECATED` de la compilación. Así cubre cualquier deprecación de compilación, no solo esta, y se comprobó que falla sin `#[Target]`. Riesgo aceptado: una actualización de dependencias que traiga deprecaciones de terceros romperá CI, y hay que corregirlas en ese momento.
 
 ## Risks / Trade-offs
 
-- [El log solo se regenera al recompilar el contenedor] → En CI la caché siempre es nueva. En local, el contenedor de test se recompila al cambiar el código (`debug`).
+- [Compilar un contenedor completo hace el test más lento (unos segundos)] → Es un único test, y la caché temporal se borra al terminar.

@@ -41,11 +41,11 @@ El sistema SHALL proveer comandos de consola para crear usuarios y cambiar su co
 - **THEN** no existe ninguna ruta de registro ni de recuperación de contraseña por email/token
 
 ### Requirement: Contenedor sin deprecaciones de compilación
-El sistema SHALL compilar el contenedor de servicios sin registrar ninguna deprecación (fichero `<ContainerClass>Deprecations.log` vacío o inexistente). En particular, los servicios con alias con nombre, como los limitadores de `rate_limiter`, SHALL inyectarse con el atributo `#[Target]` y no solo por el nombre del parámetro.
+El sistema SHALL compilar el contenedor de servicios sin emitir ninguna deprecación. En particular, los servicios con alias con nombre, como los limitadores de `rate_limiter`, SHALL inyectarse con el atributo `#[Target]` y no solo por el nombre del parámetro.
 
 #### Scenario: Compilación limpia
-- **WHEN** se compila el contenedor del entorno de test
-- **THEN** no queda ninguna deprecación registrada y `bin/console debug:container --deprecations` no lista ninguna
+- **WHEN** se compila desde cero el contenedor del entorno de test
+- **THEN** no se emite ninguna deprecación y `bin/console debug:container --deprecations` no lista ninguna
 
 #### Scenario: Limitador del login de la API inyectado por target
 - **WHEN** se construye `AuthController`

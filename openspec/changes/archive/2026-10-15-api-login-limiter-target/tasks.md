@@ -5,7 +5,7 @@
 
 ## 2. Tests
 
-- [x] 2.1 `tests/ContainerDeprecationsTest.php`: el log de deprecaciones del contenedor de test está vacío
+- [x] 2.1 `tests/ContainerDeprecationsTest.php`: compilar un contenedor nuevo no emite deprecaciones
 - [x] 2.2 Confirmar que los tests del límite de intentos del login siguen en verde
 
 ## 3. Verificación
