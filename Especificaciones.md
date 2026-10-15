@@ -75,6 +75,13 @@ La deduplicación es por origen: un mismo audio enviado por Telegram y subido de
    - **Estado de la generación**: `DailySummaryService` guarda en `daily_summary_generation` (sección 6) el estado de la última generación de cada día en todas las vías (bajo demanda, 21:00, recheck y comando): `RUNNING` al empezar, `DONE` al guardar y `FAILED` con `error_code`/`error_message` si se agotan los intentos. Una generación `QUEUED` o `RUNNING` pedida hace más de 15 minutos (`DailySummaryGeneration::STALL_AFTER_MINUTES`) se considera atascada (worker caído): se muestra como `FAILED` con `error_code` `STALLED` y se puede volver a pedir. Cada petición aceptada registra `daily_summary.generation_requested` con `daily_summary_date` y `daily_summary_request_source` (`web` / `api`).
 9. **Recheck tardío (21:00–00:30 Europe/Madrid)**: Symfony Scheduler dispara además `app:recheck-daily-summary` cada 15 minutos entre las 21:00 y las 00:30. El comando comprueba si hay `AudioRecording` `TRANSCRIBED` del día con `receivedAt` posterior al `generatedAt` del `DailySummary` vigente (o cualquier transcripción del día si el disparo de las 21:00 falló y no hay `DailySummary`); si las hay, regenera el resumen (igual que la generación bajo demanda, sin esperar por `PENDING`) y lo reenvía por Telegram. Si no hay novedades, no hace nada — no reenvía el resumen sin cambios.
 
+### 3.3-bis Aviso de día sin audios (scheduled, 15:00 y 17:00 Europe/Madrid)
+
+1. Symfony Scheduler dispara `app:notify-idle-day` en cada hora en punto (Europe/Madrid) de `IDLE_DAY_REMINDER_HOURS`, una lista separada por comas que por defecto es `15,17`. Si está vacía, no se programa ningún aviso. Una hora que no sea un entero entre 0 y 23 hace fallar el arranque del worker.
+2. El comando cuenta los `AudioRecording` recibidos hoy (día local), de cualquier origen (Telegram o API) y en cualquier estado. Si hay al menos uno, no hace nada (log `idle_day.skipped`).
+3. Si no hay ninguno, envía al chat autorizado el texto de `IDLE_DAY_REMINDER_MESSAGE` (por defecto «No has hecho nada hoy? venga no seas así»; log `idle_day.notified`). No guarda qué avisos ha enviado: si a las 17:00 sigue sin haber audios, vuelve a avisar.
+4. Ambas variables tienen su valor por defecto en `config/services.yaml`, así que no hace falta definirlas. El horario se construye al arrancar el worker: para que un cambio de horas surta efecto hay que reiniciar `diary-messenger-worker`.
+
 ### 3.4 Edición y eliminación
 - Desde la web se puede editar manualmente el texto de una transcripción.
 - Se puede eliminar una transcripción **ya generada** que no sirva (p. ej. audio inentendible, mala calidad de sonido): se borran `AudioRecording`, `Transcription` y los ficheros asociados en filesystem (audio + export de texto) sin dejar rastro. No existe una función de "regenerar desde el audio original" para este caso — si el resultado no es válido por culpa del propio audio, el usuario reenvía uno nuevo con mejor sonido, lo que dispara de nuevo el flujo 3.1.
@@ -196,6 +203,7 @@ src/
 │   └── TranscriptionEditType.php
 └── Command/
     ├── GenerateDailySummaryCommand.php         # invocado por Scheduler a las 21:00
+    ├── NotifyIdleDayCommand.php                # app:notify-idle-day, invocado por Scheduler (IDLE_DAY_REMINDER_HOURS)
     ├── CreateUserCommand.php                   # app:user:create
     └── ChangeUserPasswordCommand.php            # app:user:change-password
 ```

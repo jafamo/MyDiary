@@ -10,6 +10,9 @@ parameters:
     app.audio_storage_dir: '%kernel.project_dir%/var/audio'
     # IP del proxy KeenDNS del router (ver PublicUrlProxyListener). Vacía: sin proxy.
     env(KEENDNS_PROXY_IP): ''
+    # Aviso por Telegram si el día va sin audios (ver NotifyIdleDayCommand). Horas vacías: desactivado.
+    env(IDLE_DAY_REMINDER_HOURS): '15,17'
+    env(IDLE_DAY_REMINDER_MESSAGE): 'No has hecho nada hoy? venga no seas así'
 
 services:
     # default configuration for services in *this* file
@@ -22,6 +25,8 @@ services:
             string $webhookToken: '%env(TELEGRAM_WEBHOOK_TOKEN)%'
             string $publicUrl: '%env(APP_PUBLIC_URL)%'
             string $keenDnsProxyIp: '%env(KEENDNS_PROXY_IP)%'
+            string $idleDayReminderHours: '%env(IDLE_DAY_REMINDER_HOURS)%'
+            string $idleDayReminderMessage: '%env(IDLE_DAY_REMINDER_MESSAGE)%'
             string $openWebUiBaseUrl: '%env(OPENWEBUI_STT_BASE_URL)%'
             string $openWebUiApiKey: '%env(OPENWEBUI_API_KEY)%'
             string $whisperModel: '%env(WHISPER_MODEL)%'
