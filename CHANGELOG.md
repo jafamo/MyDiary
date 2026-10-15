@@ -4,6 +4,12 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+### Ramas integradas en `develop`
+- `bugfix/api-login-limiter-target`
+
+### Corregido
+- Desaparece el aviso de deprecación que salía en producción tras cada despliegue («Relying solely on the name of parameter "$apiLoginLimiter"…», `symfony/dependency-injection` 8.1). El limitador de intentos del login de la API se inyecta ahora con `#[Target]`; sin el cambio, la app no arrancaría al pasar a Symfony 9. El login no cambia: sigue con 5 intentos fallidos cada 15 minutos. Un test nuevo falla en CI si la compilación del contenedor deja cualquier deprecación.
+
 ## [0.19.0] - 2026-10-15
 
 ### Ramas integradas en `develop`
