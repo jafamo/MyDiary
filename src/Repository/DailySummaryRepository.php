@@ -74,6 +74,24 @@ class DailySummaryRepository extends ServiceEntityRepository
     }
 
     /**
+     * Fecha (Y-m-d) del resumen más cercano antes (`$before`) o después de $date, sin contar ese día.
+     */
+    public function findClosestDate(\DateTimeImmutable $date, bool $before): ?string
+    {
+        $rows = $this->createQueryBuilder('d')
+            ->select('d.date AS date')
+            ->andWhere($before ? 'd.date < :date' : 'd.date > :date')
+            ->setParameter('date', $date->format('Y-m-d'))
+            ->orderBy('d.date', $before ? 'DESC' : 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getArrayResult()
+        ;
+
+        return [] !== $rows ? $rows[0]['date']->format('Y-m-d') : null;
+    }
+
+    /**
      * Número de días con DailySummary generado dentro del rango.
      */
     public function countInRange(\DateTimeImmutable $from, \DateTimeImmutable $to): int

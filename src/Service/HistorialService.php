@@ -64,6 +64,29 @@ class HistorialService
     }
 
     /**
+     * Día con audios o resumen más cercano antes y después de $date (Y-m-d), con el mismo criterio
+     * que `monthDays()`. `null` si no hay.
+     *
+     * @return array{previous: string|null, next: string|null}
+     */
+    public function adjacentDays(\DateTimeImmutable $date): array
+    {
+        $previous = array_filter([
+            $this->audioRecordingRepository->findClosestDay($date, before: true),
+            $this->dailySummaryRepository->findClosestDate($date, before: true),
+        ]);
+        $next = array_filter([
+            $this->audioRecordingRepository->findClosestDay($date, before: false),
+            $this->dailySummaryRepository->findClosestDate($date, before: false),
+        ]);
+
+        return [
+            'previous' => [] !== $previous ? max($previous) : null,
+            'next' => [] !== $next ? min($next) : null,
+        ];
+    }
+
+    /**
      * Audios del día seleccionado (`Y-m-d`). Sin fecha o con una fecha inválida no hay selección.
      *
      * @return array{selected_date: \DateTimeImmutable|null, selected_entries: list<AudioRecording>}
