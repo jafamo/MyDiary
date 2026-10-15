@@ -15,7 +15,10 @@ Todo cambio funcional, por pequeño que sea, sigue:
 3. Implementar con tests.
 4. Añadir entrada en el CHANGELOG (`## [Sin publicar]`).
 5. Sincronizar specs y archivar el cambio.
-6. Hacer finish de la rama hacia `develop`.
+6. Presentar al usuario el resumen de revisión y esperar su confirmación.
+7. Hacer finish de la rama hacia `develop`.
+
+**Revisión antes del finish.** Antes de mergear a `develop`, presentar un resumen para detectar olvidos mientras el cambio sigue en su rama: qué se pidió frente a lo hecho (escenarios de la spec), decisiones tomadas sin consultar, ficheros y commits, tests y lo que queda sin probar, checklist de olvidos habituales (CHANGELOG, `Especificaciones.md`, spec sincronizada, documentación de la API, migraciones, variables en `.env.example`/`.env.test`, logs con prefijo, despliegue) y resultado de `cs-check`/`phpstan`/`test`. Sin confirmación explícita del usuario no hay finish ni push; si pide cambios, se hacen en la misma rama y se vuelve a presentar el resumen.
 
 Nunca implementar directamente sobre `develop`.
 
