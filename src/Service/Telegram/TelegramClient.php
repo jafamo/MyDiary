@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Telegram;
 
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class TelegramClient
@@ -17,6 +19,9 @@ class TelegramClient
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly string $botToken,
+        // TELEGRAM_NOTIFICATIONS_ENABLED: con false no sale ningún mensaje (p. ej. en dev, que comparte bot con producción).
+        private readonly bool $notificationsEnabled = true,
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
 
@@ -25,9 +30,22 @@ class TelegramClient
      *
      * Con $replyToMessageId, el primer mensaje responde a ese mensaje del chat; si ya no
      * existe, se envía igualmente sin la respuesta.
+     *
+     * Con los envíos desactivados (TELEGRAM_NOTIFICATIONS_ENABLED=false) no se llama a Telegram:
+     * solo queda un log. La descarga de audios no se ve afectada.
      */
     public function sendMessage(int $chatId, string $text, ?int $replyToMessageId = null): void
     {
+        if (!$this->notificationsEnabled) {
+            $this->logger->info('Mensaje de Telegram omitido: envíos desactivados', [
+                'event' => 'telegram.message_skipped',
+                'telegram_chat_id' => $chatId,
+                'telegram_text_length' => mb_strlen($text),
+            ]);
+
+            return;
+        }
+
         foreach (self::splitText($text, self::MAX_MESSAGE_LENGTH) as $index => $part) {
             $payload = [
                 'chat_id' => $chatId,

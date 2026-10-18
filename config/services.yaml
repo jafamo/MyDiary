@@ -13,6 +13,8 @@ parameters:
     # Aviso por Telegram si el día va sin audios (ver NotifyIdleDayCommand). Horas vacías: desactivado.
     env(IDLE_DAY_REMINDER_HOURS): '15,17'
     env(IDLE_DAY_REMINDER_MESSAGE): 'No has hecho nada hoy? venga no seas así'
+    # Envíos salientes a Telegram (ver TelegramClient). En dev van desactivados desde .env.dev.
+    env(TELEGRAM_NOTIFICATIONS_ENABLED): 'true'
 
 services:
     # default configuration for services in *this* file
@@ -21,6 +23,7 @@ services:
         autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
         bind:
             string $botToken: '%env(TELEGRAM_BOT_TOKEN)%'
+            bool $notificationsEnabled: '%env(bool:TELEGRAM_NOTIFICATIONS_ENABLED)%'
             string $authorizedChatId: '%env(TELEGRAM_AUTHORIZED_CHAT_ID)%'
             string $webhookToken: '%env(TELEGRAM_WEBHOOK_TOKEN)%'
             string $publicUrl: '%env(APP_PUBLIC_URL)%'

@@ -332,6 +332,8 @@ OPENWEBUI_API_KEY=
 WHISPER_MODEL=whisper-1
 ```
 
+**Envíos a Telegram (`TELEGRAM_NOTIFICATIONS_ENABLED`, opcional, por defecto `true`).** Con `false`, `TelegramClient::sendMessage()` no llama a Telegram: no salen avisos programados, resúmenes, notificaciones de transcripción o fallo ni respuestas del webhook, y cada mensaje omitido deja un log `telegram.message_skipped` (`telegram_chat_id`, `telegram_text_length`). La descarga de audios no se ve afectada. En dev vale `false` desde `.env.dev`, porque el stack local comparte bot y chat con producción y su worker también ejecuta el scheduler: con ella activa, cada aviso llegaba dos veces. Para activarla en local se usa `.env.dev.local`. Un cambio de valor requiere reiniciar `diary-php` y `diary-messenger-worker`.
+
 La zona horaria local (`Europe/Madrid`) no es variable de entorno: es la constante `App\LocalTimezone::NAME`, fuente única para PHP (`DateRange`, repositorios, `Schedule`) y Twig (global `local_timezone`). PHP corre en UTC y las fechas se guardan en UTC; esa zona solo se usa para interpretar y mostrar días/horas en local.
 
 El usuario (`user` en BD) se crea con `bin/console app:user:create`, no vía variables de entorno.
