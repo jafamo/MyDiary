@@ -88,7 +88,7 @@ class HistorialControllerTest extends ApiTestCase
 
         self::assertResponseStatusCodeSame(200);
         $json = $this->json();
-        self::assertSame(['date', 'entries', 'summary'], array_keys($json));
+        self::assertSame(['date', 'entries', 'summary', 'previous_date', 'next_date'], array_keys($json));
         self::assertSame('2019-05-10', $json['date']);
         self::assertSame([$first->getId(), $second->getId()], $this->ids($json['entries']));
         self::assertNotContains($otherDay->getId(), $this->ids($json['entries']));
@@ -112,7 +112,66 @@ class HistorialControllerTest extends ApiTestCase
         $this->api('GET', '/api/v1/historial/2018-01-01', $this->token);
 
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(['date' => '2018-01-01', 'entries' => [], 'summary' => null], $this->json());
+        $json = $this->json();
+        self::assertSame('2018-01-01', $json['date']);
+        self::assertSame([], $json['entries']);
+        self::assertNull($json['summary']);
+    }
+
+    /**
+     * Fechas de 1990: lejos de los datos de otros tests, para que nada se cuele entre medias.
+     */
+    public function testDayReturnsTheClosestDaysWithActivity(): void
+    {
+        $this->createAudio('1990-03-10 10:00:00');
+        $this->createAudio('1990-05-15 10:00:00', AudioRecordingStatus::ERROR);
+        $this->createSummary('1990-07-02');
+
+        foreach (['', '?status=TRANSCRIBED'] as $query) {
+            $this->api('GET', '/api/v1/historial/1990-05-15'.$query, $this->token);
+
+            $json = $this->json();
+            self::assertSame('1990-03-10', $json['previous_date'], $query);
+            self::assertSame('1990-07-02', $json['next_date'], $query);
+        }
+    }
+
+    public function testClosestDayIsTheNearestOfAudiosAndSummaries(): void
+    {
+        $this->createAudio('1990-03-10 10:00:00');
+        $this->createSummary('1990-04-01');
+        $this->createAudio('1990-06-20 10:00:00');
+        $this->createSummary('1990-07-02');
+
+        $this->api('GET', '/api/v1/historial/1990-05-15', $this->token);
+
+        $json = $this->json();
+        self::assertSame('1990-04-01', $json['previous_date']);
+        self::assertSame('1990-06-20', $json['next_date']);
+    }
+
+    public function testClosestDaysUseTheLocalDay(): void
+    {
+        // 00:30 del 15 en Madrid: es el propio día, no el anterior.
+        $this->createAudio('1990-05-14 22:30:00');
+        // 01:30 del 16 en Madrid.
+        $this->createAudio('1990-05-15 23:30:00');
+        $this->createAudio('1990-05-10 10:00:00');
+
+        $this->api('GET', '/api/v1/historial/1990-05-15', $this->token);
+
+        $json = $this->json();
+        self::assertSame('1990-05-10', $json['previous_date']);
+        self::assertSame('1990-05-16', $json['next_date']);
+    }
+
+    public function testNoClosestDayIsNull(): void
+    {
+        $this->api('GET', '/api/v1/historial/1900-01-01', $this->token);
+        self::assertNull($this->json()['previous_date']);
+
+        $this->api('GET', '/api/v1/historial/2999-12-31', $this->token);
+        self::assertNull($this->json()['next_date']);
     }
 
     public function testImpossibleDateIsRejected(): void

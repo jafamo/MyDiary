@@ -122,7 +122,7 @@ Segunda entrada a la aplicación, pensada para la app de iPhone (plan por fases 
 - **Endpoints actuales:** `POST /api/v1/login`, `POST /api/v1/logout`, `GET /api/v1/me` (usuario y datos del token en uso), `POST /api/v1/audios` (subida de audio), `GET /api/v1/audios/{id}/fichero` (descarga del audio), los de lectura y los de escritura.
 - **Lectura** (equivalentes a las vistas web, sobre los mismos servicios y repositorios):
   - `GET /api/v1/diario` — audios de hoy con su transcripción, resumen del día, estado de su última generación (`summary_generation`: `status` `QUEUED` / `RUNNING` / `DONE` / `FAILED`, instantes y error, o `null`), rachas, total de la semana y tema del mes. Filtro `status`.
-  - `GET /api/v1/historial?month=AAAA-MM` — solo los días del mes con audios o resumen (`date`, `audio_count`, `has_summary`); la app pinta su propio calendario y la rejilla por semanas (`MonthGrid`) se queda en la web. `GET /api/v1/historial/{fecha}` — audios y resumen de un día (un día vacío es `200` con listas vacías).
+  - `GET /api/v1/historial?month=AAAA-MM` — solo los días del mes con audios o resumen (`date`, `audio_count`, `has_summary`); la app pinta su propio calendario y la rejilla por semanas (`MonthGrid`) se queda en la web. `GET /api/v1/historial/{fecha}` — audios y resumen de un día (un día vacío es `200` con listas vacías), con `previous_date` y `next_date`: el día con audios o resumen más cercano antes y después (`null` si no hay), para saltar los días vacíos.
   - `GET /api/v1/resumenes` — paginado, del más reciente al más antiguo, con `audio_count`. Filtros `from` / `to` (los dos o ninguno).
   - `GET /api/v1/busqueda?q=` — `results` (semántica en transcripciones y resúmenes, por `distance` ascendente) y `reminders` (por texto). Si falla el embedding, `results` va vacío.
   - `GET /api/v1/estadisticas` — métricas del rango con las series en crudo y `ai_usage` (`totals` y `days`). `range`: `15`, `30`, `90`, `365` o `custom` con `from` / `to`. Sin la geometría del gráfico, que es de la web.
@@ -331,6 +331,8 @@ OPENWEBUI_STT_BASE_URL=http://192.168.4.200:9006
 OPENWEBUI_API_KEY=
 WHISPER_MODEL=whisper-1
 ```
+
+**Envíos a Telegram (`TELEGRAM_NOTIFICATIONS_ENABLED`, opcional, por defecto `true`).** Con `false`, `TelegramClient::sendMessage()` no llama a Telegram: no salen avisos programados, resúmenes, notificaciones de transcripción o fallo ni respuestas del webhook, y cada mensaje omitido deja un log `telegram.message_skipped` (`telegram_chat_id`, `telegram_text_length`). La descarga de audios no se ve afectada. En dev vale `false` desde `.env.dev`, porque el stack local comparte bot y chat con producción y su worker también ejecuta el scheduler: con ella activa, cada aviso llegaba dos veces. Para activarla en local se usa `.env.dev.local`. Un cambio de valor requiere reiniciar `diary-php` y `diary-messenger-worker`.
 
 La zona horaria local (`Europe/Madrid`) no es variable de entorno: es la constante `App\LocalTimezone::NAME`, fuente única para PHP (`DateRange`, repositorios, `Schedule`) y Twig (global `local_timezone`). PHP corre en UTC y las fechas se guardan en UTC; esa zona solo se usa para interpretar y mostrar días/horas en local.
 

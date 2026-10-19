@@ -58,15 +58,17 @@ class HistorialController
     }
 
     #[Route('/api/v1/historial/{fecha}', name: 'api_historial_day', requirements: ['fecha' => '\d{4}-\d{2}-\d{2}'], methods: ['GET'])]
-    #[OA\Get(summary: 'Audios y resumen de un día', description: 'Un día sin audios ni resumen responde `200` con `entries` vacío y `summary` a `null`.')]
+    #[OA\Get(summary: 'Audios y resumen de un día', description: 'Un día sin audios ni resumen responde `200` con `entries` vacío y `summary` a `null`. `previous_date` y `next_date` son el día más cercano antes y después con audios o resumen (`null` si no hay), sin tener en cuenta `status`.')]
     #[OA\Parameter(name: 'fecha', in: 'path', description: 'Día como `AAAA-MM-DD`.', schema: new OA\Schema(type: 'string', format: 'date'))]
     #[OA\Parameter(name: 'status', in: 'query', description: 'Solo los audios en ese estado.', schema: new OA\Schema(type: 'string', enum: ['PENDING', 'TRANSCRIBED', 'ERROR']))]
     #[OA\Response(response: 200, description: 'Detalle del día', content: new OA\JsonContent(
-        required: ['date', 'entries', 'summary'],
+        required: ['date', 'entries', 'summary', 'previous_date', 'next_date'],
         properties: [
             new OA\Property(property: 'date', type: 'string', format: 'date'),
             new OA\Property(property: 'entries', type: 'array', items: new OA\Items(ref: '#/components/schemas/Audio')),
             new OA\Property(property: 'summary', ref: '#/components/schemas/Summary', nullable: true),
+            new OA\Property(property: 'previous_date', type: 'string', format: 'date', nullable: true),
+            new OA\Property(property: 'next_date', type: 'string', format: 'date', nullable: true),
         ],
     ))]
     #[OA\Response(response: 401, description: 'Token ausente, inválido o caducado', content: new OA\JsonContent(ref: '#/components/schemas/Error'))]
@@ -76,11 +78,14 @@ class HistorialController
         $date = ApiQuery::parseDay($fecha, 'fecha');
         $status = ApiQuery::status($request);
         $dailySummary = $this->dailySummaryRepository->findOneByDate($date);
+        $adjacent = $this->historialService->adjacentDays($date);
 
         return new JsonResponse([
             'date' => $date->format('Y-m-d'),
             'entries' => array_map($this->audioPresenter->detail(...), $this->audioRecordingRepository->findAllReceivedOn($date, $status)),
             'summary' => null !== $dailySummary ? $this->summaryPresenter->present($dailySummary) : null,
+            'previous_date' => $adjacent['previous'],
+            'next_date' => $adjacent['next'],
         ]);
     }
 }

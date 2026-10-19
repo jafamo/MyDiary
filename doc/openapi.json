@@ -1113,7 +1113,7 @@
                     "Historial"
                 ],
                 "summary": "Audios y resumen de un d\u00eda",
-                "description": "Un d\u00eda sin audios ni resumen responde `200` con `entries` vac\u00edo y `summary` a `null`.",
+                "description": "Un d\u00eda sin audios ni resumen responde `200` con `entries` vac\u00edo y `summary` a `null`. `previous_date` y `next_date` son el d\u00eda m\u00e1s cercano antes y despu\u00e9s con audios o resumen (`null` si no hay), sin tener en cuenta `status`.",
                 "operationId": "get_api_historial_day",
                 "parameters": [
                     {
@@ -1150,7 +1150,9 @@
                                     "required": [
                                         "date",
                                         "entries",
-                                        "summary"
+                                        "summary",
+                                        "previous_date",
+                                        "next_date"
                                     ],
                                     "properties": {
                                         "date": {
@@ -1169,6 +1171,16 @@
                                                     "$ref": "#/components/schemas/Summary"
                                                 }
                                             ],
+                                            "nullable": true
+                                        },
+                                        "previous_date": {
+                                            "type": "string",
+                                            "format": "date",
+                                            "nullable": true
+                                        },
+                                        "next_date": {
+                                            "type": "string",
+                                            "format": "date",
                                             "nullable": true
                                         }
                                     },

@@ -166,6 +166,27 @@ class AudioRecordingRepository extends ServiceEntityRepository
         return array_keys($dates);
     }
 
+    /**
+     * Día (Y-m-d, Europe/Madrid) del audio más cercano antes (`$before`) o después del día de $date,
+     * sin contar ese día.
+     */
+    public function findClosestDay(\DateTimeImmutable $date, bool $before): ?string
+    {
+        [$start, $end] = DateRange::dayBoundaries($date);
+
+        $rows = $this->createQueryBuilder('a')
+            ->select('a.receivedAt')
+            ->andWhere($before ? 'a.receivedAt < :limit' : 'a.receivedAt >= :limit')
+            ->setParameter('limit', $before ? $start : $end)
+            ->orderBy('a.receivedAt', $before ? 'DESC' : 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getArrayResult()
+        ;
+
+        return [] !== $rows ? self::localDay($rows[0]['receivedAt']) : null;
+    }
+
     public function averageDurationInRange(\DateTimeImmutable $from, \DateTimeImmutable $to, ?AudioRecordingStatus $status = null): float
     {
         [$start, $end] = DateRange::boundariesForDates($from, $to);

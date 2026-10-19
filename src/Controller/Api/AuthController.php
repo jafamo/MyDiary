@@ -11,6 +11,7 @@ use App\Service\ApiTokenManager;
 use Nelmio\ApiDocBundle\Attribute\Security;
 use OpenApi\Attributes as OA;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -27,6 +28,7 @@ class AuthController
         private readonly UserRepository $userRepository,
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly ApiTokenManager $apiTokenManager,
+        #[Target('api_login.limiter')]
         private readonly RateLimiterFactoryInterface $apiLoginLimiter,
         private readonly LoggerInterface $logger,
     ) {

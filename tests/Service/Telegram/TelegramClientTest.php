@@ -6,6 +6,7 @@ namespace App\Tests\Service\Telegram;
 
 use App\Service\Telegram\TelegramClient;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -111,6 +112,42 @@ class TelegramClientTest extends TestCase
 
         self::assertSame([4000, 4000, 1000], array_map('mb_strlen', $texts));
         self::assertSame($text, implode('', $texts));
+    }
+
+    public function testSendMessageIsSkippedAndLoggedWhenNotificationsAreDisabled(): void
+    {
+        $mockClient = new MockHttpClient(function (): MockResponse {
+            self::fail('No se debe llamar a la API de Telegram con los envíos desactivados.');
+        });
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())
+            ->method('info')
+            ->with(self::anything(), [
+                'event' => 'telegram.message_skipped',
+                'telegram_chat_id' => 12345,
+                'telegram_text_length' => 4,
+            ]);
+
+        (new TelegramClient($mockClient, 'test-token', false, $logger))->sendMessage(12345, 'Hola');
+    }
+
+    public function testFileDownloadStillWorksWhenNotificationsAreDisabled(): void
+    {
+        $mockClient = new MockHttpClient([
+            new MockResponse('{"ok":true,"result":{"file_id":"abc","file_unique_id":"unique-1","file_path":"voice/file.ogg"}}'),
+            new MockResponse('binary-audio-content'),
+        ]);
+        $client = new TelegramClient($mockClient, 'test-token', false);
+
+        $destination = sys_get_temp_dir().'/telegram-client-test-'.uniqid().'/file.ogg';
+
+        self::assertSame('voice/file.ogg', $client->getFile('abc')['file_path']);
+        self::assertSame('binary-audio-content', file_get_contents($client->downloadFile('voice/file.ogg', $destination)));
+        self::assertSame(2, $mockClient->getRequestsCount());
+
+        unlink($destination);
+        rmdir(\dirname($destination));
     }
 
     public function testGetFileReturnsResultArray(): void
