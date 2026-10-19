@@ -4,6 +4,8 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+## [0.19.1] - 2026-10-19
+
 ### Ramas integradas en `develop`
 - `bugfix/api-login-limiter-target`
 - `feature/history-adjacent-days`
