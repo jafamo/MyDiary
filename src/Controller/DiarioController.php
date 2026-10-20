@@ -47,6 +47,8 @@ class DiarioController
             'best_streak' => $this->dashboardService->getBestStreak(),
             'week' => $this->dashboardService->getWeekTotalAndTrend(),
             'top_topic' => $this->dashboardService->getTopTopicOfMonth(),
+            'daily_counts' => $this->dashboardService->getDailyCounts(14),
+            'current_week' => $this->dashboardService->getCurrentWeek(),
         ]));
     }
 }

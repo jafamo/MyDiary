@@ -98,10 +98,18 @@ Distinto del caso anterior: aquí el audio en sí es válido, pero el servicio d
 
 ### 3.5 Vistas / menús (navegación vertical, tras login)
 - **Login**
-- **Diario** — audios + transcripciones del día actual, con el resumen del día al final (visible cuando ya se generó, a partir de las 21:00). El log de entradas se puede filtrar por estado (Todos/Pendiente/Transcrito/Error). Cada transcripción muestra un pie con tiempo de proceso, velocidad (× tiempo real) y modelo; el resumen (aquí y en Resúmenes), tokens de entrada/salida/total, tiempo de generación y modelo. Las métricas ausentes (registros anteriores a su captura) se muestran como "—". Cada entrada, en cualquier estado, lleva un reproductor `<audio preload="none">` del fichero original, servido por `GET /audio/{id}/fichero` (con sesión; mismo comportamiento que el endpoint de la API, ver 3.7).
+- **Diario** — audios + transcripciones del día actual, en este orden: actividad (racha y mejor racha, barras de audios de los últimos 14 días, audios de la semana con tendencia, tema del mes), resumen del día (cuando ya se generó, a partir de las 21:00 o bajo demanda, con «Regenerar resumen» al pie) y log de audios. En pantallas anchas, log a la izquierda y resumen más próximos recordatorios a la derecha. El log de entradas se puede filtrar por estado (Todos/Pendiente/Transcrito/Error). Cada transcripción muestra un pie con tiempo de proceso, velocidad (× tiempo real) y modelo; el resumen (aquí y en Resúmenes), tokens de entrada/salida/total, tiempo de generación y modelo. Las métricas ausentes (registros anteriores a su captura) se muestran como "—". Cada entrada, en cualquier estado, lleva un reproductor `<audio preload="none">` del fichero original, servido por `GET /audio/{id}/fichero` (con sesión; mismo comportamiento que el endpoint de la API, ver 3.7).
 - **Historial** — vista de calendario (mes) navegable, con acceso a los audios/transcripciones de cada día anterior. El log del día seleccionado admite el mismo filtro por estado que Diario.
 - **Estadísticas** — agregados: nº de audios/día, duración media, temas más frecuentes. Filtrable por rango de fechas y, combinable con este, por estado (recalcula la serie de audios/día, la media diaria y la duración media; el desglose de estados y el ranking de temas siempre muestran el total sin filtrar). Incluye la sección **Consumo IA** sobre el rango (no le afecta el filtro de estado): tokens totales con desglose entrada/salida, media de tokens por resumen, audio transcrito, tiempo de proceso Whisper/Ollama, gráfico de barras apiladas de tokens por día y tabla por día ("Ver como tabla").
 - **Logout**
+
+**Navegación.** En ≥760px, barra lateral con todos los destinos y, al pie, el botón del usuario que abre un menú con la sección «Tema» y «Cerrar sesión». En móvil, barra superior (marca, botón de cambio de tema, campana) y barra inferior de 5 ítems (Diario, Historial, Buscar, Avisos, «Más»); «Más» abre un panel con Resúmenes, Estadísticas, Temas y «Cerrar sesión».
+
+**Temas visuales.** Dos temas claros, definidos en el enum `UiTheme`:
+- `moderno` (por defecto): tarjetas, Plus Jakarta Sans + JetBrains Mono, paleta cian.
+- `cuaderno`: línea de tiempo y tira semanal en Diario, Newsreader + Roboto, paleta papel/marrón con violeta.
+
+La preferencia se guarda en `app_user.ui_theme` y se cambia con `POST /preferencias/tema` (CSRF `ui_theme`). Las páginas se renderizan con `data-theme` en `<html>` y el CSS define los tokens de cada tema. Sin modo oscuro automático. Las fuentes están autoalojadas en `public/fonts/` (woff2, licencia OFL).
 
 ### 3.6 Búsqueda semántica
 
@@ -288,6 +296,7 @@ Nota: la tabla se llama `app_user`, no `user` — `user` es palabra reservada en
 | username | string | **unique** |
 | password_hash | string | hash de la contraseña (Symfony `PasswordHasher`) |
 | roles | json | p. ej. `["ROLE_USER"]` — sin niveles de rol complejos, un único usuario |
+| ui_theme | string | tema visual de la web (`moderno` por defecto, `cuaderno`); enum `UiTheme` |
 
 Sin registro ni recuperación de contraseña vía web. Gestión exclusivamente por consola: `bin/console app:user:create <username>` (pide/genera la contraseña) y `bin/console app:user:change-password <username>` (fija una contraseña nueva sin pedir la actual — requiere acceso al servidor/contenedor, que ya implica confianza de administrador).
 

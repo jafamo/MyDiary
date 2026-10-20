@@ -4,6 +4,30 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+### Ramas integradas en `develop`
+- `feature/web-ui-themes`
+
+### Añadido
+- **Dos temas para la web, Moderno y Cuaderno**, que se eligen en el menú que se abre al pulsar el nombre de usuario (pie de la barra lateral) o, en el móvil, con el botón de la barra superior.
+  - **Moderno** usa tarjetas con letra Plus Jakarta Sans y colores cian.
+  - **Cuaderno** muestra los audios en una línea de tiempo, usa letra serif (Newsreader) en resúmenes y transcripciones y colores de papel con marrón tinta, y añade una tira con los días de la semana que lleva a Historial.
+  - El tema se guarda en tu usuario, así que se mantiene entre visitas y dispositivos. Se aplica desde el primer momento, sin parpadeo, y cambiarlo no recarga la página.
+  - Las fuentes van incluidas en la aplicación: no se piden a Google.
+  - Cada cambio deja un log `ui.theme_changed` con el campo `ui_theme`.
+- **Actividad de los últimos 14 días** en Diario: barras con los audios de cada día, junto a la racha, la mejor racha, los audios de la semana con su tendencia y el tema del mes.
+- **Reproductor de audio propio** en Diario e Historial: botón de reproducir y pausar, barra de progreso y tiempo. Solo suena un audio a la vez y el audio sigue sin descargarse hasta que se reproduce.
+
+### Cambiado
+- **Diario se reordena**: primero la actividad, después el resumen del día (con «Regenerar resumen» al pie de su tarjeta) y por último los audios. En pantallas anchas los audios van a la izquierda; a la derecha, el resumen y los próximos recordatorios.
+- **Barra inferior del móvil con 5 botones**: Diario, Historial, Buscar, Avisos y «Más». «Más» abre un panel con Resúmenes, Estadísticas, Temas y «Cerrar sesión». Antes había 7 botones y los textos no cabían.
+- **Se quita el modo oscuro automático**: la web ya no cambia de colores con el modo oscuro del sistema; los dos temas son claros.
+
+### Migraciones
+- `Version20261020170343`: columna `app_user.ui_theme` (`moderno` por defecto; los usuarios existentes quedan en Moderno). **Requiere `make migrate` tras el despliegue.**
+
+### Despliegue
+- En el servidor: `make deploy` y después `make migrate`. No hay variables nuevas.
+
 ## [0.19.1] - 2026-10-19
 
 ### Ramas integradas en `develop`

@@ -2,6 +2,10 @@
 
 {% block title %}Historial — {{ month_date|es_month_year }}{% endblock %}
 
+{% block javascripts %}
+    <script src="{{ asset('js/audio-player.js') }}" defer></script>
+{% endblock %}
+
 {% block body %}
     <main class="content content--wide">
         <div class="page-header"><h1>Historial</h1></div>
