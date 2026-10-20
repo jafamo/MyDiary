@@ -13,16 +13,16 @@
 
 ## 2. Cambio de tema (backend)
 
-- [ ] 2.1 Test funcional `ThemePreferenceControllerTest`:
+- [x] 2.1 Test funcional `ThemePreferenceControllerTest`:
   - POST válido guarda la preferencia y redirige al `Referer` interno.
   - `Referer` externo redirige a Diario.
   - Tema desconocido no cambia nada.
   - Sin CSRF, error.
   - Sin sesión, redirige a `/login`.
   - Petición con `Accept: application/json` responde `204`.
-- [ ] 2.2 `ThemePreferenceController` (`POST /preferencias/tema`, CSRF `ui_theme`) con log `ui.theme_changed` y campo `ui_theme` en el canal `app`
-- [ ] 2.3 Función/variable Twig `ui_theme` (tema del usuario o el por defecto sin sesión) y `data-theme="{{ ui_theme }}"` en `<html>` de `base.html.twig` y `security/login.html.twig`
-- [ ] 2.4 Test: Diario y otra vista (p. ej. Estadísticas) renderizan `data-theme` según la preferencia
+- [x] 2.2 `ThemePreferenceController` (`POST /preferencias/tema`, CSRF `ui_theme`) con log `ui.theme_changed` y campo `ui_theme` en el canal `app`
+- [x] 2.3 Función/variable Twig `ui_theme` (tema del usuario o el por defecto sin sesión) y `data-theme="{{ ui_theme }}"` en `<html>` de `base.html.twig` y `security/login.html.twig`
+- [x] 2.4 Test: Diario y otra vista (p. ej. Estadísticas) renderizan `data-theme` según la preferencia
 
 ## 3. Fundamentos visuales
 

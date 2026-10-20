@@ -62,8 +62,8 @@ Elegir una opción o pulsar el botón SHALL enviar `POST /preferencias/tema` con
 - **THEN** el sistema redirige a Diario y no al dominio externo
 
 ### Requirement: Registro del cambio de tema
-Cada cambio de tema SHALL registrar un log `info` en el canal `app` con mensaje `ui.theme_changed` y el campo plano `ui_theme` con el tema elegido.
+Cada cambio de tema SHALL registrar un log `info` en el canal `app` con `event = ui.theme_changed` y el campo plano `ui_theme` con el tema elegido (misma convención que el resto de logs de la aplicación).
 
 #### Scenario: Log del cambio
 - **WHEN** el usuario cambia su tema a `cuaderno`
-- **THEN** se escribe un log `ui.theme_changed` con `ui_theme = "cuaderno"`
+- **THEN** se escribe un log con `event = "ui.theme_changed"` y `ui_theme = "cuaderno"`

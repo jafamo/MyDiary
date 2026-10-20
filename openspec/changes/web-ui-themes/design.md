@@ -83,7 +83,7 @@ Hoy la app cambia a oscuro sola con `prefers-color-scheme`. Los mockups v2 solo 
 
 - **Recomendada**: formulario `POST /preferencias/tema` (CSRF `ui_theme`, campo `theme`) que guarda la preferencia y redirige a la URL de origen (`Referer` validado como ruta interna, si no a Diario). Funciona sin JS.
 - Con JS, el mismo formulario se envía con `fetch` y se cambia `document.documentElement.dataset.theme` al instante (y se carga la familia tipográfica si falta), sin recargar.
-- Log `info` en el canal `app`: mensaje `ui.theme_changed`, contexto `{ui_theme: 'cuaderno'}` (campo plano con prefijo, por Kibana).
+- Log `info` en el canal `app` con contexto `{event: 'ui.theme_changed', ui_theme: 'cuaderno'}` (campo plano con prefijo, por Kibana).
 
 ### D7. Datos nuevos para Diario
 
