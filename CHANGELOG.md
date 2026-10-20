@@ -4,6 +4,8 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+## [0.20.0] - 2026-10-20
+
 ### Ramas integradas en `develop`
 - `feature/web-ui-themes`
 
