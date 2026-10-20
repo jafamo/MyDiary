@@ -63,4 +63,4 @@
 - [x] 7.1 `Especificaciones.md`: 3.5 Vistas (orden de Diario, temas, navegación móvil con «Más») y tabla `app_user` (`ui_theme`)
 - [x] 7.2 CHANGELOG `## [Sin publicar]`: Añadido (temas Moderno/Cuaderno, selector, reproductor, barras de 14 días), Cambiado (Diario reordenado, barra inferior de 5 ítems) y Migraciones
 - [x] 7.3 `make cs-check`, `make phpstan` y `make test` en verde
-- [ ] 7.4 Sincronizar specs y archivar el cambio; presentar el resumen de revisión al usuario y esperar su confirmación antes de `git flow feature finish`
+- [x] 7.4 Sincronizar specs y archivar el cambio (hecho); presentar el resumen de revisión al usuario y esperar su confirmación antes de `git flow feature finish`
