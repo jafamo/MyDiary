@@ -115,3 +115,21 @@ Hoy la app cambia a oscuro sola con `prefers-color-scheme`. Los mockups v2 solo 
 - Confirmar D4, D6, D7 y D8 en la revisión (D1, D2, D3 y D5 ya confirmadas).
 - ¿El texto de la navegación debe decir «Diario» o «Hoy»? Los mockups usan ambos; se propone «Diario» en Moderno y en Cuaderno, por coherencia con las rutas.
 - ¿Se mantiene el pie de métricas del resumen (tokens, tiempo, modelo) visible, o pasa a un desplegable «Detalles»? Los mockups v2 lo omiten; la spec actual lo exige. Se propone mantenerlo visible y discreto.
+
+## Contraste medido (tarea 3.4)
+
+Ratios WCAG de los pares texto/fondo de los tokens de `app.css` (mínimo exigido 4.5:1):
+
+| Tema | Par | Ratio |
+|---|---|---|
+| Moderno | texto / fondo | 13.74 |
+| Moderno | texto secundario / fondo · / panel-2 | 5.61 · 5.19 |
+| Moderno | acento / panel · / fondo | 5.36 · 4.91 |
+| Moderno | blanco / acento (botón primario) | 5.36 |
+| Moderno | ámbar / panel | 5.02 |
+| Moderno | transcrito · pendiente · error sobre su fondo de píldora | 6.78 · 6.37 · 5.30 |
+| Cuaderno | texto / fondo | 17.22 |
+| Cuaderno | texto secundario / fondo · / panel-2 | 7.31 · 6.88 |
+| Cuaderno | acento / fondo · blanco / acento | 6.84 · 7.09 |
+| Cuaderno | enlace violeta / fondo · / panel | 6.06 · 6.29 |
+| Cuaderno | pendiente · transcrito · error / fondo | 4.84 · 5.29 · 6.24 |

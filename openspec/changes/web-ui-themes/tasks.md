@@ -26,13 +26,13 @@
 
 ## 3. Fundamentos visuales
 
-- [ ] 3.1 Descargar y añadir a `public/fonts/` los woff2 (subconjunto latin, pesos de D2) con sus licencias OFL; `@font-face` en `public/css/fonts.css`
-- [ ] 3.2 Reorganizar `public/css/app.css`:
+- [x] 3.1 Descargar y añadir a `public/fonts/` los woff2 (subconjunto latin, pesos de D2) con sus licencias OFL; `@font-face` en `public/css/fonts.css`
+- [x] 3.2 Reorganizar `public/css/app.css`:
   - Tokens semánticos por tema en `:root[data-theme="moderno"]` y `:root[data-theme="cuaderno"]` (color, tipografía, radios, sombras).
   - Eliminar los bloques `prefers-color-scheme: dark` y `data-theme="dark"|"light"` y declarar `color-scheme: light` (D5).
   - Alias de los nombres actuales (`--panel`, `--accent`, …) para no romper las otras vistas.
-- [ ] 3.3 Añadir al sprite los iconos nuevos: `i-grid` (Moderno), `i-notebook` (Cuaderno), `i-play`, `i-pause`, `i-more`, `i-sparkle`
-- [ ] 3.4 Comprobar el contraste (≥4.5:1) de cada par texto/fondo de los dos temas y anotar los valores en `design.md`
+- [x] 3.3 Añadir al sprite los iconos nuevos: `i-grid` (Moderno), `i-notebook` (Cuaderno), `i-play`, `i-pause`, `i-more`, `i-sparkle`
+- [x] 3.4 Comprobar el contraste (≥4.5:1) de cada par texto/fondo de los dos temas y anotar los valores en `design.md`
 
 ## 4. Shell y navegación
 
