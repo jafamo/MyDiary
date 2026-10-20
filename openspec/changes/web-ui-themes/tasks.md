@@ -55,8 +55,8 @@
 
 ## 6. Resto de vistas
 
-- [ ] 6.1 Revisar en los dos temas (con el sistema en modo claro y en modo oscuro) Historial, Resúmenes, Búsqueda, Recordatorios, Estadísticas, Temas y Login a 390 px y a 1280 px; corregir solo lo que se rompa por los tokens nuevos (sin rediseñar)
-- [ ] 6.2 Gráficos de Estadísticas: usar los tokens del tema para barras y líneas
+- [x] 6.1 Revisar en los dos temas (con el sistema en modo claro y en modo oscuro) Historial, Resúmenes, Búsqueda, Recordatorios, Estadísticas, Temas y Login a 390 px y a 1280 px; corregir solo lo que se rompa por los tokens nuevos (sin rediseñar)
+- [x] 6.2 Gráficos de Estadísticas: usar los tokens del tema para barras y líneas
 
 ## 7. Documentación y cierre
 

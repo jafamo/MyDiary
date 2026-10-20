@@ -45,7 +45,7 @@
   --accent: #92400E;
   --accent-contrast: #FFFFFF;
   --accent-soft: #E9C9A8;
-  --accent-dusk: #92400E;
+  --accent-dusk: #4F46E5;
   --link: #4F46E5;
   --status-pending: #B45309;
   --status-pending-bg: #FEF3C7;
@@ -253,6 +253,7 @@ table { border-collapse: collapse; width: 100%; }
 .topic-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .topic-chip { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.82rem; font-weight: 500; padding: 0.25rem 0.75rem; border-radius: 999px; background: var(--panel-2); color: var(--text); }
 :root[data-theme="cuaderno"] .topic-chip { background: none; padding: 0; font-family: var(--font-heading); font-style: italic; font-size: 1rem; color: var(--text-muted); }
+:root[data-theme="cuaderno"] .topic-chip .icon { display: none; }
 :root[data-theme="cuaderno"] .topic-chip + .topic-chip::before { content: "·"; margin-right: 0.4rem; font-style: normal; }
 
 .summary-generate { display: flex; flex-direction: column; align-items: stretch; gap: 0.6rem; }
