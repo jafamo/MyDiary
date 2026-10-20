@@ -1,0 +1,12 @@
+{# Reproductor del tema sobre <audio preload="none">: sin JS se queda el control nativo (audio-player.js lo sustituye). #}
+{% set time_label = entry.receivedAt|date('H:i', local_timezone) %}
+{% set duration_label = (entry.durationSeconds // 60) ~ ':' ~ '%02d'|format(entry.durationSeconds % 60) %}
+<div class="player" data-player data-duration="{{ entry.durationSeconds }}">
+    <audio class="entry__audio" controls preload="none" src="{{ path('app_audio_recording_file', {audioRecording: entry.id}) }}"></audio>
+    <button type="button" class="player__toggle" aria-label="Reproducir audio de las {{ time_label }}" data-label-play="Reproducir audio de las {{ time_label }}" data-label-pause="Pausar audio de las {{ time_label }}" hidden>
+        <svg class="icon player__icon-play"><use href="#i-play"></use></svg>
+        <svg class="icon player__icon-pause"><use href="#i-pause"></use></svg>
+    </button>
+    <div class="player__track" aria-hidden="true" hidden><div class="player__progress"></div></div>
+    <span class="player__time" hidden><span class="player__current">0:00</span> / {{ duration_label }}</span>
+</div>

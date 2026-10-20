@@ -1,0 +1,35 @@
+{% set max_count = max(daily_counts|map(d => d.count)|merge([1])) %}
+{% set today_count = (daily_counts|last).count %}
+{% set chart_total = daily_counts|reduce((total, d) => total + d.count, 0) %}
+<section class="activity" aria-label="Actividad">
+    <div class="activity__streak">
+        <span class="activity__flame"><svg class="icon"><use href="#i-flame"></use></svg></span>
+        <div>
+            <div class="activity__label">Racha</div>
+            <div class="activity__value"><b>{{ streak }}</b> <span>día{{ streak == 1 ? '' : 's' }} seguido{{ streak == 1 ? '' : 's' }}</span></div>
+            <div class="activity__sub">Tu mejor racha: {{ best_streak }} día{{ best_streak == 1 ? '' : 's' }}</div>
+        </div>
+    </div>
+    <div class="activity__chart" role="img" aria-label="Audios por día en los últimos {{ daily_counts|length }} días: {{ chart_total }} en total, {{ today_count }} hoy">
+        {% for day in daily_counts %}
+            <span class="activity__bar{{ loop.last ? ' activity__bar--today' : '' }}{{ day.count == 0 ? ' activity__bar--empty' : '' }}" style="height: {{ day.count == 0 ? 8 : (day.count / max_count * 100)|round }}%"></span>
+        {% endfor %}
+    </div>
+    <div class="activity__stat activity__stat--week">
+        <div class="activity__label">Esta semana</div>
+        <div class="activity__value"><b>{{ week.total }}</b> <span>audio{{ week.total == 1 ? '' : 's' }}</span>
+            <span class="activity__delta{{ week.delta < 0 ? ' activity__delta--down' : '' }}">{% if week.delta > 0 %}+{{ week.delta }}{% elseif week.delta < 0 %}{{ week.delta }}{% else %}={% endif %}</span>
+        </div>
+        <div class="activity__sub">{% if week.delta == 0 %}Igual que la semana anterior{% else %}vs. semana anterior{% endif %}</div>
+    </div>
+    <div class="activity__stat activity__stat--topic">
+        <div class="activity__label">Tema del mes</div>
+        {% if top_topic %}
+            <div class="activity__value activity__value--text">{{ top_topic.name }}</div>
+            <div class="activity__sub">{{ top_topic.count }} mención{{ top_topic.count == 1 ? '' : 'es' }}</div>
+        {% else %}
+            <div class="activity__value activity__value--text">—</div>
+            <div class="activity__sub">Todavía sin resúmenes este mes</div>
+        {% endif %}
+    </div>
+</section>

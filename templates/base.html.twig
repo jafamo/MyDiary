@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="{{ ui_theme().value }}">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{% block title %}Diario{% endblock %}</title>
         <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 font-size=%2290%22><text y=%221.1em%22>📔</text></svg>">
+        <link rel="stylesheet" href="{{ asset('css/fonts.css') }}">
         <link rel="stylesheet" href="{{ asset('css/app.css') }}">
         {% block stylesheets %}{% endblock %}
         {% block javascripts %}{% endblock %}
@@ -12,100 +13,139 @@
     <body>
         {% include '_partials/svg_sprite.html.twig' %}
         {% set upcoming_reminders_data = upcoming_reminders() %}
+        {% set current_route = app.request.attributes.get('_route') ?? '' %}
+        {# Destinos de la navegación: la barra lateral los muestra todos; la inferior, los `primary` más «Más» con el resto. #}
+        {% set nav_items = [
+            {route: 'app_diario', label: 'Diario', short: 'Diario', icon: 'i-mic', primary: true},
+            {route: 'app_historial', label: 'Historial', short: 'Historial', icon: 'i-calendar', primary: true},
+            {route: 'app_resumenes', label: 'Resúmenes', short: 'Resúmenes', icon: 'i-sparkle', primary: false},
+            {route: 'app_busqueda', label: 'Búsqueda', short: 'Buscar', icon: 'i-search', primary: true},
+            {route: 'app_recordatorios', label: 'Recordatorios', short: 'Avisos', icon: 'i-bell', primary: true, badge: true},
+            {route: 'app_estadisticas', label: 'Estadísticas', short: 'Estadísticas', icon: 'i-chart', primary: false},
+            {route: 'app_topics', label: 'Temas', short: 'Temas', icon: 'i-tag', primary: false},
+        ] %}
+        {% set secondary_active = nav_items|filter(item => not item.primary and current_route starts with item.route)|length > 0 %}
+        {% set reminder_badge %}{% if upcoming_reminders_data.count > 0 %}<span class="nav-badge nav-badge--{{ upcoming_reminders_data.level }}">{{ upcoming_reminders_data.count }}</span>{% endif %}{% endset %}
         <div class="app-shell">
             <div class="topbar">
-                <div class="topbar__brand"><svg class="icon"><use href="#i-mic"></use></svg> Diario</div>
+                <div class="topbar__brand"><span class="brand-mark"><svg class="icon"><use href="#i-mic"></use></svg></span> Diario</div>
                 <div class="topbar__actions">
+                    <form class="theme-form" method="post" action="{{ path('app_theme_preference') }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('ui_theme') }}">
+                        {% for theme in ui_themes() %}
+                            <button type="submit" class="theme-toggle" name="theme" value="{{ theme.value }}" aria-label="Cambiar al tema {{ theme.label }}"{% if theme == ui_theme() %} hidden{% endif %}>
+                                <svg class="icon icon--sm"><use href="#{{ theme.icon }}"></use></svg> {{ theme.label }}
+                            </button>
+                        {% endfor %}
+                    </form>
                     <div class="menu reminder-menu">
                         <button type="button" class="menu-trigger reminder-menu__trigger" aria-haspopup="true" aria-expanded="false" aria-label="Recordatorios próximos">
                             <svg class="icon"><use href="#i-bell"></use></svg>
-                            {% if upcoming_reminders_data.count > 0 %}<span class="nav-badge nav-badge--{{ upcoming_reminders_data.level }}">{{ upcoming_reminders_data.count }}</span>{% endif %}
+                            {{ reminder_badge }}
                         </button>
                         {% include '_partials/reminder_dropdown.html.twig' %}
-                    </div>
-                    <div class="menu topbar__menu">
-                        <button type="button" class="menu-trigger topbar__menu-trigger" aria-haspopup="true" aria-expanded="false">
-                            <span class="topbar__avatar">{{ app.user.username|slice(0, 2)|upper }}</span>
-                            {{ app.user.username }}
-                            <svg class="icon icon--sm icon--chevron"><use href="#i-chevron-down"></use></svg>
-                        </button>
-                        <div class="topbar__dropdown" role="menu">
-                            <div class="topbar__dropdown-user"><svg class="icon icon--sm"><use href="#i-mic"></use></svg> Sesión de <strong>{{ app.user.username }}</strong></div>
-                            <a class="topbar__dropdown-item" role="menuitem" href="{{ path('app_logout') }}"><svg class="icon icon--sm"><use href="#i-logout"></use></svg> Cerrar sesión</a>
-                        </div>
                     </div>
                 </div>
             </div>
 
             <aside class="sidebar">
-                <div class="sidebar__brand"><svg class="icon"><use href="#i-mic"></use></svg> Diario</div>
-                <nav class="sidebar__nav">
-                    <a class="navlink" href="{{ path('app_diario') }}" {% if app.request.attributes.get('_route') == 'app_diario' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-mic"></use></svg> Diario</a>
-                    <a class="navlink" href="{{ path('app_historial') }}" {% if app.request.attributes.get('_route') == 'app_historial' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-calendar"></use></svg> Historial</a>
-                    <a class="navlink" href="{{ path('app_resumenes') }}" {% if app.request.attributes.get('_route') == 'app_resumenes' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-tag"></use></svg> Resúmenes</a>
-                    <a class="navlink" href="{{ path('app_busqueda') }}" {% if app.request.attributes.get('_route') == 'app_busqueda' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-search"></use></svg> Búsqueda</a>
-                    <a class="navlink" href="{{ path('app_recordatorios') }}" {% if app.request.attributes.get('_route') starts with 'app_recordatorios' %}aria-current="page"{% endif %}>
-                        <svg class="icon"><use href="#i-bell"></use></svg> Recordatorios
-                        {% if upcoming_reminders_data.count > 0 %}<span class="nav-badge nav-badge--{{ upcoming_reminders_data.level }}">{{ upcoming_reminders_data.count }}</span>{% endif %}
-                    </a>
-                    <a class="navlink" href="{{ path('app_estadisticas') }}" {% if app.request.attributes.get('_route') == 'app_estadisticas' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-chart"></use></svg> Estadísticas</a>
-                    <a class="navlink" href="{{ path('app_topics') }}" {% if app.request.attributes.get('_route') starts with 'app_topics' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-tag"></use></svg> Temas</a>
+                <div class="sidebar__brand"><span class="brand-mark"><svg class="icon"><use href="#i-mic"></use></svg></span> Diario</div>
+                <nav class="sidebar__nav" aria-label="Navegación principal">
+                    {% for item in nav_items %}
+                        <a class="navlink" href="{{ path(item.route) }}" {% if current_route starts with item.route %}aria-current="page"{% endif %}>
+                            <svg class="icon"><use href="#{{ item.icon }}"></use></svg>
+                            <span class="navlink__label">{{ item.label }}</span>
+                            {% if item.badge ?? false %}{{ reminder_badge }}{% endif %}
+                        </a>
+                    {% endfor %}
                 </nav>
                 <div class="sidebar__footer">
                     <div class="menu reminder-menu reminder-menu--sidebar">
                         <button type="button" class="menu-trigger reminder-menu__trigger" aria-haspopup="true" aria-expanded="false">
                             <svg class="icon"><use href="#i-bell"></use></svg> Recordatorios próximos
-                            {% if upcoming_reminders_data.count > 0 %}<span class="nav-badge nav-badge--{{ upcoming_reminders_data.level }}">{{ upcoming_reminders_data.count }}</span>{% endif %}
+                            {{ reminder_badge }}
                         </button>
                         {% include '_partials/reminder_dropdown.html.twig' %}
                     </div>
-                    <div class="sidebar__user">{{ app.user.username }}</div>
-                    <a class="sidebar__logout" href="{{ path('app_logout') }}"><svg class="icon icon--sm"><use href="#i-logout"></use></svg> Cerrar sesión</a>
+                    {% include '_partials/user_menu.html.twig' %}
                 </div>
             </aside>
 
             {% block body %}{% endblock %}
 
-            <nav class="bottom-nav">
-                <a class="bottom-nav__item" href="{{ path('app_diario') }}" {% if app.request.attributes.get('_route') == 'app_diario' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-mic"></use></svg> Diario</a>
-                <a class="bottom-nav__item" href="{{ path('app_historial') }}" {% if app.request.attributes.get('_route') == 'app_historial' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-calendar"></use></svg> Historial</a>
-                <a class="bottom-nav__item" href="{{ path('app_resumenes') }}" {% if app.request.attributes.get('_route') == 'app_resumenes' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-tag"></use></svg> Resúmenes</a>
-                <a class="bottom-nav__item" href="{{ path('app_busqueda') }}" {% if app.request.attributes.get('_route') == 'app_busqueda' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-search"></use></svg> Búsqueda</a>
-                <a class="bottom-nav__item" href="{{ path('app_recordatorios') }}" {% if app.request.attributes.get('_route') starts with 'app_recordatorios' %}aria-current="page"{% endif %}>
-                    <svg class="icon"><use href="#i-bell"></use></svg> Recordatorios
-                    {% if upcoming_reminders_data.count > 0 %}<span class="nav-badge nav-badge--{{ upcoming_reminders_data.level }}">{{ upcoming_reminders_data.count }}</span>{% endif %}
-                </a>
-                <a class="bottom-nav__item" href="{{ path('app_estadisticas') }}" {% if app.request.attributes.get('_route') == 'app_estadisticas' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-chart"></use></svg> Estadísticas</a>
-                <a class="bottom-nav__item" href="{{ path('app_topics') }}" {% if app.request.attributes.get('_route') starts with 'app_topics' %}aria-current="page"{% endif %}><svg class="icon"><use href="#i-tag"></use></svg> Temas</a>
+            <nav class="bottom-nav" aria-label="Navegación principal">
+                {% for item in nav_items|filter(item => item.primary) %}
+                    <a class="bottom-nav__item" href="{{ path(item.route) }}" {% if current_route starts with item.route %}aria-current="page"{% endif %}>
+                        <span class="bottom-nav__icon"><svg class="icon"><use href="#{{ item.icon }}"></use></svg>{% if item.badge ?? false %}{{ reminder_badge }}{% endif %}</span>{{ item.short }}
+                    </a>
+                {% endfor %}
+                <div class="menu more-menu">
+                    <button type="button" class="menu-trigger bottom-nav__item" aria-haspopup="true" aria-expanded="false" {% if secondary_active %}aria-current="page"{% endif %}>
+                        <span class="bottom-nav__icon"><svg class="icon"><use href="#i-more"></use></svg></span>Más
+                    </button>
+                    <div class="more-sheet" role="menu">
+                        {% for item in nav_items|filter(item => not item.primary) %}
+                            <a class="more-sheet__link" role="menuitem" href="{{ path(item.route) }}" {% if current_route starts with item.route %}aria-current="page"{% endif %}>
+                                <svg class="icon"><use href="#{{ item.icon }}"></use></svg> {{ item.label }}
+                            </a>
+                        {% endfor %}
+                        <div class="more-sheet__footer">
+                            <span class="more-sheet__user"><span class="avatar">{{ app.user.username|slice(0, 2)|upper }}</span> {{ app.user.username }}</span>
+                            <a class="more-sheet__logout" role="menuitem" href="{{ path('app_logout') }}"><svg class="icon icon--sm"><use href="#i-logout"></use></svg> Cerrar sesión</a>
+                        </div>
+                    </div>
+                </div>
             </nav>
         </div>
 
         <script>
+            function closeMenus() {
+                document.querySelectorAll(".menu.is-open").forEach(function (m) {
+                    m.classList.remove("is-open");
+                    m.querySelector(".menu-trigger").setAttribute("aria-expanded", "false");
+                });
+            }
             document.querySelectorAll(".menu-trigger").forEach(function (trigger) {
                 trigger.addEventListener("click", function (e) {
                     e.stopPropagation();
                     var menu = trigger.closest(".menu");
                     var wasOpen = menu.classList.contains("is-open");
-                    document.querySelectorAll(".menu.is-open").forEach(function (m) {
-                        m.classList.remove("is-open");
-                        m.querySelector(".menu-trigger").setAttribute("aria-expanded", "false");
-                    });
+                    closeMenus();
                     if (!wasOpen) {
                         menu.classList.add("is-open");
                         trigger.setAttribute("aria-expanded", "true");
                     }
                 });
             });
-            document.addEventListener("click", function () {
-                document.querySelectorAll(".menu.is-open").forEach(function (m) {
-                    m.classList.remove("is-open");
-                    m.querySelector(".menu-trigger").setAttribute("aria-expanded", "false");
-                });
-            });
+            document.addEventListener("click", closeMenus);
             document.addEventListener("keydown", function (e) {
                 if (e.key === "Escape") {
-                    document.querySelectorAll(".menu.is-open").forEach(function (m) { m.classList.remove("is-open"); });
+                    closeMenus();
                 }
+            });
+
+            // Cambio de tema sin recargar: el servidor guarda la preferencia y aquí solo se cambia data-theme.
+            // Sin JS, el formulario hace POST normal y redirige a esta misma página.
+            document.querySelectorAll(".theme-form").forEach(function (form) {
+                form.addEventListener("submit", function (e) {
+                    var theme = e.submitter && e.submitter.value;
+                    if (!theme) {
+                        return;
+                    }
+                    e.preventDefault();
+                    var body = new FormData(form);
+                    body.set("theme", theme);
+                    fetch(form.action, { method: "POST", body: body, headers: { Accept: "application/json" } }).then(function (response) {
+                        if (!response.ok) {
+                            form.submit();
+                            return;
+                        }
+                        document.documentElement.dataset.theme = theme;
+                        document.querySelectorAll(".theme-toggle").forEach(function (b) { b.hidden = b.value === theme; });
+                        document.querySelectorAll(".theme-option").forEach(function (b) { b.setAttribute("aria-checked", b.value === theme ? "true" : "false"); });
+                        closeMenus();
+                    });
+                });
             });
         </script>
     </body>

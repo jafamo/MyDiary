@@ -1,0 +1,11 @@
+{% set weekday_initials = ['LU', 'MA', 'MI', 'JU', 'VI', 'SA', 'DO'] %}
+<nav class="week-strip" aria-label="Semana en curso">
+    {% for day in current_week %}
+        <a class="week-strip__day{{ day.has_audio ? ' week-strip__day--has-audio' : '' }}" href="{{ day.is_today ? path('app_diario') : path('app_historial', {date: day.date|date('Y-m-d', false)}) }}" {% if day.is_today %}aria-current="date"{% endif %}>
+            <span class="week-strip__weekday">{{ weekday_initials[loop.index0] }}</span>
+            <span class="week-strip__number">{{ day.date|date('j', false) }}</span>
+            <span class="week-strip__dot" aria-hidden="true"></span>
+            {% if day.has_audio %}<span class="visually-hidden">con audios</span>{% endif %}
+        </a>
+    {% endfor %}
+</nav>

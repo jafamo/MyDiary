@@ -1,35 +1,33 @@
+{# Un único marcado: el tema Moderno lo pinta como tarjetas y Cuaderno como línea de tiempo (ver app.css). #}
 {% if entries is empty %}
     <p class="entry-empty">Sin audios este día.</p>
 {% else %}
     <div class="entry-log">
         {% for entry in entries %}
-            <article class="entry">
+            {% set status = entry.status.value %}
+            <article class="entry entry--{{ status|lower }}">
                 <div class="entry__time">
                     <svg class="icon icon--sm"><use href="#i-clock"></use></svg>
                     {{ entry.receivedAt|date('H:i', local_timezone) }}
                 </div>
+                <div class="entry__marker" aria-hidden="true"></div>
                 <div class="entry__body">
                     <div class="entry__meta">
                         <span class="duration">{{ entry.durationSeconds // 60 }}:{{ '%02d'|format(entry.durationSeconds % 60) }}</span>
-                        {% if entry.status.value == 'TRANSCRIBED' %}
+                        {% if status == 'TRANSCRIBED' %}
                             <span class="status-pill status-pill--transcribed"><svg class="icon"><use href="#i-check"></use></svg> Transcrito</span>
-                        {% elseif entry.status.value == 'ERROR' %}
+                        {% elseif status == 'ERROR' %}
                             <span class="status-pill status-pill--error"><svg class="icon"><use href="#i-alert"></use></svg> Error</span>
                         {% else %}
                             <span class="status-pill status-pill--pending"><svg class="icon"><use href="#i-clock"></use></svg> Transcribiendo…</span>
                         {% endif %}
                     </div>
 
-                    <audio class="entry__audio" controls preload="none" src="{{ path('app_audio_recording_file', {audioRecording: entry.id}) }}"></audio>
+                    {% include '_partials/audio_player.html.twig' %}
 
-                    {% if entry.status.value == 'TRANSCRIBED' and entry.transcription %}
+                    {% if status == 'TRANSCRIBED' and entry.transcription %}
                         <p class="entry__text">{{ entry.transcription.content }}</p>
-                        <div class="metrics">
-                            <span><svg class="icon icon--sm"><use href="#i-clock"></use></svg> Procesado en <b>{{ entry.transcription.processingMs|ai_duration }}</b></span>
-                            <span><b>{{ entry.transcription.processingMs|ai_speed(entry.durationSeconds) }}</b> tiempo real</span>
-                            <span>Modelo <b>{{ entry.transcription.model ?? '—' }}</b></span>
-                        </div>
-                    {% elseif entry.status.value == 'ERROR' %}
+                    {% elseif status == 'ERROR' %}
                         <div class="entry__error-box">
                             <svg class="icon"><use href="#i-error-outline"></use></svg>
                             <span>{{ entry.errorMessage }}</span>
@@ -38,30 +36,39 @@
                         <p class="entry__text entry__text--muted">Transcripción en curso — se actualizará automáticamente.</p>
                     {% endif %}
 
-                    {% if entry.status.value in ['TRANSCRIBED', 'ERROR'] %}
-                        <div class="entry__actions">
-                            {% if entry.status.value == 'TRANSCRIBED' %}
-                                <details class="entry__edit">
-                                    <summary class="btn-action"><svg class="icon icon--sm"><use href="#i-edit"></use></svg> Editar</summary>
-                                    <form class="entry__edit-form" method="post" action="{{ path('app_transcription_edit', {audioRecording: entry.id}) }}">
-                                        <textarea name="transcription_edit[content]" rows="4">{{ entry.transcription.content }}</textarea>
-                                        <input type="hidden" name="transcription_edit[_token]" value="{{ csrf_token('transcription_edit') }}">
-                                        <button class="btn-action btn-action--primary" type="submit">Guardar</button>
+                    {% if status in ['TRANSCRIBED', 'ERROR'] %}
+                        <div class="entry__footer">
+                            {% if status == 'TRANSCRIBED' and entry.transcription %}
+                                <div class="metrics">
+                                    <span><svg class="icon icon--sm"><use href="#i-clock"></use></svg> Procesado en <b>{{ entry.transcription.processingMs|ai_duration }}</b></span>
+                                    <span><b>{{ entry.transcription.processingMs|ai_speed(entry.durationSeconds) }}</b> tiempo real</span>
+                                    <span>Modelo <b>{{ entry.transcription.model ?? '—' }}</b></span>
+                                </div>
+                            {% endif %}
+                            <div class="entry__actions">
+                                {% if status == 'TRANSCRIBED' and entry.transcription %}
+                                    <details class="entry__edit">
+                                        <summary class="btn-action"><svg class="icon icon--sm"><use href="#i-edit"></use></svg> Editar</summary>
+                                        <form class="entry__edit-form" method="post" action="{{ path('app_transcription_edit', {audioRecording: entry.id}) }}">
+                                            <textarea name="transcription_edit[content]" rows="4" aria-label="Transcripción de las {{ entry.receivedAt|date('H:i', local_timezone) }}">{{ entry.transcription.content }}</textarea>
+                                            <input type="hidden" name="transcription_edit[_token]" value="{{ csrf_token('transcription_edit') }}">
+                                            <button class="btn-action btn-action--primary" type="submit">Guardar</button>
+                                        </form>
+                                    </details>
+                                {% endif %}
+
+                                {% if status == 'ERROR' %}
+                                    <form method="post" action="{{ path('app_audio_recording_retry', {audioRecording: entry.id}) }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('audio_retry') }}">
+                                        <button class="btn-action btn-action--primary" type="submit"><svg class="icon icon--sm"><use href="#i-refresh"></use></svg> Reintentar</button>
                                     </form>
-                                </details>
-                            {% endif %}
+                                {% endif %}
 
-                            {% if entry.status.value == 'ERROR' %}
-                                <form method="post" action="{{ path('app_audio_recording_retry', {audioRecording: entry.id}) }}">
-                                    <input type="hidden" name="_token" value="{{ csrf_token('audio_retry') }}">
-                                    <button class="btn-action" type="submit"><svg class="icon icon--sm"><use href="#i-refresh"></use></svg> Reintentar</button>
+                                <form method="post" action="{{ path('app_transcription_delete', {audioRecording: entry.id}) }}" onsubmit="return confirm('¿Eliminar este audio y su transcripción? Esta acción no se puede deshacer.');">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('transcription_delete') }}">
+                                    <button class="btn-action btn-action--danger" type="submit"><svg class="icon icon--sm"><use href="#i-trash"></use></svg> Eliminar</button>
                                 </form>
-                            {% endif %}
-
-                            <form method="post" action="{{ path('app_transcription_delete', {audioRecording: entry.id}) }}" onsubmit="return confirm('¿Eliminar este audio y su transcripción? Esta acción no se puede deshacer.');">
-                                <input type="hidden" name="_token" value="{{ csrf_token('transcription_delete') }}">
-                                <button class="btn-action btn-action--danger" type="submit"><svg class="icon icon--sm"><use href="#i-trash"></use></svg> Eliminar</button>
-                            </form>
+                            </div>
                         </div>
                     {% endif %}
                 </div>

@@ -30,6 +30,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private array $roles = [];
 
+    #[ORM\Column(length: 20, enumType: UiTheme::class, options: ['default' => 'moderno'])]
+    private UiTheme $uiTheme = UiTheme::MODERNO;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -81,6 +84,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setRoles(array $roles): static
     {
         $this->roles = $roles;
+
+        return $this;
+    }
+
+    public function getUiTheme(): UiTheme
+    {
+        return $this->uiTheme;
+    }
+
+    public function setUiTheme(UiTheme $uiTheme): static
+    {
+        $this->uiTheme = $uiTheme;
 
         return $this;
     }

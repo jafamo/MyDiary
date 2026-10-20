@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Entity;
 
+use App\Entity\UiTheme;
 use App\Entity\User;
 use PHPUnit\Framework\TestCase;
 
@@ -20,6 +21,18 @@ class UserTest extends TestCase
         self::assertSame('jfarinos', $user->getUsername());
         self::assertSame('jfarinos', $user->getUserIdentifier());
         self::assertSame('hashed-password', $user->getPassword());
+    }
+
+    public function testUiThemeDefaultsToModerno(): void
+    {
+        self::assertSame(UiTheme::MODERNO, (new User())->getUiTheme());
+    }
+
+    public function testSetUiTheme(): void
+    {
+        $user = (new User())->setUiTheme(UiTheme::CUADERNO);
+
+        self::assertSame(UiTheme::CUADERNO, $user->getUiTheme());
     }
 
     public function testGetRolesAlwaysIncludesRoleUser(): void

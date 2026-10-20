@@ -84,6 +84,40 @@ class DiarioDashboardServiceTest extends KernelTestCase
         self::assertArrayHasKey('delta', $result);
     }
 
+    public function testDailyCountsCoverFourteenDaysEndingToday(): void
+    {
+        $today = DateRange::nowInMadrid();
+        $before = $this->service->getDailyCounts(14);
+
+        $this->createAudioOn($today);
+        $this->createAudioOn($today);
+        $this->createAudioOn($today->modify('-3 days'));
+
+        $series = $this->service->getDailyCounts(14);
+
+        self::assertCount(14, $series);
+        self::assertSame($today->format('Y-m-d'), $series[13]['date']);
+        self::assertSame($today->modify('-13 days')->format('Y-m-d'), $series[0]['date']);
+        self::assertSame($before[13]['count'] + 2, $series[13]['count']);
+        self::assertSame($before[10]['count'] + 1, $series[10]['count']);
+    }
+
+    public function testCurrentWeekRunsMondayToSundayAndMarksToday(): void
+    {
+        $today = DateRange::nowInMadrid();
+        $this->createAudioOn($today);
+
+        $week = $this->service->getCurrentWeek();
+
+        self::assertCount(7, $week);
+        self::assertSame('1', $week[0]['date']->format('N'));
+        self::assertSame('7', $week[6]['date']->format('N'));
+        $todays = array_values(array_filter($week, static fn (array $day) => $day['is_today']));
+        self::assertCount(1, $todays);
+        self::assertSame($today->format('Y-m-d'), $todays[0]['date']->format('Y-m-d'));
+        self::assertTrue($todays[0]['has_audio']);
+    }
+
     private function createAudioOn(\DateTimeImmutable $date): void
     {
         $messageId = 'dashboard-test-'.uniqid();
