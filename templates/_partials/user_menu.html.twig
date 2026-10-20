@@ -1,0 +1,22 @@
+<div class="menu user-menu">
+    <div class="user-menu__dropdown" role="menu" aria-label="Menú de {{ app.user.username }}">
+        <form class="theme-form" method="post" action="{{ path('app_theme_preference') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('ui_theme') }}">
+            <div class="user-menu__section">Tema</div>
+            {% for theme in ui_themes() %}
+                <button type="submit" class="theme-option" role="menuitemradio" name="theme" value="{{ theme.value }}" aria-checked="{{ theme == ui_theme() ? 'true' : 'false' }}">
+                    <svg class="icon"><use href="#{{ theme.icon }}"></use></svg>
+                    <span class="theme-option__label">{{ theme.label }}</span>
+                    <svg class="icon icon--sm theme-option__check"><use href="#i-check"></use></svg>
+                </button>
+            {% endfor %}
+        </form>
+        <div class="user-menu__separator"></div>
+        <a class="user-menu__item" role="menuitem" href="{{ path('app_logout') }}"><svg class="icon"><use href="#i-logout"></use></svg> Cerrar sesión</a>
+    </div>
+    <button type="button" class="menu-trigger user-menu__trigger" aria-haspopup="true" aria-expanded="false">
+        <span class="avatar">{{ app.user.username|slice(0, 2)|upper }}</span>
+        <span class="user-menu__name">{{ app.user.username }}</span>
+        <svg class="icon icon--sm user-menu__chevron"><use href="#i-chevron-up"></use></svg>
+    </button>
+</div>

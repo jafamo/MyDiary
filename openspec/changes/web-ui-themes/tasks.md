@@ -36,11 +36,11 @@
 
 ## 4. Shell y navegación
 
-- [ ] 4.1 Barra lateral: siete destinos con icono y botón de usuario al pie con menú (sección «Tema» con `menuitemradio` y check, «Cerrar sesión») en el parcial `_partials/user_menu.html.twig`
-- [ ] 4.2 Barra superior móvil: marca, botón de tema con el nombre del otro tema (formulario POST) y campana con badge
-- [ ] 4.3 Barra inferior móvil de 5 ítems (Diario, Historial, Buscar, Avisos, Más) y panel «Más» con Resúmenes, Estadísticas, Temas, usuario y «Cerrar sesión»; «Más» activo cuando la ruta es una de ellas
-- [ ] 4.4 JS de menús en `base.html.twig`: reutilizar `.menu.is-open` para el menú de usuario y el panel «Más»; envío del tema con `fetch` y cambio de `data-theme` sin recargar
-- [ ] 4.5 Tests: barra inferior con 5 ítems, «Más» contiene los tres destinos, `aria-current` correcto en `/estadisticas`, menú de usuario con opción activa marcada
+- [x] 4.1 Barra lateral: siete destinos con icono y botón de usuario al pie con menú (sección «Tema» con `menuitemradio` y check, «Cerrar sesión») en el parcial `_partials/user_menu.html.twig`
+- [x] 4.2 Barra superior móvil: marca, botón de tema con el nombre del otro tema (formulario POST) y campana con badge
+- [x] 4.3 Barra inferior móvil de 5 ítems (Diario, Historial, Buscar, Avisos, Más) y panel «Más» con Resúmenes, Estadísticas, Temas, usuario y «Cerrar sesión»; «Más» activo cuando la ruta es una de ellas
+- [x] 4.4 JS de menús en `base.html.twig`: reutilizar `.menu.is-open` para el menú de usuario y el panel «Más»; envío del tema con `fetch` y cambio de `data-theme` sin recargar
+- [x] 4.5 Tests: barra inferior con 5 ítems, «Más» contiene los tres destinos, `aria-current` correcto en `/estadisticas`, menú de usuario con opción activa marcada
 
 ## 5. Vista Diario
 
