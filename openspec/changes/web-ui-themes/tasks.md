@@ -44,14 +44,14 @@
 
 ## 5. Vista Diario
 
-- [ ] 5.1 Test de `DiarioDashboardService::getDailyCounts(14)`: 14 elementos, ceros en días sin audio, último = hoy (Europe/Madrid)
-- [ ] 5.2 Implementar `getDailyCounts` y pasarlo desde `DiarioController` junto con la semana en curso para la tira de Cuaderno
-- [ ] 5.3 Parcial `_partials/activity_card.html.twig`: racha, mejor racha, tendencia, barras de 14 días con `role="img"`/`aria-label`, semana y tema del mes
-- [ ] 5.4 Parcial `_partials/week_strip.html.twig` (visible solo en Cuaderno por CSS): 7 días con enlace a `/historial?date=`, punto si hay audio y `aria-current="date"` en hoy
-- [ ] 5.5 Reordenar `diario/index.html.twig`: actividad → resumen (con «Regenerar resumen» al pie de la tarjeta) → filtro + log; en ≥760px, dos columnas (log | resumen + próximos recordatorios)
-- [ ] 5.6 `entry_log.html.twig`: un único marcado que el CSS pinta como tarjetas (Moderno) o línea de tiempo con marcador por estado (Cuaderno); mantener métricas, editar, eliminar y reintentar
-- [ ] 5.7 Reproductor propio en `_partials/audio_player.html.twig` + `public/js/audio-player.js` (play/pausa, progreso, tiempo) sobre `<audio preload="none">`, con `<audio controls>` nativo si no hay JS; usarlo también en Historial
-- [ ] 5.8 Actualizar `DiarioControllerTest`: orden de secciones, serie de 14 días, tira semanal y botón al pie del resumen; los escenarios existentes (filtro, métricas, generación) siguen verdes
+- [x] 5.1 Test de `DiarioDashboardService::getDailyCounts(14)`: 14 elementos, ceros en días sin audio, último = hoy (Europe/Madrid)
+- [x] 5.2 Implementar `getDailyCounts` y pasarlo desde `DiarioController` junto con la semana en curso para la tira de Cuaderno
+- [x] 5.3 Parcial `_partials/activity_card.html.twig`: racha, mejor racha, tendencia, barras de 14 días con `role="img"`/`aria-label`, semana y tema del mes
+- [x] 5.4 Parcial `_partials/week_strip.html.twig` (visible solo en Cuaderno por CSS): 7 días con enlace a `/historial?date=`, punto si hay audio y `aria-current="date"` en hoy
+- [x] 5.5 Reordenar `diario/index.html.twig`: actividad → resumen (con «Regenerar resumen» al pie de la tarjeta) → filtro + log; en ≥760px, dos columnas (log | resumen + próximos recordatorios)
+- [x] 5.6 `entry_log.html.twig`: un único marcado que el CSS pinta como tarjetas (Moderno) o línea de tiempo con marcador por estado (Cuaderno); mantener métricas, editar, eliminar y reintentar
+- [x] 5.7 Reproductor propio en `_partials/audio_player.html.twig` + `public/js/audio-player.js` (play/pausa, progreso, tiempo) sobre `<audio preload="none">`, con `<audio controls>` nativo si no hay JS; usarlo también en Historial
+- [x] 5.8 Actualizar `DiarioControllerTest`: orden de secciones, serie de 14 días, tira semanal y botón al pie del resumen; los escenarios existentes (filtro, métricas, generación) siguen verdes
 
 ## 6. Resto de vistas
 

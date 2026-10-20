@@ -66,7 +66,7 @@ class DiarioControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.entry__text', 'Contenido de prueba del diario');
-        self::assertSelectorExists('.mini-stats');
+        self::assertSelectorExists('.activity');
     }
 
     public function testDiarioFiltersEntriesByStatus(): void
@@ -114,6 +114,71 @@ class DiarioControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('.entry-empty');
+    }
+
+    public function testDiarioOrdersActivitySummaryAndLog(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+        $this->createTodaysSummary('Resumen de orden', null);
+
+        $client->loginUser($user);
+        $crawler = $client->request('GET', '/');
+
+        self::assertResponseIsSuccessful();
+        $sections = $crawler->filter('.activity, .summary-panel, .diario__log')->each(
+            static fn ($node) => explode(' ', (string) $node->attr('class'))[0],
+        );
+        self::assertSame(['activity', 'summary-panel', 'diario__log'], $sections);
+    }
+
+    public function testActivityChartHasFourteenDaysWithTextAlternative(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+
+        $client->loginUser($user);
+        $crawler = $client->request('GET', '/');
+
+        self::assertSelectorCount(14, '.activity__chart .activity__bar');
+        self::assertSelectorCount(1, '.activity__chart .activity__bar--today');
+        self::assertSame('img', $crawler->filter('.activity__chart')->attr('role'));
+        self::assertStringStartsWith('Audios por día en los últimos 14 días', (string) $crawler->filter('.activity__chart')->attr('aria-label'));
+    }
+
+    public function testWeekStripLinksDaysToHistorialAndMarksToday(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+
+        $client->loginUser($user);
+        $crawler = $client->request('GET', '/');
+
+        $days = $crawler->filter('.week-strip .week-strip__day');
+        self::assertCount(7, $days);
+        $today = DateRange::nowInMadrid();
+        $monday = $today->setTime(0, 0, 0)->modify(sprintf('-%d days', (int) $today->format('N') - 1));
+        if ('1' !== $today->format('N')) {
+            self::assertSame('/historial?date='.$monday->format('Y-m-d'), $days->eq(0)->attr('href'));
+        }
+        self::assertSame('date', $days->eq((int) $today->format('N') - 1)->attr('aria-current'));
+    }
+
+    public function testRegenerateButtonIsTheLastPartOfTheSummaryCard(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+        $this->createTodaysSummary('Resumen con botón', null);
+
+        $client->loginUser($user);
+        $crawler = $client->request('GET', '/');
+
+        self::assertSelectorTextContains('.summary-panel > .summary-generate:last-child button', 'Regenerar resumen');
+        self::assertCount(1, $crawler->filter('.summary-panel'));
     }
 
     public function testDiarioShowsSummaryParagraphsEscapedAndEmojiLegend(): void

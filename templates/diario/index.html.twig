@@ -4,101 +4,105 @@
 
 {% block javascripts %}
     <script src="{{ asset('js/diario.js') }}" defer></script>
+    <script src="{{ asset('js/audio-player.js') }}" defer></script>
 {% endblock %}
 
 {% block body %}
-    <main class="content">
-        <div class="page-header">
-            <h1>{{ today|es_weekday_date }}</h1>
-            <div class="page-header__meta">
-                <svg class="icon icon--sm"><use href="#i-mic"></use></svg>
-                {{ entries|length }} audio{{ entries|length == 1 ? '' : 's' }}
+    <main class="content content--wide diario">
+        <div class="page-header diario__header">
+            <div>
+                <div class="page-header__eyebrow">
+                    <span class="diario__eyebrow-today">Hoy · {{ entries|length }} audio{{ entries|length == 1 ? '' : 's' }}</span>
+                    <span class="diario__eyebrow-month">{{ today|es_month_year }}</span>
+                </div>
+                <h1>{{ today|es_weekday_date }}</h1>
             </div>
+            {% include '_partials/week_strip.html.twig' %}
         </div>
 
-        <div class="mini-stats">
-            <div class="mini-stat">
-                <div class="mini-stat__label"><svg class="icon"><use href="#i-flame"></use></svg> Racha</div>
-                <div class="mini-stat__value">{{ streak }} <small>día{{ streak == 1 ? '' : 's' }} seguido{{ streak == 1 ? '' : 's' }}</small></div>
-                <div class="mini-stat__foot">Tu mejor racha: {{ best_streak }} día{{ best_streak == 1 ? '' : 's' }}</div>
-            </div>
-            <div class="mini-stat">
-                <div class="mini-stat__label"><svg class="icon"><use href="#i-mic"></use></svg> Esta semana</div>
-                <div class="mini-stat__value">{{ week.total }} <small>audio{{ week.total == 1 ? '' : 's' }}</small></div>
-                <div class="mini-stat__foot">
-                    {% if week.delta > 0 %}
-                        <svg class="icon"><use href="#i-trend-up"></use></svg> +{{ week.delta }} vs. semana anterior
-                    {% elseif week.delta < 0 %}
-                        {{ week.delta }} vs. semana anterior
+        {% include '_partials/activity_card.html.twig' %}
+
+        <div class="diario__columns">
+            <div class="diario__aside">
+                {% set summary_in_progress = summary_generation_status in ['QUEUED', 'RUNNING'] %}
+                <section class="summary-panel{{ daily_summary ? '' : ' summary-panel--empty' }}" aria-label="Resumen del día">
+                    {% if daily_summary %}
+                        <div class="summary-panel__eyebrow">
+                            <svg class="icon"><use href="#i-sparkle"></use></svg>
+                            <span class="summary-panel__title">Resumen del día</span>
+                            <span class="summary-panel__time">{{ daily_summary.generatedAt|date('H:i', local_timezone) }}</span>
+                        </div>
+                        <p>{{ daily_summary.summaryText }}</p>
+                        {% include '_partials/emoji_legend.html.twig' with {legend: daily_summary.emojiLegend} %}
+                        {% if daily_summary.topics|length > 0 %}
+                            <div class="topic-chips">
+                                {% for topic in daily_summary.topics %}
+                                    <span class="topic-chip">{{ topic.name }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        {% include '_partials/summary_metrics.html.twig' with {summary: daily_summary} %}
                     {% else %}
-                        Igual que la semana anterior
+                        <div class="summary-panel__eyebrow">
+                            <svg class="icon"><use href="#i-sparkle"></use></svg>
+                            <span class="summary-panel__title">Resumen del día</span>
+                        </div>
+                        <p class="summary-panel__empty">Se genera solo a las 21:00, o ahora si lo pides.</p>
                     {% endif %}
-                </div>
-            </div>
-            <div class="mini-stat">
-                <div class="mini-stat__label"><svg class="icon"><use href="#i-tag"></use></svg> Tema del mes</div>
-                {% if top_topic %}
-                    <div class="mini-stat__value mini-stat__value--text">{{ top_topic.name }}</div>
-                    <div class="mini-stat__foot">{{ top_topic.count }} mención{{ top_topic.count == 1 ? '' : 'es' }} este mes</div>
-                {% else %}
-                    <div class="mini-stat__value mini-stat__value--text">—</div>
-                    <div class="mini-stat__foot">Todavía sin resúmenes este mes</div>
-                {% endif %}
-            </div>
-        </div>
 
-        <div class="filter-row">
-            {% include '_partials/status_filter.html.twig' with {
-                route: 'app_diario',
-                route_params: {},
-                status_filter: status_filter,
-            } %}
-        </div>
-
-        {% include '_partials/entry_log.html.twig' %}
-
-        {% set summary_in_progress = summary_generation_status in ['QUEUED', 'RUNNING'] %}
-        <div class="summary-generate">
-            {% for notice in app.flashes('summary_notice') %}
-                <div class="summary-status" role="status">
-                    <svg class="icon icon--sm"><use href="#i-alert"></use></svg>
-                    <span>{{ notice }}</span>
-                </div>
-            {% endfor %}
-            {% if summary_in_progress %}
-                <div class="summary-status" role="status" data-summary-generation-status="{{ summary_generation_status }}" data-status-url="{{ path('app_daily_summary_status') }}">
-                    <svg class="icon icon--sm"><use href="#i-clock"></use></svg>
-                    <span>Generando el resumen… <span class="summary-status__meta">Pedido a las {{ summary_generation.requestedAt|date('H:i', local_timezone) }} · se actualizará solo al terminar</span></span>
-                </div>
-            {% elseif summary_generation_status == 'FAILED' %}
-                <div class="entry__error-box summary-status" role="status">
-                    <svg class="icon icon--sm"><use href="#i-error-outline"></use></svg>
-                    <span>No se pudo generar el resumen ({{ (summary_generation.finishedAt ?? summary_generation.requestedAt)|date('H:i', local_timezone) }})</span>
-                </div>
-            {% endif %}
-            <form method="post" action="{{ path('app_daily_summary_generate') }}">
-                <input type="hidden" name="_token" value="{{ csrf_token('daily_summary_generate') }}">
-                <button class="btn-action" type="submit"{% if summary_in_progress %} disabled{% endif %}>
-                    <svg class="icon icon--sm"><use href="#i-refresh"></use></svg>
-                    {% if summary_generation_status == 'FAILED' %}Reintentar{% elseif daily_summary %}Regenerar resumen{% else %}Generar resumen{% endif %}
-                </button>
-            </form>
-        </div>
-
-        {% if daily_summary %}
-            <div class="summary-panel">
-                <div class="summary-panel__eyebrow"><svg class="icon"><use href="#i-dot"></use></svg> Resumen del día · generado {{ daily_summary.generatedAt|date('H:i', local_timezone) }}</div>
-                <p>{{ daily_summary.summaryText }}</p>
-                {% include '_partials/emoji_legend.html.twig' with {legend: daily_summary.emojiLegend} %}
-                {% if daily_summary.topics|length > 0 %}
-                    <div class="topic-chips">
-                        {% for topic in daily_summary.topics %}
-                            <span class="topic-chip"><svg class="icon icon--sm"><use href="#i-tag"></use></svg> {{ topic.name }}</span>
+                    <div class="summary-generate">
+                        {% for notice in app.flashes('summary_notice') %}
+                            <div class="summary-status" role="status">
+                                <svg class="icon icon--sm"><use href="#i-alert"></use></svg>
+                                <span>{{ notice }}</span>
+                            </div>
                         {% endfor %}
+                        {% if summary_in_progress %}
+                            <div class="summary-status" role="status" data-summary-generation-status="{{ summary_generation_status }}" data-status-url="{{ path('app_daily_summary_status') }}">
+                                <svg class="icon icon--sm"><use href="#i-clock"></use></svg>
+                                <span>Generando el resumen… <span class="summary-status__meta">Pedido a las {{ summary_generation.requestedAt|date('H:i', local_timezone) }} · se actualizará solo al terminar</span></span>
+                            </div>
+                        {% elseif summary_generation_status == 'FAILED' %}
+                            <div class="entry__error-box summary-status" role="status">
+                                <svg class="icon icon--sm"><use href="#i-error-outline"></use></svg>
+                                <span>No se pudo generar el resumen ({{ (summary_generation.finishedAt ?? summary_generation.requestedAt)|date('H:i', local_timezone) }})</span>
+                            </div>
+                        {% endif %}
+                        <form method="post" action="{{ path('app_daily_summary_generate') }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('daily_summary_generate') }}">
+                            <button class="btn-action summary-generate__button" type="submit"{% if summary_in_progress %} disabled{% endif %}>
+                                <svg class="icon icon--sm"><use href="#i-refresh"></use></svg>
+                                {% if summary_generation_status == 'FAILED' %}Reintentar{% elseif daily_summary %}<span class="summary-generate__label--long">Regenerar resumen</span><span class="summary-generate__label--short">Regenerar</span>{% else %}Generar resumen{% endif %}
+                            </button>
+                        </form>
                     </div>
-                {% endif %}
-                {% include '_partials/summary_metrics.html.twig' with {summary: daily_summary} %}
+                </section>
+
+                <section class="upcoming-card" aria-label="Próximos recordatorios">
+                    <h2>Próximos recordatorios</h2>
+                    {% if upcoming_reminders_data.nearest_reminders is empty %}
+                        <p class="upcoming-card__empty">Sin recordatorios en los próximos días.</p>
+                    {% else %}
+                        {% for reminder in upcoming_reminders_data.nearest_reminders %}
+                            <p class="upcoming-card__item"><span class="upcoming-card__when">{{ upcoming_reminders_data.nearest_date|date('d/m') }}{% if reminder.time %} {{ reminder.time|date('H:i') }}{% endif %}</span> {{ reminder.text }}</p>
+                        {% endfor %}
+                    {% endif %}
+                    <a class="upcoming-card__link" href="{{ path('app_recordatorios') }}">Ver todos</a>
+                </section>
             </div>
-        {% endif %}
+
+            <section class="diario__log" aria-label="Audios del día">
+                <div class="filter-row">
+                    <h2 class="diario__log-title">{{ entries|length }} audio{{ entries|length == 1 ? '' : 's' }}</h2>
+                    {% include '_partials/status_filter.html.twig' with {
+                        route: 'app_diario',
+                        route_params: {},
+                        status_filter: status_filter,
+                    } %}
+                </div>
+
+                {% include '_partials/entry_log.html.twig' %}
+            </section>
+        </div>
     </main>
 {% endblock %}

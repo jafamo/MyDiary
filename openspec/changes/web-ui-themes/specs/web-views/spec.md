@@ -53,8 +53,8 @@ En anchos ≥760px, el log y el resumen SHALL mostrarse en dos columnas: log a l
 
 Con el tema `cuaderno`:
 - Diario SHALL mostrar además una tira con los siete días de la semana en curso.
-- Cada día de la tira SHALL enlazar a `/historial?date=AAAA-MM-DD` y marcar los días con algún audio.
-- El día actual SHALL ir destacado con `aria-current="date"`.
+- Cada día distinto de hoy SHALL enlazar a `/historial?date=AAAA-MM-DD` y los días con algún audio SHALL ir marcados.
+- El día actual SHALL enlazar a Diario e ir destacado con `aria-current="date"`.
 - El log SHALL presentarse como línea de tiempo, con el estado de cada entrada indicado por el marcador además de por texto.
 
 Cada entrada `TRANSCRIBED` del log SHALL mostrar un pie de métricas con el tiempo de proceso, la velocidad (duración del audio dividida entre el tiempo de proceso, con un decimal y sufijo `×`) y el modelo de la transcripción. El panel de `DailySummary` SHALL mostrar un pie de métricas con tokens de entrada, salida y total, el tiempo de generación y el modelo. El log SHALL poder filtrarse por estado (`PENDING`/`TRANSCRIBED`/`ERROR`, o sin filtro); la actividad no se ve afectada por este filtro. El gráfico de 14 días SHALL tener una alternativa textual (`role="img"` con `aria-label`).
