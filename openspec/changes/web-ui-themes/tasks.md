@@ -2,14 +2,14 @@
 
 - [x] 0.1 Confirmar con el usuario las decisiones D1, D2, D3 y D5 de `design.md`: columna, fuentes autoalojadas, mismo HTML y sin modo oscuro
 - [ ] 0.1b Confirmar en la revisión D4, D6, D7, D8 y las preguntas abiertas
-- [ ] 0.2 `openspec validate web-ui-themes` en verde y crear la rama `git flow feature start web-ui-themes`
+- [x] 0.2 `openspec validate web-ui-themes` en verde y crear la rama `git flow feature start web-ui-themes`
 
 ## 1. Modelo y preferencia de tema
 
-- [ ] 1.1 Enum `App\Enum\UiTheme` (`moderno`, `cuaderno`) con `default()`, `label()` e `icon()` (id del símbolo del sprite)
-- [ ] 1.2 Campo `uiTheme` en `User` (`enumType: UiTheme`, por defecto `Moderno`) con getter/setter
-- [ ] 1.3 Migración: `ALTER TABLE app_user ADD ui_theme VARCHAR(20) DEFAULT 'moderno' NOT NULL` (con `down()`)
-- [ ] 1.4 Test de la entidad o migración: usuario existente queda en `moderno`
+- [x] 1.1 Enum `App\Entity\UiTheme` (`moderno`, `cuaderno`) con `default()`, `label()` e `icon()` (id del símbolo del sprite)
+- [x] 1.2 Campo `uiTheme` en `User` (`enumType: UiTheme`, por defecto `Moderno`) con getter/setter
+- [x] 1.3 Migración: `ALTER TABLE app_user ADD ui_theme VARCHAR(20) DEFAULT 'moderno' NOT NULL` (con `down()`)
+- [x] 1.4 Test de la entidad y de la columna (`UserRepositoryTest`): usuario existente queda en `moderno`
 
 ## 2. Cambio de tema (backend)
 

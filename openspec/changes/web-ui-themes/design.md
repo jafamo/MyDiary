@@ -65,7 +65,7 @@ Solo se carga la familia del tema activo. Pesos: Plus Jakarta Sans 400/600/700, 
 
 ### D4. Dónde vive el catálogo de temas
 
-- **A (recomendada)**: enum `App\Enum\UiTheme` (`Moderno = 'moderno'`, `Cuaderno = 'cuaderno'`, con `default()` y etiqueta e icono para el menú). Es el «sitio compartido genérico» que piden las convenciones, se valida con `tryFrom` y Doctrine lo mapea con `enumType`.
+- **A (recomendada)**: enum `App\Entity\UiTheme` (junto a los demás enums del proyecto, como `AudioRecordingStatus`; `MODERNO = 'moderno'`, `CUADERNO = 'cuaderno'`, con `default()` y etiqueta e icono para el menú). Es el «sitio compartido genérico» que piden las convenciones, se valida con `tryFrom` y Doctrine lo mapea con `enumType`.
 - B: parámetro `app.ui_themes` en `config/services.yaml`. Más flexible, pero sin tipado y sin uso real que lo justifique.
 
 ### D5. Modo oscuro
