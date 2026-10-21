@@ -22,7 +22,7 @@
             {route: 'app_busqueda', label: 'Búsqueda', short: 'Buscar', icon: 'i-search', primary: true},
             {route: 'app_recordatorios', label: 'Recordatorios', short: 'Avisos', icon: 'i-bell', primary: true, badge: true},
             {route: 'app_estadisticas', label: 'Estadísticas', short: 'Estadísticas', icon: 'i-chart', primary: false},
-            {route: 'app_topics', label: 'Temas', short: 'Temas', icon: 'i-tag', primary: false},
+            {route: 'app_topics', label: 'Categorías', short: 'Categorías', icon: 'i-tag', primary: false},
         ] %}
         {% set secondary_active = nav_items|filter(item => not item.primary and current_route starts with item.route)|length > 0 %}
         {% set reminder_badge %}{% if upcoming_reminders_data.count > 0 %}<span class="nav-badge nav-badge--{{ upcoming_reminders_data.level }}">{{ upcoming_reminders_data.count }}</span>{% endif %}{% endset %}

@@ -23,7 +23,7 @@
         <div class="activity__sub">{% if week.delta == 0 %}Igual que la semana anterior{% else %}vs. semana anterior{% endif %}</div>
     </div>
     <div class="activity__stat activity__stat--topic">
-        <div class="activity__label">Tema del mes</div>
+        <div class="activity__label">Categoría del mes</div>
         {% if top_topic %}
             <div class="activity__value activity__value--text">{{ top_topic.name }}</div>
             <div class="activity__sub">{{ top_topic.count }} mención{{ top_topic.count == 1 ? '' : 'es' }}</div>

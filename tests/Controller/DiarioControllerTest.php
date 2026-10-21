@@ -67,6 +67,7 @@ class DiarioControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.entry__text', 'Contenido de prueba del diario');
         self::assertSelectorExists('.activity');
+        self::assertSelectorTextSame('.activity__stat--topic .activity__label', 'Categoría del mes');
     }
 
     public function testDiarioFiltersEntriesByStatus(): void

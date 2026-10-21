@@ -98,12 +98,15 @@ Distinto del caso anterior: aquí el audio en sí es válido, pero el servicio d
 
 ### 3.5 Vistas / menús (navegación vertical, tras login)
 - **Login**
-- **Diario** — audios + transcripciones del día actual, en este orden: actividad (racha y mejor racha, barras de audios de los últimos 14 días, audios de la semana con tendencia, tema del mes), resumen del día (cuando ya se generó, a partir de las 21:00 o bajo demanda, con «Regenerar resumen» al pie) y log de audios. En pantallas anchas, log a la izquierda y resumen más próximos recordatorios a la derecha. El log de entradas se puede filtrar por estado (Todos/Pendiente/Transcrito/Error). Cada transcripción muestra un pie con tiempo de proceso, velocidad (× tiempo real) y modelo; el resumen (aquí y en Resúmenes), tokens de entrada/salida/total, tiempo de generación y modelo. Las métricas ausentes (registros anteriores a su captura) se muestran como "—". Cada entrada, en cualquier estado, lleva un reproductor `<audio preload="none">` del fichero original, servido por `GET /audio/{id}/fichero` (con sesión; mismo comportamiento que el endpoint de la API, ver 3.7).
+- **Diario** — audios + transcripciones del día actual, en este orden: actividad (racha y mejor racha, barras de audios de los últimos 14 días, audios de la semana con tendencia, categoría del mes), resumen del día (cuando ya se generó, a partir de las 21:00 o bajo demanda, con «Regenerar resumen» al pie) y log de audios. En pantallas anchas, log a la izquierda y resumen más próximos recordatorios a la derecha. El log de entradas se puede filtrar por estado (Todos/Pendiente/Transcrito/Error). Cada transcripción muestra un pie con tiempo de proceso, velocidad (× tiempo real) y modelo; el resumen (aquí y en Resúmenes), tokens de entrada/salida/total, tiempo de generación y modelo. Las métricas ausentes (registros anteriores a su captura) se muestran como "—". Cada entrada, en cualquier estado, lleva un reproductor `<audio preload="none">` del fichero original, servido por `GET /audio/{id}/fichero` (con sesión; mismo comportamiento que el endpoint de la API, ver 3.7).
 - **Historial** — vista de calendario (mes) navegable, con acceso a los audios/transcripciones de cada día anterior. El log del día seleccionado admite el mismo filtro por estado que Diario.
-- **Estadísticas** — agregados: nº de audios/día, duración media, temas más frecuentes. Filtrable por rango de fechas y, combinable con este, por estado (recalcula la serie de audios/día, la media diaria y la duración media; el desglose de estados y el ranking de temas siempre muestran el total sin filtrar). Incluye la sección **Consumo IA** sobre el rango (no le afecta el filtro de estado): tokens totales con desglose entrada/salida, media de tokens por resumen, audio transcrito, tiempo de proceso Whisper/Ollama, gráfico de barras apiladas de tokens por día y tabla por día ("Ver como tabla").
+- **Estadísticas** — agregados: nº de audios/día, duración media, categorías más frecuentes. Filtrable por rango de fechas y, combinable con este, por estado (recalcula la serie de audios/día, la media diaria y la duración media; el desglose de estados y el ranking de categorías siempre muestran el total sin filtrar). Incluye la sección **Consumo IA** sobre el rango (no le afecta el filtro de estado): tokens totales con desglose entrada/salida, media de tokens por resumen, audio transcrito, tiempo de proceso Whisper/Ollama, gráfico de barras apiladas de tokens por día y tabla por día ("Ver como tabla").
+- **Categorías** (`/topics`) — gestión de los `topic`: tabla con nombre, nº de resúmenes y último uso, con búsqueda, orden y paginación en el navegador; renombrar (rechaza un nombre que ya usa otra categoría) y fusionar varias en una, con página de confirmación.
 - **Logout**
 
-**Navegación.** En ≥760px, barra lateral con todos los destinos y, al pie, el botón del usuario que abre un menú con la sección «Tema» y «Cerrar sesión». En móvil, barra superior (marca, botón de cambio de tema, campana) y barra inferior de 5 ítems (Diario, Historial, Buscar, Avisos, «Más»); «Más» abre un panel con Resúmenes, Estadísticas, Temas y «Cerrar sesión».
+**Navegación.** En ≥760px, barra lateral con todos los destinos y, al pie, el botón del usuario que abre un menú con la sección «Tema» y «Cerrar sesión». En móvil, barra superior (marca, botón de cambio de tema, campana) y barra inferior de 5 ítems (Diario, Historial, Buscar, Avisos, «Más»); «Más» abre un panel con Resúmenes, Estadísticas, Categorías y «Cerrar sesión».
+
+**Terminología.** En la web, los `topic` se llaman «Categorías» y «Tema» queda solo para el tema visual. La ruta `/topics`, la API `/api/v1/topics` (rutas, campos como `top_topic` y mensajes), las clases (`Topic`, `TopicController`…) y las tablas mantienen el nombre `topic`.
 
 **Temas visuales.** Dos temas claros, definidos en el enum `UiTheme`:
 - `moderno` (por defecto): tarjetas, Plus Jakarta Sans + JetBrains Mono, paleta cian.
@@ -270,9 +273,9 @@ Relación N:M con `topic` a través de tabla pivote `daily_summary_topic`.
 | Campo | Tipo | Notas |
 |---|---|---|
 | id | int/uuid | PK |
-| name | string | **unique** — nombre normalizado del tema (permite agregarlo en Estadísticas: "temas más frecuentes" entre días) |
+| name | string | **unique** — nombre normalizado de la categoría (en la web, «Categorías»; permite agregarlo en Estadísticas: "categorías más frecuentes" entre días) |
 
-No hay flujo de gestión manual de `topic`: se crean automáticamente al generar el resumen diario (3.3) si no existen ya con ese `name`.
+Se crean automáticamente al generar el resumen diario (3.3) si no existen ya con ese `name`; el usuario los renombra y fusiona en la vista Categorías (3.5) o con la API (3.7).
 
 ### `daily_summary_generation`
 | Campo | Tipo | Notas |

@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Confirmar fusión de temas{% endblock %}
+{% block title %}Confirmar fusión de categorías{% endblock %}
 
 {% block body %}
     <main class="content content--wide">
@@ -12,7 +12,7 @@
             dentro de <strong>{{ destination.name }}</strong>.
             {{ affected_count }} resumen{{ affected_count == 1 ? '' : 'es' }} diario{{ affected_count == 1 ? '' : 's' }} se verán afectados.
         </p>
-        <p>Los temas fusionados dejarán de existir. Esta acción no se puede deshacer.</p>
+        <p>Las categorías fusionadas dejarán de existir. Esta acción no se puede deshacer.</p>
 
         <form method="post" action="{{ path('app_topics_merge') }}">
             {% for origin in origins %}
