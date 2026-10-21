@@ -53,7 +53,7 @@ class TopicController
         if (null !== $duplicate) {
             return new Response($this->twig->render('topics/index.html.twig', [
                 'topics' => $this->topicRepository->findAllWithUsageCount(),
-                'rename_error' => sprintf('Ya existe un tema llamado "%s". Prueba a fusionarlos en su lugar.', $duplicate->getName()),
+                'rename_error' => sprintf('Ya existe una categoría llamada "%s". Prueba a fusionarlas en su lugar.', $duplicate->getName()),
             ]), Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 

@@ -39,7 +39,7 @@ class NavigationTest extends WebTestCase
         $crawler = $this->client->request('GET', '/');
 
         self::assertSame(
-            ['Diario', 'Historial', 'Resúmenes', 'Búsqueda', 'Recordatorios', 'Estadísticas', 'Temas'],
+            ['Diario', 'Historial', 'Resúmenes', 'Búsqueda', 'Recordatorios', 'Estadísticas', 'Categorías'],
             $crawler->filter('.sidebar__nav .navlink .navlink__label')->each(static fn ($node) => $node->text()),
         );
     }

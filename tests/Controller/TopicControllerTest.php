@@ -46,6 +46,10 @@ class TopicControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertStringContainsString('topic-ctrl-trabajo', $client->getResponse()->getContent());
+        self::assertSelectorTextSame('title', 'Categorías');
+        self::assertSelectorTextSame('h1', 'Categorías');
+        self::assertSelectorExists('#topics-search[placeholder="Buscar categoría…"]');
+        self::assertSelectorTextContains('#topics-empty-filter', 'Ninguna categoría coincide con');
     }
 
     public function testIndexRendersTableInDefaultOrderWithLastUsedAndRenameFormsOutsideMergeForm(): void
@@ -123,9 +127,37 @@ class TopicControllerTest extends WebTestCase
         ]);
 
         self::assertSame(422, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString(
+            'Ya existe una categoría llamada "topic-ctrl-trabajo". Prueba a fusionarlas en su lugar.',
+            $client->getCrawler()->filter('body')->text(),
+        );
 
         $this->entityManager->clear();
         self::assertSame('topic-ctrl-curro', $this->topicRepository->find($curroId)->getName());
+    }
+
+    public function testMergeConfirmPageUsesCategoryWording(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $this->bootServices();
+        $user = $this->createTestUser();
+
+        $trabajo = $this->createTopic('topic-ctrl-trabajo');
+        $curro = $this->createTopic('topic-ctrl-curro');
+
+        $client->loginUser($user);
+        $client->request('POST', '/topics/fusionar/confirmar', [
+            'topic_merge' => [
+                'origins' => [(string) $curro->getId()],
+                'destination' => (string) $trabajo->getId(),
+                '_token' => $this->csrfToken($client, 'topic_merge'),
+            ],
+        ]);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextSame('title', 'Confirmar fusión de categorías');
+        self::assertSelectorTextContains('body', 'Las categorías fusionadas dejarán de existir.');
     }
 
     public function testMergeReassignsDailySummariesAndDeletesOrigin(): void

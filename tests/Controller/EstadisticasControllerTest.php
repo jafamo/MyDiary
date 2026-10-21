@@ -78,6 +78,20 @@ class EstadisticasControllerTest extends WebTestCase
         self::assertSame('2026-07-10', $chartData[9]['date']);
     }
 
+    public function testTopicRankingUsesCategoryWording(): void
+    {
+        $client = static::createClient();
+        $this->bootServices();
+        $user = $this->createTestUser();
+
+        $client->loginUser($user);
+        $client->request('GET', '/estadisticas?range=custom&from=2001-01-01&to=2001-01-31');
+
+        self::assertResponseIsSuccessful();
+        self::assertAnySelectorTextContains('.section-title', 'Categorías más frecuentes');
+        self::assertSelectorTextSame('.topic-freq-empty', 'Sin categorías registradas en este rango.');
+    }
+
     public function testStatusFilterRecalculatesChartButNotStatusBreakdown(): void
     {
         $client = static::createClient();

@@ -45,7 +45,7 @@
     } else if (state.key === "count") {
       r = parseInt(a.dataset.count, 10) - parseInt(b.dataset.count, 10);
     } else {
-      // Los temas sin uso van siempre al final, en cualquier sentido
+      // Las categorías sin uso van siempre al final, en cualquier sentido
       var la = a.dataset.lastUsed, lb = b.dataset.lastUsed;
       if (!la && !lb) {
         r = 0;
@@ -178,7 +178,7 @@
 
     emptyMsg.hidden = total !== 0;
     emptyMsg.querySelector("span").textContent = state.query.trim();
-    meta.textContent = q === "" ? rows.length + " temas" : total + " de " + rows.length + " temas";
+    meta.textContent = q === "" ? rows.length + " categorías" : total + " de " + rows.length + " categorías";
 
     renderPager(total, totalPages, start, visible.length);
     renderSortHeaders();
