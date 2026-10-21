@@ -25,5 +25,5 @@
 
 - [x] 4.1 `Especificaciones.md`: navegación y vistas con «Categorías», y nota «`Topic` = Categoría en la web; código, API y BD siguen como `topic`»
 - [x] 4.2 CHANGELOG `## [Sin publicar]` → `Cambiado`
-- [ ] 4.3 Sincronizar las specs y archivar el cambio
+- [x] 4.3 Sincronizar las specs y archivar el cambio
 - [ ] 4.4 Resumen de revisión al usuario y esperar su OK antes del finish

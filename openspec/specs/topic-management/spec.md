@@ -1,23 +1,21 @@
 ## Purpose
 
 Gestión manual de `Topic`: permite corregir los temas creados automáticamente al generar los `DailySummary`, fusionando duplicados y renombrándolos, para que el ranking de Estadísticas y las etiquetas de Resúmenes no se ensucien con el tiempo.
-
 ## Requirements
-
 ### Requirement: Vista de gestión de temas
-El sistema SHALL exponer una vista "Temas" (`/topics`) que presenta todos los `Topic` existentes en una tabla con una fila por `Topic` y las columnas: selección para fusionar, `name`, número de `DailySummary` asociados, último uso (fecha del `DailySummary` más reciente asociado, vacía si no tiene ninguno) y acción de renombrar. Por defecto las filas se ordenan por número de `DailySummary` asociados descendente y, a igualdad, por `name` ascendente. La tabla SHALL permitir filtrar por nombre, reordenar por columna y paginar sin recargar la página (25 filas por página por defecto, con opción de 50 y 100), y la selección de temas para fusionar SHALL conservarse aunque el filtro oculte filas seleccionadas o estén en otra página.
+El sistema SHALL exponer una vista "Categorías" (`/topics`) que presenta todos los `Topic` existentes en una tabla con una fila por `Topic` y las columnas: selección para fusionar, `name`, número de `DailySummary` asociados, último uso (fecha del `DailySummary` más reciente asociado, vacía si no tiene ninguno) y acción de renombrar. Por defecto las filas se ordenan por número de `DailySummary` asociados descendente y, a igualdad, por `name` ascendente. La tabla SHALL permitir filtrar por nombre, reordenar por columna y paginar sin recargar la página (25 filas por página por defecto, con opción de 50 y 100), y la selección de categorías para fusionar SHALL conservarse aunque el filtro oculte filas seleccionadas o estén en otra página.
 
 #### Scenario: Listado en tabla ordenado por frecuencia
 - **WHEN** el usuario visita `/topics`
 - **THEN** se muestra una tabla con todos los `Topic`, ordenados de mayor a menor número de `DailySummary` asociados, con su nombre, su número de resúmenes y su fecha de último uso
 
-#### Scenario: Tema sin resúmenes asociados
+#### Scenario: Categoría sin resúmenes asociados
 - **WHEN** existe un `Topic` sin ningún `DailySummary` asociado
 - **THEN** aparece en la tabla con 0 resúmenes y la columna de último uso vacía
 
-#### Scenario: Sin temas todavía
+#### Scenario: Sin categorías todavía
 - **WHEN** el usuario visita `/topics` y no existe ningún `Topic`
-- **THEN** la vista se muestra sin error, indicando que no hay temas todavía
+- **THEN** la vista se muestra sin error, con el texto «No hay categorías todavía.»
 
 #### Scenario: Búsqueda por nombre
 - **WHEN** el usuario escribe "trab" en el campo de búsqueda
@@ -49,11 +47,11 @@ El sistema SHALL exponer una vista "Temas" (`/topics`) que presenta todos los `T
 
 #### Scenario: Destino restringido a los seleccionados
 - **WHEN** el usuario tiene marcados "curro" y "trabajo"
-- **THEN** la barra de fusión indica 2 temas seleccionados y el selector de destino ofrece solo "curro" y "trabajo"
+- **THEN** la barra de fusión indica 2 seleccionados y el selector de destino ofrece solo "curro" y "trabajo"
 
 #### Scenario: Aviso de seleccionados fuera de la vista
-- **WHEN** el usuario tiene marcados 3 temas y el filtro o la página actual oculta 2 de ellos
-- **THEN** la barra de fusión indica 3 temas seleccionados y avisa de que 2 están fuera de la vista
+- **WHEN** el usuario tiene marcadas 3 categorías y el filtro o la página actual oculta 2 de ellos
+- **THEN** la barra de fusión indica 3 seleccionados y avisa de que 2 están fuera de la vista
 
 #### Scenario: Funcionamiento sin JavaScript
 - **WHEN** la página se usa con JavaScript desactivado
@@ -68,7 +66,7 @@ El sistema SHALL permitir renombrar un `Topic` existente desde la vista de gesti
 
 #### Scenario: Renombrado a un nombre duplicado
 - **WHEN** el usuario intenta renombrar un `Topic` a un `name` que ya usa otro `Topic` (comparando sin distinguir mayúsculas/minúsculas)
-- **THEN** el sistema rechaza el renombrado y muestra un error indicando que ya existe un tema con ese nombre
+- **THEN** el sistema rechaza el renombrado y muestra en la página el error «Ya existe una categoría llamada "<nombre>". Prueba a fusionarlas en su lugar.»
 
 ### Requirement: Fusionar temas duplicados
 El sistema SHALL permitir fusionar dos o más `Topic` en un `Topic` superviviente elegido por el usuario: todos los `DailySummary` asociados a los `Topic` fusionados quedan asociados al superviviente (sin duplicar la asociación si un `DailySummary` ya estaba vinculado a ambos), y los `Topic` fusionados se eliminan.
@@ -84,3 +82,31 @@ El sistema SHALL permitir fusionar dos o más `Topic` en un `Topic` supervivient
 #### Scenario: Confirmación antes de fusionar
 - **WHEN** el usuario inicia una fusión de temas
 - **THEN** el sistema muestra los nombres de los `Topic` origen, el `Topic` destino y el número de `DailySummary` afectados, y solo ejecuta la fusión tras confirmación explícita
+
+### Requirement: Término «Categorías» en la interfaz web
+La interfaz web SHALL llamar «Categorías» (singular «categoría») a los `Topic` en todos sus textos visibles: navegación, vista de gestión, confirmación de fusión, mensajes de error de la web, indicador del Diario y ranking de Estadísticas. El término «Tema» SHALL quedar reservado en la web para el tema visual (capability `ui-themes`). Este requisito no cambia la ruta `/topics`, la API `/api/v1/topics` (rutas, campos y mensajes), las clases ni las tablas `topic` y `daily_summary_topic`.
+
+#### Scenario: Título de la vista de gestión
+- **WHEN** el usuario visita `/topics`
+- **THEN** el título de la página y el encabezado dicen «Categorías», el buscador tiene el placeholder «Buscar categoría…» y el contador dice «N categorías»
+
+#### Scenario: Filtro sin coincidencias
+- **WHEN** el usuario escribe en el buscador de `/topics` un término que no coincide con ningún `Topic`
+- **THEN** se muestra «Ninguna categoría coincide con «<término>»»
+
+#### Scenario: Confirmación de fusión
+- **WHEN** el usuario pide fusionar varios `Topic`
+- **THEN** la página de confirmación se titula «Confirmar fusión de categorías» y avisa de que «Las categorías fusionadas dejarán de existir.»
+
+#### Scenario: Indicador del Diario
+- **WHEN** el usuario visita Diario y hay un `Topic` más frecuente en el mes
+- **THEN** el indicador se titula «Categoría del mes»
+
+#### Scenario: Ranking de Estadísticas
+- **WHEN** el usuario visita Estadísticas
+- **THEN** la sección del ranking se titula «Categorías más frecuentes» y, si el rango no tiene ninguna, muestra «Sin categorías registradas en este rango.»
+
+#### Scenario: La API conserva sus nombres
+- **WHEN** un cliente llama a `GET /api/v1/topics` o `GET /api/v1/diario`
+- **THEN** las rutas y los campos (`top_topic`, `usage_count`…) son los mismos que antes del cambio
+
