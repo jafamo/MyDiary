@@ -4,6 +4,12 @@ Formato inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 
 ## [Sin publicar]
 
+### Ramas integradas en `develop`
+- `feature/rename-topics-to-categories`
+
+### Cambiado
+- **«Temas» pasa a llamarse «Categorías» en la web**, para no confundirse con el tema visual (Moderno/Cuaderno): menú y panel «Más», página de gestión con su buscador, contador y confirmación de fusión, error de nombre repetido al renombrar, «Categoría del mes» en Diario y «Categorías más frecuentes» en Estadísticas. La dirección `/topics`, la API y la base de datos no cambian: no hay migración.
+
 ## [0.20.0] - 2026-10-20
 
 ### Ramas integradas en `develop`
